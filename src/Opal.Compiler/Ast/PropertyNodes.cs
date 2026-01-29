@@ -68,7 +68,13 @@ public sealed class PropertyNode : AstNode
         CSharpAttributes = csharpAttributes ?? Array.Empty<OpalAttributeNode>();
     }
 
-    public bool IsAutoProperty => Getter == null && Setter == null && Initer == null;
+    /// <summary>
+    /// True if this is an auto-implemented property (all accessors have empty bodies).
+    /// </summary>
+    public bool IsAutoProperty =>
+        (Getter == null || Getter.IsAutoImplemented) &&
+        (Setter == null || Setter.IsAutoImplemented) &&
+        (Initer == null || Initer.IsAutoImplemented);
 
     public override void Accept(IAstVisitor visitor) => visitor.Visit(this);
     public override T Accept<T>(IAstVisitor<T> visitor) => visitor.Visit(this);

@@ -147,6 +147,8 @@ public sealed class OpalEmitter : IAstVisitor<string>
         var modifiers = new List<string>();
         if (node.IsAbstract) modifiers.Add("abs");
         if (node.IsSealed) modifiers.Add("sealed");
+        if (node.IsPartial) modifiers.Add("partial");
+        if (node.IsStatic) modifiers.Add("static");
 
         var modStr = modifiers.Count > 0 ? $":{string.Join(",", modifiers)}" : "";
         var baseStr = node.BaseClass != null ? $":{node.BaseClass}" : "";
@@ -221,15 +223,18 @@ public sealed class OpalEmitter : IAstVisitor<string>
         var typeName = TypeMapper.CSharpToOpal(node.TypeName);
         var attrs = EmitCSharpAttributes(node.CSharpAttributes);
 
+        // Build accessors string
+        var accessors = "";
+        if (node.Getter != null) accessors += "get";
+        if (node.Setter != null) accessors += accessors.Length > 0 ? ",set" : "set";
+        if (node.Initer != null) accessors += accessors.Length > 0 ? ",init" : "init";
+
+        var defaultVal = node.DefaultValue != null ? $" = {node.DefaultValue.Accept(this)}" : "";
+
         if (node.IsAutoProperty)
         {
-            var accessors = "";
-            if (node.Getter != null) accessors += "get";
-            if (node.Setter != null) accessors += accessors.Length > 0 ? ",set" : "set";
-            if (node.Initer != null) accessors += accessors.Length > 0 ? ",init" : "init";
-
-            var defaultVal = node.DefaultValue != null ? $" = {node.DefaultValue.Accept(this)}" : "";
-            AppendLine($"§PROP[{node.Id}:{node.Name}:{typeName}:{visibility}:{accessors}]{attrs}{defaultVal}");
+            var accessorsPart = accessors.Length > 0 ? $":{accessors}" : "";
+            AppendLine($"§PROP[{node.Id}:{node.Name}:{typeName}:{visibility}{accessorsPart}]{attrs}{defaultVal}");
         }
         else
         {
@@ -247,6 +252,12 @@ public sealed class OpalEmitter : IAstVisitor<string>
             if (node.Initer != null)
             {
                 Visit(node.Initer);
+            }
+
+            // Emit default value for non-auto properties
+            if (node.DefaultValue != null)
+            {
+                AppendLine($"§DEFAULT{defaultVal}");
             }
 
             Dedent();
@@ -497,6 +508,18 @@ public sealed class OpalEmitter : IAstVisitor<string>
         var expr = node.Expression.Accept(this);
         var tag = node.IsWriteLine ? "§P" : "§Pf";
         AppendLine($"{tag} {expr}");
+        return "";
+    }
+
+    public string Visit(ContinueStatementNode node)
+    {
+        AppendLine("§CONTINUE");
+        return "";
+    }
+
+    public string Visit(BreakStatementNode node)
+    {
+        AppendLine("§BREAK");
         return "";
     }
 
@@ -794,7 +817,15 @@ public sealed class OpalEmitter : IAstVisitor<string>
         var args = string.Join(" ", node.Arguments.Select(a => a.Accept(this)));
         var argsStr = args.Length > 0 ? $" {args}" : "";
 
-        return $"§NEW[{node.TypeName}{typeArgs}]{argsStr}";
+        // Handle object initializers
+        var initStr = "";
+        if (node.Initializers.Count > 0)
+        {
+            var inits = node.Initializers.Select(i => $"{i.PropertyName}: {i.Value.Accept(this)}");
+            initStr = $" {{ {string.Join(", ", inits)} }}";
+        }
+
+        return $"§NEW[{node.TypeName}{typeArgs}]{argsStr}{initStr}";
     }
 
     public string Visit(CallExpressionNode node)
@@ -1090,14 +1121,16 @@ public sealed class OpalEmitter : IAstVisitor<string>
     {
         var evt = node.Event.Accept(this);
         var handler = node.Handler.Accept(this);
-        return $"{evt} += {handler}";
+        AppendLine($"§SUB {evt} += {handler}");
+        return "";
     }
 
     public string Visit(EventUnsubscribeNode node)
     {
         var evt = node.Event.Accept(this);
         var handler = node.Handler.Accept(this);
-        return $"{evt} -= {handler}";
+        AppendLine($"§UNSUB {evt} -= {handler}");
+        return "";
     }
 
     // Modern operator nodes

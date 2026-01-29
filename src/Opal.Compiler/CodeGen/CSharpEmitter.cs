@@ -546,6 +546,16 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         return $"{method}({expr});";
     }
 
+    public string Visit(ContinueStatementNode node)
+    {
+        return "continue;";
+    }
+
+    public string Visit(BreakStatementNode node)
+    {
+        return "break;";
+    }
+
     // Phase 3: Type System
 
     public string Visit(RecordDefinitionNode node)

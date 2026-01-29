@@ -439,6 +439,357 @@ public class CSharpToOpalConversionTests
 
     #endregion
 
+    #region Object Initializer Tests
+
+    [Fact]
+    public void Convert_ObjectInitializer_PreservesPropertyAssignments()
+    {
+        var csharpSource = """
+            var person = new Person { Name = "John", Age = 30, City = "NYC" };
+            """;
+
+        var result = _converter.Convert(csharpSource);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        Assert.NotNull(result.OpalSource);
+        Assert.Contains("§NEW[Person]", result.OpalSource);
+        Assert.Contains("Name:", result.OpalSource);
+        Assert.Contains("Age:", result.OpalSource);
+        Assert.Contains("City:", result.OpalSource);
+        Assert.Contains("object-initializer", result.Context.UsedFeatures);
+    }
+
+    [Fact]
+    public void Convert_ObjectInitializer_WithConstructorArgs()
+    {
+        var csharpSource = """
+            var config = new Settings("default") { Timeout = 30, Enabled = true };
+            """;
+
+        var result = _converter.Convert(csharpSource);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        Assert.NotNull(result.OpalSource);
+        Assert.Contains("§NEW[Settings]", result.OpalSource);
+        Assert.Contains("Timeout:", result.OpalSource);
+        Assert.Contains("Enabled:", result.OpalSource);
+    }
+
+    [Fact]
+    public void Convert_ObjectInitializer_NestedObjects()
+    {
+        var csharpSource = """
+            var order = new Order
+            {
+                Customer = new Customer { Name = "Alice" },
+                Total = 100.00
+            };
+            """;
+
+        var result = _converter.Convert(csharpSource);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        Assert.NotNull(result.OpalSource);
+        Assert.Contains("Order", result.OpalSource);
+        Assert.Contains("Customer:", result.OpalSource);
+        Assert.Contains("Total:", result.OpalSource);
+    }
+
+    #endregion
+
+    #region Class Modifier Tests
+
+    [Fact]
+    public void Convert_PartialClass_PreservesModifier()
+    {
+        var csharpSource = """
+            public partial class MyClass
+            {
+                public void Method() { }
+            }
+            """;
+
+        var result = _converter.Convert(csharpSource);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        Assert.NotNull(result.Ast);
+        Assert.Single(result.Ast.Classes);
+        Assert.True(result.Ast.Classes[0].IsPartial);
+        Assert.Contains("partial-class", result.Context.UsedFeatures);
+    }
+
+    [Fact]
+    public void Convert_StaticClass_PreservesModifier()
+    {
+        var csharpSource = """
+            public static class Utilities
+            {
+                public static int Add(int a, int b) => a + b;
+            }
+            """;
+
+        var result = _converter.Convert(csharpSource);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        Assert.NotNull(result.Ast);
+        Assert.Single(result.Ast.Classes);
+        Assert.True(result.Ast.Classes[0].IsStatic);
+        Assert.Contains("static-class", result.Context.UsedFeatures);
+    }
+
+    [Fact]
+    public void Convert_InternalStaticPartialClass_PreservesAllModifiers()
+    {
+        var csharpSource = """
+            internal static partial class Helper
+            {
+                public static void DoSomething() { }
+            }
+            """;
+
+        var result = _converter.Convert(csharpSource);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        Assert.NotNull(result.Ast);
+        Assert.Single(result.Ast.Classes);
+        var cls = result.Ast.Classes[0];
+        Assert.True(cls.IsPartial);
+        Assert.True(cls.IsStatic);
+        Assert.Contains("partial", result.OpalSource);
+        Assert.Contains("static", result.OpalSource);
+    }
+
+    #endregion
+
+    #region Event Subscription Tests
+
+    [Fact]
+    public void Convert_EventSubscription_CreatesSubscribeNode()
+    {
+        var csharpSource = """
+            public class Handler
+            {
+                public void Setup(Button button)
+                {
+                    button.Click += OnClick;
+                }
+
+                private void OnClick(object sender, EventArgs e) { }
+            }
+            """;
+
+        var result = _converter.Convert(csharpSource);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        Assert.NotNull(result.OpalSource);
+        Assert.Contains("§SUB", result.OpalSource);
+        Assert.Contains("+=", result.OpalSource);
+        Assert.Contains("event-subscribe", result.Context.UsedFeatures);
+    }
+
+    [Fact]
+    public void Convert_EventUnsubscription_CreatesUnsubscribeNode()
+    {
+        var csharpSource = """
+            public class Handler
+            {
+                public void Cleanup(Button button)
+                {
+                    button.Click -= OnClick;
+                }
+
+                private void OnClick(object sender, EventArgs e) { }
+            }
+            """;
+
+        var result = _converter.Convert(csharpSource);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        Assert.NotNull(result.OpalSource);
+        Assert.Contains("§UNSUB", result.OpalSource);
+        Assert.Contains("-=", result.OpalSource);
+        Assert.Contains("event-unsubscribe", result.Context.UsedFeatures);
+    }
+
+    [Fact]
+    public void Convert_EventSubscriptionWithLambda_Handled()
+    {
+        var csharpSource = """
+            public class Handler
+            {
+                public void Setup(Button button)
+                {
+                    button.Click += (s, e) => Console.WriteLine("Clicked");
+                }
+            }
+            """;
+
+        var result = _converter.Convert(csharpSource);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        Assert.NotNull(result.OpalSource);
+        Assert.Contains("§SUB", result.OpalSource);
+    }
+
+    #endregion
+
+    #region Continue Statement Tests
+
+    [Fact]
+    public void Convert_ContinueInForEach_PreservesStatement()
+    {
+        var csharpSource = """
+            var items = new[] { 1, 2, 3, 4, 5 };
+            foreach (var item in items)
+            {
+                if (item % 2 == 0)
+                    continue;
+                Console.WriteLine(item);
+            }
+            """;
+
+        var result = _converter.Convert(csharpSource);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        Assert.NotNull(result.OpalSource);
+        Assert.Contains("§CONTINUE", result.OpalSource);
+        Assert.Contains("continue", result.Context.UsedFeatures);
+    }
+
+    [Fact]
+    public void Convert_ContinueInForLoop_PreservesStatement()
+    {
+        var csharpSource = """
+            for (int i = 0; i < 10; i++)
+            {
+                if (i == 5)
+                    continue;
+                Console.WriteLine(i);
+            }
+            """;
+
+        var result = _converter.Convert(csharpSource);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        Assert.NotNull(result.OpalSource);
+        Assert.Contains("§CONTINUE", result.OpalSource);
+    }
+
+    [Fact]
+    public void Convert_ContinueInWhileLoop_PreservesStatement()
+    {
+        var csharpSource = """
+            int i = 0;
+            while (i < 10)
+            {
+                i++;
+                if (i % 2 == 0)
+                    continue;
+                Console.WriteLine(i);
+            }
+            """;
+
+        var result = _converter.Convert(csharpSource);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        Assert.NotNull(result.OpalSource);
+        Assert.Contains("§CONTINUE", result.OpalSource);
+    }
+
+    [Fact]
+    public void Convert_BreakInForLoop_PreservesStatement()
+    {
+        var csharpSource = """
+            for (int i = 0; i < 100; i++)
+            {
+                if (i > 10)
+                    break;
+                Console.WriteLine(i);
+            }
+            """;
+
+        var result = _converter.Convert(csharpSource);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        Assert.NotNull(result.OpalSource);
+        Assert.Contains("§BREAK", result.OpalSource);
+        Assert.Contains("break", result.Context.UsedFeatures);
+    }
+
+    #endregion
+
+    #region Property Default Value Tests
+
+    [Fact]
+    public void Convert_PropertyWithDefaultValue_PreservesInitializer()
+    {
+        var csharpSource = """
+            public class Config
+            {
+                public string Name { get; set; } = "";
+                public int Count { get; set; } = 0;
+                public bool Enabled { get; set; } = true;
+            }
+            """;
+
+        var result = _converter.Convert(csharpSource);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        Assert.NotNull(result.Ast);
+        Assert.Single(result.Ast.Classes);
+
+        var cls = result.Ast.Classes[0];
+        Assert.Equal(3, cls.Properties.Count);
+
+        // Verify properties have default values
+        var nameProp = cls.Properties.First(p => p.Name == "Name");
+        Assert.NotNull(nameProp.DefaultValue);
+
+        var countProp = cls.Properties.First(p => p.Name == "Count");
+        Assert.NotNull(countProp.DefaultValue);
+
+        var enabledProp = cls.Properties.First(p => p.Name == "Enabled");
+        Assert.NotNull(enabledProp.DefaultValue);
+    }
+
+    [Fact]
+    public void Convert_PropertyDefaultValue_EmittedCorrectly()
+    {
+        var csharpSource = """
+            public class Person
+            {
+                public string Name { get; set; } = "Unknown";
+            }
+            """;
+
+        var result = _converter.Convert(csharpSource);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        Assert.NotNull(result.OpalSource);
+        Assert.Contains("§PROP", result.OpalSource);
+        Assert.Contains("= \"Unknown\"", result.OpalSource);
+    }
+
+    [Fact]
+    public void Convert_PropertyWithStringEmptyDefault_Preserved()
+    {
+        var csharpSource = """
+            public class Data
+            {
+                public string Value { get; set; } = string.Empty;
+            }
+            """;
+
+        var result = _converter.Convert(csharpSource);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        Assert.NotNull(result.Ast);
+        var prop = result.Ast.Classes[0].Properties[0];
+        Assert.NotNull(prop.DefaultValue);
+    }
+
+    #endregion
+
     #region Helper Methods
 
     private static string GetErrorMessage(ConversionResult result)

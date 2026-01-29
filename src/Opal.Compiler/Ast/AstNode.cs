@@ -40,6 +40,8 @@ public interface IAstVisitor
     void Visit(BindStatementNode node);
     void Visit(BinaryOperationNode node);
     void Visit(UnaryOperationNode node);
+    void Visit(ContinueStatementNode node);
+    void Visit(BreakStatementNode node);
     // v2 built-in operations
     void Visit(PrintStatementNode node);
     // Phase 3: Type System
@@ -172,6 +174,8 @@ public interface IAstVisitor<T>
     T Visit(BindStatementNode node);
     T Visit(BinaryOperationNode node);
     T Visit(UnaryOperationNode node);
+    T Visit(ContinueStatementNode node);
+    T Visit(BreakStatementNode node);
     // v2 built-in operations
     T Visit(PrintStatementNode node);
     // Phase 3: Type System

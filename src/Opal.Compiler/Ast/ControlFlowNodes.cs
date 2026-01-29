@@ -221,6 +221,30 @@ public enum BinaryOperator
 /// <summary>
 /// Helper methods for BinaryOperator.
 /// </summary>
+/// <summary>
+/// Represents a continue statement to skip to next iteration of a loop.
+/// §CONTINUE
+/// </summary>
+public sealed class ContinueStatementNode : StatementNode
+{
+    public ContinueStatementNode(TextSpan span) : base(span) { }
+
+    public override void Accept(IAstVisitor visitor) => visitor.Visit(this);
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.Visit(this);
+}
+
+/// <summary>
+/// Represents a break statement to exit a loop.
+/// §BREAK
+/// </summary>
+public sealed class BreakStatementNode : StatementNode
+{
+    public BreakStatementNode(TextSpan span) : base(span) { }
+
+    public override void Accept(IAstVisitor visitor) => visitor.Visit(this);
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.Visit(this);
+}
+
 public static class BinaryOperatorExtensions
 {
     public static BinaryOperator? FromString(string? value)

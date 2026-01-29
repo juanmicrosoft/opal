@@ -198,7 +198,12 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
         var name = node.Identifier.Text;
         var isAbstract = node.Modifiers.Any(SyntaxKind.AbstractKeyword);
         var isSealed = node.Modifiers.Any(SyntaxKind.SealedKeyword);
+        var isPartial = node.Modifiers.Any(SyntaxKind.PartialKeyword);
+        var isStatic = node.Modifiers.Any(SyntaxKind.StaticKeyword);
         var csharpAttrs = ConvertAttributes(node.AttributeLists);
+
+        if (isPartial) _context.RecordFeatureUsage("partial-class");
+        if (isStatic) _context.RecordFeatureUsage("static-class");
 
         string? baseClass = null;
         var interfaces = new List<string>();
@@ -259,6 +264,8 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
             name,
             isAbstract,
             isSealed,
+            isPartial,
+            isStatic,
             baseClass,
             interfaces,
             typeParameters,
@@ -685,8 +692,8 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
             ThrowStatementSyntax throwStmt => ConvertThrowStatement(throwStmt),
             BlockSyntax blockStmt => ConvertBlockAsStatement(blockStmt),
             SwitchStatementSyntax switchStmt => ConvertSwitchStatement(switchStmt),
-            BreakStatementSyntax => null, // Break is handled within loops
-            ContinueStatementSyntax continueStmt => HandleUnsupportedStatement(continueStmt, "continue statements"),
+            BreakStatementSyntax breakStmt => ConvertBreakStatement(breakStmt),
+            ContinueStatementSyntax continueStmt => ConvertContinueStatement(continueStmt),
             _ => HandleUnsupportedStatement(statement)
         };
     }
@@ -714,6 +721,20 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
         return new ReturnStatementNode(GetTextSpan(node), expr);
     }
 
+    private ContinueStatementNode ConvertContinueStatement(ContinueStatementSyntax node)
+    {
+        _context.RecordFeatureUsage("continue");
+        _context.IncrementConverted();
+        return new ContinueStatementNode(GetTextSpan(node));
+    }
+
+    private BreakStatementNode ConvertBreakStatement(BreakStatementSyntax node)
+    {
+        _context.RecordFeatureUsage("break");
+        _context.IncrementConverted();
+        return new BreakStatementNode(GetTextSpan(node));
+    }
+
     private StatementNode ConvertExpressionStatement(ExpressionStatementSyntax node)
     {
         var expr = node.Expression;
@@ -722,6 +743,26 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
         // Handle assignment expressions
         if (expr is AssignmentExpressionSyntax assignment)
         {
+            // Handle event subscription (+=)
+            if (assignment.IsKind(SyntaxKind.AddAssignmentExpression))
+            {
+                _context.RecordFeatureUsage("event-subscribe");
+                return new EventSubscribeNode(
+                    GetTextSpan(node),
+                    ConvertExpression(assignment.Left),
+                    ConvertExpression(assignment.Right));
+            }
+
+            // Handle event unsubscription (-=)
+            if (assignment.IsKind(SyntaxKind.SubtractAssignmentExpression))
+            {
+                _context.RecordFeatureUsage("event-unsubscribe");
+                return new EventUnsubscribeNode(
+                    GetTextSpan(node),
+                    ConvertExpression(assignment.Left),
+                    ConvertExpression(assignment.Right));
+            }
+
             return new AssignmentStatementNode(
                 GetTextSpan(node),
                 ConvertExpression(assignment.Left),
@@ -1159,7 +1200,23 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
             .Select(a => ConvertExpression(a.Expression))
             .ToList() ?? new List<ExpressionNode>();
 
-        return new NewExpressionNode(GetTextSpan(objCreation), typeName, typeArgs, args);
+        // Handle object initializer
+        var initializers = new List<ObjectInitializerAssignment>();
+        if (objCreation.Initializer != null)
+        {
+            _context.RecordFeatureUsage("object-initializer");
+            foreach (var expr in objCreation.Initializer.Expressions)
+            {
+                if (expr is AssignmentExpressionSyntax assignment)
+                {
+                    var propName = assignment.Left.ToString();
+                    var value = ConvertExpression(assignment.Right);
+                    initializers.Add(new ObjectInitializerAssignment(propName, value));
+                }
+            }
+        }
+
+        return new NewExpressionNode(GetTextSpan(objCreation), typeName, typeArgs, args, initializers);
     }
 
     private ExpressionNode ConvertConditionalExpression(ConditionalExpressionSyntax conditional)
