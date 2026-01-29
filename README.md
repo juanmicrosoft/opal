@@ -1,83 +1,86 @@
 # OPAL — Optimized Programming for Agent Logic
 
-A programming language designed specifically for AI coding agents,
-compiling to .NET via C# emission.
+A programming language designed specifically for AI coding agents, compiling to .NET via C# emission.
 
-## The Problem: Why C# Fails AI Agents
+## Why OPAL Exists
 
-Traditional languages like C# are poorly suited for AI coding agents:
+AI coding agents are transforming software development, but they're forced to work with languages designed for humans. This creates a fundamental mismatch:
 
-- **Context-sensitive parsing**: C# requires full semantic analysis to understand code structure
-- **Implicit side effects**: No way to know if `DoSomething()` writes to disk without reading implementation
-- **Contracts are comments**: Preconditions/postconditions aren't machine-readable
-- **No unique identifiers**: Can't precisely reference "line 42" across refactors
-- **Ambiguous scoping**: Brace-matching requires understanding context
-- **Token inefficiency**: Boilerplate consumes context window
+**AI agents need to understand code semantically** — what it does, what side effects it has, what contracts it upholds — but traditional languages hide this information behind syntax that requires deep semantic analysis to parse.
 
-**Example problem** (C#):
-```csharp
-// Agent sees this - what does it do? Side effects? Throws? Modifies state?
-public int Process(string input) {
-    var result = _service.Transform(input);  // Hidden network call? File I/O?
-    return result.Value;                      // Nullable? Exception?
-}
+OPAL asks: *What if we designed a language from the ground up for AI agents?*
+
+### The Core Insight
+
+When an AI agent reads code, it needs answers to specific questions:
+- What does this function **do**? (not just how it's implemented)
+- What are the **side effects**? (I/O, state mutations, network calls)
+- What **constraints** must hold? (preconditions, postconditions)
+- How do I **precisely reference** this code element across edits?
+- Where does this **scope end**?
+
+Traditional languages make agents *infer* these answers through complex analysis. OPAL makes them *explicit* in the syntax.
+
+## Design Principles
+
+| Principle | Implementation | Agent Benefit |
+|-----------|----------------|---------------|
+| **Explicit over implicit** | Effects declared with `§E[cw,fr,net]` | Know side effects without reading implementation |
+| **Contracts are code** | First-class `§Q` (requires) and `§S` (ensures) | Generate tests from specs, verify correctness |
+| **Everything has an ID** | `§F[f001:Main]`, `§L[l001:i:1:100:1]` | Precise references that survive refactoring |
+| **Unambiguous structure** | Matched tags `§F[]...§/F[]` | Parse without semantic analysis |
+| **Machine-readable semantics** | Operators as `§OP[kind=add]` not `+` | Symbolic manipulation without text parsing |
+
+## Measuring Success
+
+We evaluate OPAL against C# across 7 categories designed to measure what matters for AI coding agents:
+
+| Category | What It Measures | Why It Matters |
+|----------|------------------|----------------|
+| **Comprehension** | Structural clarity, semantic extractability | Can agents understand code without deep analysis? |
+| **Error Detection** | Bug identification, contract violation detection | Can agents find issues using explicit semantics? |
+| **Edit Precision** | Targeting accuracy, change isolation | Can agents make precise edits using unique IDs? |
+| **Generation Accuracy** | Compilation success, structural correctness | Can agents produce valid code? |
+| **Task Completion** | End-to-end success rates | Can agents complete full tasks? |
+| **Token Economics** | Tokens required to represent logic | How much context window does code consume? |
+| **Information Density** | Semantic elements per token | How much meaning per token? |
+
+### Benchmark Results
+
+Evaluated across 20 paired OPAL/C# programs (100% compilation success for both):
+
+| Category | OPAL vs C# | Winner | Interpretation |
+|----------|------------|--------|----------------|
+| Comprehension | **1.34x** | OPAL | Explicit structure aids understanding |
+| Error Detection | **1.19x** | OPAL | Contracts surface invariant violations |
+| Edit Precision | **1.15x** | OPAL | Unique IDs enable targeted changes |
+| Generation Accuracy | 0.94x | C# | Mature tooling, familiar patterns |
+| Task Completion | 0.90x | C# | Ecosystem maturity advantage |
+| Token Economics | 0.48x | C# | OPAL's explicit syntax uses more tokens |
+| Information Density | 0.14x | C# | OPAL trades density for explicitness |
+
+**Key Finding:** OPAL excels where explicitness matters — comprehension, error detection, and edit precision. C# wins on token efficiency, reflecting a fundamental tradeoff: explicit semantics require more tokens but enable better agent reasoning.
+
+## The Tradeoff
+
+OPAL deliberately trades token efficiency for semantic explicitness:
+
+```
+C#:   return a + b;           // 4 tokens, implicit semantics
+OPAL: §R §OP[kind=add] §REF[name=a] §REF[name=b]  // More tokens, explicit semantics
 ```
 
-## The Solution: OPAL's Agent-First Design
+This tradeoff pays off when:
+- Agents need to **reason** about code behavior
+- Agents need to **detect** contract violations
+- Agents need to **edit** specific code elements precisely
+- Code correctness matters more than brevity
 
-| C# Problem | OPAL Solution | Agent Benefit |
-|------------|---------------|---------------|
-| Context-sensitive parsing | XML-like matched tags `§F[]...§/F[]` | Parse without semantic analysis |
-| Implicit side effects | Explicit effects `§E[cw,fr]` | Know I/O without reading code |
-| Comments as contracts | First-class `§Q`/`§S` | Generate tests from specs |
-| No unique IDs | Every construct has ID `§F[f001:Main]` | Precise change tracking |
-| Ambiguous scoping | Explicit close tags with ID matching | Unambiguous structure |
-| Token inefficiency | Compact syntax, semantic density | More logic per token |
+## Side-by-Side: What Agents See
 
-## Side-by-Side Comparison: HelloWorld
+### Function with Contracts
 
-**OPAL** (`samples/HelloWorld/hello.opal`):
-```
-§M[m001:Hello]
-§F[f001:Main:pub]
-  §O[void]
-  §E[cw]
-  §C[Console.WriteLine]
-    §A "Hello from OPAL!"
-  §/C
-§/F[f001]
-§/M[m001]
-```
-
-**Equivalent C#** (requires boilerplate + implicit knowledge):
-```csharp
-namespace Hello
-{
-    public static class HelloModule
-    {
-        public static void Main()
-        {
-            Console.WriteLine("Hello from OPAL!");
-        }
-    }
-}
-```
-
-**What the agent knows from OPAL without analysis**:
-- Module ID: `m001`, Name: `Hello`
-- Function ID: `f001`, Name: `Main`, Visibility: `public`
-- Return type: `void`
-- Side effects: `cw` (console write) — **no other I/O**
-- Exact call target: `Console.WriteLine`
-
-**What C# hides**:
-- No indication this is the only side effect
-- No ID for tracking across changes
-- Requires understanding C# semantics to parse
-
-## Side-by-Side Comparison: Contracts
-
-**OPAL with contracts** (machine-readable):
+**OPAL** — Everything explicit:
 ```
 §F[f002:Square:pub]
   §I[i32:x]
@@ -88,74 +91,48 @@ namespace Hello
 §/F[f002]
 ```
 
-**C# equivalent** (contracts hidden in runtime code):
+**C#** — Contracts buried in implementation:
 ```csharp
 public static int Square(int x)
 {
     if (!(x >= 0))
         throw new ArgumentException("Precondition failed");
-
     var result = x * x;
-
     if (!(result >= 0))
         throw new InvalidOperationException("Postcondition failed");
-
     return result;
 }
 ```
 
-**Agent advantage with OPAL**:
-- `§Q` explicitly marks precondition: `x >= 0`
-- `§S` explicitly marks postcondition: `result >= 0`
-- Agent can extract contracts without parsing exception logic
-- Can generate test cases: `x = -1` (should fail), `x = 0, 5, 100` (should pass)
+**What OPAL tells the agent directly:**
+- Function ID: `f002`, can reference precisely
+- Precondition (`§Q`): `x >= 0`
+- Postcondition (`§S`): `result >= 0`
+- No side effects (no `§E` declaration)
 
-## Side-by-Side Comparison: Control Flow
+**What C# requires the agent to infer:**
+- Parse exception patterns to find contracts
+- Understand that lack of I/O calls *probably* means no side effects
+- Hope line numbers don't change across edits
 
-**OPAL FizzBuzz** (`samples/FizzBuzz/fizzbuzz.opal`):
+### Control Flow with Effects
+
+**OPAL** — Loop bounds and effects explicit:
 ```
-§L[for1:i:1:100:1]
-  §IF[if1] §OP[kind=EQ] §OP[kind=MOD] §REF[name=i] 15 0
-    §C[Console.WriteLine] §A "FizzBuzz" §/C
-  §ELSEIF §OP[kind=EQ] §OP[kind=MOD] §REF[name=i] 3 0
-    §C[Console.WriteLine] §A "Fizz" §/C
-  §ELSEIF §OP[kind=EQ] §OP[kind=MOD] §REF[name=i] 5 0
-    §C[Console.WriteLine] §A "Buzz" §/C
-  §ELSE
+§F[f001:PrintRange:pub]
+  §I[i32:n]
+  §O[void]
+  §E[cw]
+  §L[for1:i:1:§REF[name=n]:1]
     §C[Console.WriteLine] §A §REF[name=i] §/C
-  §/I[if1]
-§/L[for1]
+  §/L[for1]
+§/F[f001]
 ```
 
-**C# equivalent**:
-```csharp
-for (var i = 1; i <= 100; i++)
-{
-    if (i % 15 == 0) Console.WriteLine("FizzBuzz");
-    else if (i % 3 == 0) Console.WriteLine("Fizz");
-    else if (i % 5 == 0) Console.WriteLine("Buzz");
-    else Console.WriteLine(i);
-}
-```
-
-**Agent advantage with OPAL**:
-- Loop bounds explicit: `§L[for1:i:1:100:1]` → var=i, from=1, to=100, step=1
-- Agent knows iteration count (100) without symbolic execution
-- Nested IDs (`for1`, `if1`) enable precise references
-- Operators are symbolic (`§OP[kind=MOD]`), not textual
-
-## Key Features Summary
-
-| Feature | Syntax | Why Agents Need This |
-|---------|--------|---------------------|
-| **Unique IDs** | `§F[f001:Main]` | Track code across refactors |
-| **Effects Declaration** | `§E[cw,fr,net]` | Know side effects without analysis |
-| **Preconditions** | `§Q expression` | Extract testable constraints |
-| **Postconditions** | `§S expression` | Verify implementation correctness |
-| **Explicit Loops** | `§L[id:var:from:to:step]` | Calculate complexity, iterations |
-| **Option Types** | `§SOME`, `§NONE` | Enforce null safety |
-| **Result Types** | `§OK`, `§ERR` | Enforce error handling |
-| **Matched Tags** | `§F[]...§/F[]` | Unambiguous scope boundaries |
+**What the agent knows without analysis:**
+- Iterates from 1 to n (loop bounds in syntax)
+- Side effect: `cw` (console write) — nothing else
+- Can calculate iteration count symbolically
 
 ## Quick Start
 
@@ -169,33 +146,56 @@ dotnet run --project src/Opal.Compiler -- \
   --input samples/HelloWorld/hello.opal \
   --output samples/HelloWorld/hello.g.cs
 
-# Run the program
+# Run the generated program
 dotnet run --project samples/HelloWorld
 ```
 
-## Syntax Quick Reference
+## Syntax Reference
 
 | Element | Syntax | Example |
 |---------|--------|---------|
-| Module | `§M[id:name]` | `§M[m001:MyModule]` |
-| Function | `§F[id:name:visibility]` | `§F[f001:Main:pub]` |
-| Input param | `§I[type:name]` | `§I[i32:count]` |
-| Output type | `§O[type]` | `§O[void]` |
-| Effects | `§E[codes]` | `§E[cw,fr]` |
-| Call | `§C[target]` | `§C[Console.WriteLine]` |
-| Argument | `§A value` | `§A "hello"` |
-| Loop | `§L[id:var:from:to:step]` | `§L[l1:i:1:100:1]` |
+| Module | `§M[id:name]` | `§M[m001:Calculator]` |
+| Function | `§F[id:name:visibility]` | `§F[f001:Add:pub]` |
+| Input | `§I[type:name]` | `§I[i32:x]` |
+| Output | `§O[type]` | `§O[i32]` |
+| Effects | `§E[codes]` | `§E[cw,fr,net]` |
 | Requires | `§Q expr` | `§Q §OP[kind=gte] §REF[name=x] 0` |
 | Ensures | `§S expr` | `§S §OP[kind=gte] §REF[name=result] 0` |
-| Close tags | `§/X[id]` | `§/F[f001]` |
+| Loop | `§L[id:var:from:to:step]` | `§L[l1:i:1:100:1]` |
+| Call | `§C[target]...§/C` | `§C[Math.Max] §A 1 §A 2 §/C` |
+| Return | `§R expr` | `§R §OP[kind=add] §REF[name=a] §REF[name=b]` |
+| Close tag | `§/X[id]` | `§/F[f001]` |
 
-**Effect codes**: `cw` (console write), `cr` (console read), `fw` (file write), `fr` (file read), `net` (network), `db` (database)
+**Effect codes:** `cw` (console write), `cr` (console read), `fw` (file write), `fr` (file read), `net` (network), `db` (database)
 
-## Status
+## Running the Evaluation
 
-- [x] Core compiler (lexer, parser, code gen)
-- [x] Control flow (for, if, while)
+```bash
+# Run the evaluation framework
+dotnet run --project tests/Opal.Evaluation -- --output report.json
+
+# Generate markdown report
+dotnet run --project tests/Opal.Evaluation -- --output report.md --format markdown
+```
+
+## Project Status
+
+- [x] Core compiler (lexer, parser, C# code generation)
+- [x] Control flow (for, if/else, while)
 - [x] Type system (Option, Result)
 - [x] Contracts (requires, ensures)
+- [x] Effects declarations
 - [x] MSBuild SDK integration
+- [x] Evaluation framework (7 metrics, 20 benchmarks)
 - [ ] Direct IL emission
+- [ ] IDE language server
+
+## Contributing
+
+OPAL is an experiment in language design for AI agents. We welcome contributions, especially:
+- Additional benchmark programs
+- Metric refinements
+- Parser improvements
+- Documentation
+
+See the evaluation framework in `tests/Opal.Evaluation/` for how we measure progress.
