@@ -75,6 +75,8 @@ public enum TokenKind
     ElseIf,
     While,
     EndWhile,
+    Do,
+    EndDo,
     Break,
     Continue,
     Bind,

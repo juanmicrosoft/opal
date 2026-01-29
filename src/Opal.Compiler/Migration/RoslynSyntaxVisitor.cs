@@ -720,6 +720,7 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
             ForStatementSyntax forStmt => ConvertForStatement(forStmt),
             ForEachStatementSyntax forEachStmt => ConvertForEachStatement(forEachStmt),
             WhileStatementSyntax whileStmt => ConvertWhileStatement(whileStmt),
+            DoStatementSyntax doStmt => ConvertDoWhileStatement(doStmt),
             TryStatementSyntax tryStmt => ConvertTryStatement(tryStmt),
             ThrowStatementSyntax throwStmt => ConvertThrowStatement(throwStmt),
             BlockSyntax blockStmt => ConvertBlockAsStatement(blockStmt),
@@ -1153,6 +1154,25 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
             id,
             condition,
             body,
+            new AttributeCollection());
+    }
+
+    private DoWhileStatementNode ConvertDoWhileStatement(DoStatementSyntax node)
+    {
+        _context.RecordFeatureUsage("do-while");
+        _context.IncrementConverted();
+
+        var id = _context.GenerateId("do");
+        var condition = ConvertExpression(node.Condition);
+        var body = node.Statement is BlockSyntax block
+            ? ConvertBlock(block)
+            : new List<StatementNode> { ConvertStatement(node.Statement)! };
+
+        return new DoWhileStatementNode(
+            GetTextSpan(node),
+            id,
+            body,
+            condition,
             new AttributeCollection());
     }
 

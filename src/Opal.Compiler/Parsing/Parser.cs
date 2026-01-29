@@ -529,6 +529,10 @@ public sealed class Parser
         {
             return ParseWhileStatement();
         }
+        else if (Check(TokenKind.Do))
+        {
+            return ParseDoWhileStatement();
+        }
         else if (Check(TokenKind.If))
         {
             return ParseIfStatement();
@@ -1404,6 +1408,38 @@ public sealed class Parser
 
         var span = startToken.Span.Union(endToken.Span);
         return new WhileStatementNode(span, id, condition, body, attrs);
+    }
+
+    private DoWhileStatementNode ParseDoWhileStatement()
+    {
+        var startToken = Expect(TokenKind.Do);
+        var attrs = ParseAttributes();
+
+        // v2 positional: [id] or v1 named: [id=...]
+        var id = attrs["_pos0"] ?? attrs["id"] ?? "";
+        if (string.IsNullOrEmpty(id))
+        {
+            _diagnostics.ReportMissingRequiredAttribute(startToken.Span, "DO", "id");
+        }
+
+        // Parse body statements
+        var body = ParseStatementBlock(TokenKind.EndDo);
+
+        var endToken = Expect(TokenKind.EndDo);
+        var endAttrs = ParseAttributes();
+        // v2 positional: [id] or v1 named: [id=...]
+        var endId = endAttrs["_pos0"] ?? endAttrs["id"] ?? "";
+
+        if (endId != id)
+        {
+            _diagnostics.ReportMismatchedId(endToken.Span, "DO", id, "END_DO", endId);
+        }
+
+        // Parse condition expression (comes after §/DO[id])
+        var condition = ParseExpression();
+
+        var span = startToken.Span.Union(Current.Span);
+        return new DoWhileStatementNode(span, id, body, condition, attrs);
     }
 
     private IfStatementNode ParseIfStatement()

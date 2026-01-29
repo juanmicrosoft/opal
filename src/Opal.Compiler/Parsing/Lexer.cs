@@ -40,6 +40,8 @@ public sealed class Lexer
         ["END_IF"] = TokenKind.EndIf,
         ["WHILE"] = TokenKind.While,
         ["END_WHILE"] = TokenKind.EndWhile,
+        ["DO"] = TokenKind.Do,
+        ["END_DO"] = TokenKind.EndDo,
         ["BREAK"] = TokenKind.Break,
         ["CONTINUE"] = TokenKind.Continue,
         ["BIND"] = TokenKind.Bind,
@@ -231,6 +233,8 @@ public sealed class Lexer
         ["EL"] = TokenKind.Else,            // §EL = §ELSE
         ["WH"] = TokenKind.While,           // §WH = §WHILE
         ["/WH"] = TokenKind.EndWhile,       // §/WH = §END_WHILE
+        ["DO"] = TokenKind.Do,              // §DO = §DO (do-while loop)
+        ["/DO"] = TokenKind.EndDo,          // §/DO = §END_DO
         ["SW"] = TokenKind.Match,           // §SW = §SWITCH/MATCH
         ["/SW"] = TokenKind.EndMatch,       // §/SW = §END_SWITCH/MATCH
 

@@ -443,6 +443,26 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         return "";
     }
 
+    public string Visit(DoWhileStatementNode node)
+    {
+        var condition = node.Condition.Accept(this);
+
+        AppendLine("do");
+        AppendLine("{");
+        Indent();
+
+        foreach (var stmt in node.Body)
+        {
+            var stmtCode = stmt.Accept(this);
+            AppendLine(stmtCode);
+        }
+
+        Dedent();
+        AppendLine($"}} while ({condition});");
+
+        return "";
+    }
+
     public string Visit(IfStatementNode node)
     {
         var condition = node.Condition.Accept(this);

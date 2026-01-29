@@ -1067,6 +1067,71 @@ public class CSharpToOpalConversionTests
 
     #endregion
 
+    #region Do-While Loop Tests
+
+    [Fact]
+    public void Convert_TopLevelStatements_WithDoWhileLoop()
+    {
+        var csharpSource = """
+            int i = 0;
+            do
+            {
+                Console.WriteLine(i);
+                i++;
+            } while (i < 5);
+            """;
+
+        var result = _converter.Convert(csharpSource);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        Assert.NotNull(result.Ast);
+        Assert.Single(result.Ast.Functions);
+
+        var mainFunc = result.Ast.Functions[0];
+        // Should have 2 statements: variable declaration and do-while
+        Assert.Equal(2, mainFunc.Body.Count);
+        Assert.IsType<BindStatementNode>(mainFunc.Body[0]);
+        Assert.IsType<DoWhileStatementNode>(mainFunc.Body[1]);
+
+        var doWhile = (DoWhileStatementNode)mainFunc.Body[1];
+        Assert.NotEmpty(doWhile.Body);
+        Assert.NotNull(doWhile.Condition);
+    }
+
+    [Fact]
+    public void Convert_DoWhileLoop_RecordsFeatureUsage()
+    {
+        var csharpSource = """
+            do { } while (true);
+            """;
+
+        var result = _converter.Convert(csharpSource);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        Assert.Contains("do-while", result.Context.UsedFeatures);
+    }
+
+    [Fact]
+    public void Convert_DoWhileLoop_GeneratesCorrectOpal()
+    {
+        var csharpSource = """
+            int i = 0;
+            do
+            {
+                i++;
+            } while (i < 10);
+            """;
+
+        var result = _converter.Convert(csharpSource);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        Assert.NotNull(result.OpalSource);
+        Assert.Contains("§DO", result.OpalSource);
+        Assert.Contains("§/DO", result.OpalSource);
+    }
+
+    #endregion
+
     #region Helper Methods
 
     private static string GetErrorMessage(ConversionResult result)

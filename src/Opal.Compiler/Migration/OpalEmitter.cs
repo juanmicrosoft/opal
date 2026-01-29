@@ -701,6 +701,23 @@ public sealed class OpalEmitter : IAstVisitor<string>
         return "";
     }
 
+    public string Visit(DoWhileStatementNode node)
+    {
+        var condition = node.Condition.Accept(this);
+
+        AppendLine($"§DO[{node.Id}]");
+        Indent();
+
+        foreach (var stmt in node.Body)
+        {
+            stmt.Accept(this);
+        }
+
+        Dedent();
+        AppendLine($"§/DO[{node.Id}] {condition}");
+        return "";
+    }
+
     public string Visit(ForeachStatementNode node)
     {
         var collection = node.Collection.Accept(this);
