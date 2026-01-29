@@ -1,6 +1,7 @@
 using System.CommandLine;
 using Opal.Compiler.Ast;
 using Opal.Compiler.CodeGen;
+using Opal.Compiler.Commands;
 using Opal.Compiler.Diagnostics;
 using Opal.Compiler.Parsing;
 
@@ -12,10 +13,7 @@ public class Program
     {
         var inputOption = new Option<FileInfo>(
             aliases: ["--input", "-i"],
-            description: "The OPAL source file to compile")
-        {
-            IsRequired = true
-        };
+            description: "The OPAL source file to compile");
 
         var outputOption = new Option<FileInfo>(
             aliases: ["--output", "-o"],
@@ -25,22 +23,43 @@ public class Program
             aliases: ["--verbose", "-v"],
             description: "Enable verbose output");
 
-        var rootCommand = new RootCommand("OPAL Compiler - Compiles OPAL source to C#")
+        var rootCommand = new RootCommand("OPAL Compiler - Compiles OPAL source to C# and migrates between languages")
         {
             inputOption,
             outputOption,
             verboseOption
         };
 
+        // Legacy compile handler (when --input is provided)
         rootCommand.SetHandler(CompileAsync, inputOption, outputOption, verboseOption);
+
+        // Add subcommands for migration
+        rootCommand.AddCommand(ConvertCommand.Create());
+        rootCommand.AddCommand(MigrateCommand.Create());
+        rootCommand.AddCommand(BenchmarkCommand.Create());
 
         return await rootCommand.InvokeAsync(args);
     }
 
-    private static async Task CompileAsync(FileInfo input, FileInfo? output, bool verbose)
+    private static async Task CompileAsync(FileInfo? input, FileInfo? output, bool verbose)
     {
         try
         {
+            // If no input provided, show help
+            if (input == null)
+            {
+                Console.WriteLine("OPAL Compiler - Compiles OPAL source to C# and migrates between languages");
+                Console.WriteLine();
+                Console.WriteLine("Usage:");
+                Console.WriteLine("  opalc --input <file.opal> [--output <file.cs>]  Compile OPAL to C#");
+                Console.WriteLine("  opalc convert <file>                           Convert between C# and OPAL");
+                Console.WriteLine("  opalc migrate <project>                        Migrate entire project");
+                Console.WriteLine("  opalc benchmark [options]                      Compare token economics");
+                Console.WriteLine();
+                Console.WriteLine("Run 'opalc --help' for more information.");
+                return;
+            }
+
             if (!input.Exists)
             {
                 Console.Error.WriteLine($"Error: Input file not found: {input.FullName}");
