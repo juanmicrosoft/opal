@@ -830,7 +830,8 @@ public class CSharpToOpalConversionTests
 
         Assert.True(result.Success, GetErrorMessage(result));
         Assert.NotNull(result.OpalSource);
-        Assert.Contains("§EVENT", result.OpalSource);
+        // Events are emitted as fields since the parser doesn't support §EVT in class bodies
+        Assert.Contains("§FLD", result.OpalSource);
         Assert.Contains("SpeakRequest", result.OpalSource);
     }
 

@@ -916,6 +916,23 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
                 ConvertExpression(assignment.Right));
         }
 
+        // Handle await expressions - create a bind statement with _ as the variable to discard result
+        if (expr is AwaitExpressionSyntax awaitExpr)
+        {
+            _context.RecordFeatureUsage("async-await");
+            var awaited = ConvertExpression(awaitExpr.Expression);
+            var awaitNode = new AwaitExpressionNode(GetTextSpan(node), awaited, null);
+
+            // Create a bind statement with discard pattern for await statements without assignment
+            return new BindStatementNode(
+                GetTextSpan(node),
+                "_",
+                null, // no type
+                false, // not mutable
+                awaitNode,
+                new AttributeCollection());
+        }
+
         // Handle invocation expressions (method calls)
         if (expr is InvocationExpressionSyntax invocation)
         {

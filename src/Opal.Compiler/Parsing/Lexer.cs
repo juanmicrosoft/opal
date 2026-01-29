@@ -40,6 +40,8 @@ public sealed class Lexer
         ["END_IF"] = TokenKind.EndIf,
         ["WHILE"] = TokenKind.While,
         ["END_WHILE"] = TokenKind.EndWhile,
+        ["BREAK"] = TokenKind.Break,
+        ["CONTINUE"] = TokenKind.Continue,
         ["BIND"] = TokenKind.Bind,
         // Phase 3: Type System
         ["TYPE"] = TokenKind.Type,
@@ -98,6 +100,7 @@ public sealed class Lexer
         ["CTOR"] = TokenKind.Constructor,
         ["END_CTOR"] = TokenKind.EndConstructor,
         ["ASSIGN"] = TokenKind.Assign,
+        ["DEFAULT"] = TokenKind.Default,
         // Phase 10: Try/Catch/Finally
         ["TRY"] = TokenKind.Try,
         ["END_TRY"] = TokenKind.EndTry,
@@ -229,6 +232,7 @@ public sealed class Lexer
         ["EL"] = TokenKind.Else,            // §EL = §ELSE
         ["WH"] = TokenKind.While,           // §WH = §WHILE
         ["/WH"] = TokenKind.EndWhile,       // §/WH = §END_WHILE
+        ["/WHILE"] = TokenKind.EndWhile,    // §/WHILE = §END_WHILE
         ["SW"] = TokenKind.Match,           // §SW = §SWITCH/MATCH
         ["/SW"] = TokenKind.EndMatch,       // §/SW = §END_SWITCH/MATCH
 
@@ -323,7 +327,7 @@ public sealed class Lexer
             '!' => ScanBangOrOperator(),
             '~' => ScanSingle(TokenKind.Tilde),
             '#' => ScanSingle(TokenKind.Hash),
-            '?' => ScanSingle(TokenKind.Question),
+            '?' => ScanQuestionOrOperator(),
             '@' => ScanSingle(TokenKind.At),
             ',' => ScanSingle(TokenKind.Comma),
             '"' => ScanStringLiteral(),
@@ -339,6 +343,7 @@ public sealed class Lexer
             '&' => ScanAmpOrOperator(),
             '|' => ScanPipeOrOperator(),
             '^' => ScanSingle(TokenKind.Caret),
+            '.' => ScanDotOrNumber(),
             // Arrow: → or ->
             '→' => ScanSingle(TokenKind.Arrow),
             '-' => ScanMinusOrArrowOrNumber(),
@@ -369,6 +374,22 @@ public sealed class Lexer
             return MakeToken(TokenKind.BangEqual);
         }
         return MakeToken(TokenKind.Exclamation);
+    }
+
+    private Token ScanQuestionOrOperator()
+    {
+        Advance(); // consume '?'
+        if (Current == '.')
+        {
+            Advance(); // consume '.'
+            return MakeToken(TokenKind.NullConditional);
+        }
+        if (Current == '?')
+        {
+            Advance(); // consume second '?'
+            return MakeToken(TokenKind.NullCoalesce);
+        }
+        return MakeToken(TokenKind.Question);
     }
 
     private Token ScanStarOrOperator()
@@ -453,6 +474,18 @@ public sealed class Lexer
         // Otherwise it's just minus operator
         Advance();
         return MakeToken(TokenKind.Minus);
+    }
+
+    private Token ScanDotOrNumber()
+    {
+        // Check for decimal number starting with .
+        if (char.IsDigit(Lookahead))
+        {
+            return ScanNumber();
+        }
+        // Otherwise it's just a dot for member access
+        Advance();
+        return MakeToken(TokenKind.Dot);
     }
 
     private Token ScanBacktickIdentifier()

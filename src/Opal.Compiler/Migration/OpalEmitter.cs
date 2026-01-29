@@ -250,10 +250,11 @@ public sealed class OpalEmitter : IAstVisitor<string>
             Visit(node.Initer);
         }
 
-        // Emit default value if present
+        // Emit default value if present (as direct expression, parser handles it)
         if (node.DefaultValue != null)
         {
-            AppendLine($"§DEFAULT{defaultVal}");
+            var defaultExpr = node.DefaultValue.Accept(this);
+            AppendLine($"= {defaultExpr}");
         }
 
         Dedent();
@@ -511,9 +512,10 @@ public sealed class OpalEmitter : IAstVisitor<string>
 
     public string Visit(CallStatementNode node)
     {
-        var args = string.Join(" ", node.Arguments.Select(a => a.Accept(this)));
-        var argsStr = args.Length > 0 ? $" {args}" : "";
-        AppendLine($"§C[{node.Target}]{argsStr}");
+        // Arguments need §A prefix and call needs §/C closing tag
+        var args = node.Arguments.Select(a => $"§A {a.Accept(this)}");
+        var argsStr = node.Arguments.Count > 0 ? $" {string.Join(" ", args)}" : "";
+        AppendLine($"§C[{node.Target}]{argsStr} §/C");
         return "";
     }
 
@@ -541,7 +543,8 @@ public sealed class OpalEmitter : IAstVisitor<string>
     {
         var typePart = node.TypeName != null ? $"{TypeMapper.CSharpToOpal(node.TypeName)}:" : "";
         var mutPart = node.IsMutable ? "" : ":const";
-        var initPart = node.Initializer != null ? $" = {node.Initializer.Accept(this)}" : "";
+        // Parser expects: §B[type:name] expression (no = sign)
+        var initPart = node.Initializer != null ? $" {node.Initializer.Accept(this)}" : "";
 
         AppendLine($"§B[{typePart}{node.Name}{mutPart}]{initPart}");
         return "";
@@ -703,7 +706,7 @@ public sealed class OpalEmitter : IAstVisitor<string>
         var collection = node.Collection.Accept(this);
         var varType = TypeMapper.CSharpToOpal(node.VariableType);
 
-        AppendLine($"§EACH[{varType}:{node.VariableName}] {collection}");
+        AppendLine($"§EACH[{node.Id}:{varType}:{node.VariableName}] {collection}");
         Indent();
 
         foreach (var stmt in node.Body)
@@ -712,13 +715,13 @@ public sealed class OpalEmitter : IAstVisitor<string>
         }
 
         Dedent();
-        AppendLine("§/EACH");
+        AppendLine($"§/EACH[{node.Id}]");
         return "";
     }
 
     public string Visit(TryStatementNode node)
     {
-        AppendLine("§TRY");
+        AppendLine($"§TRY[{node.Id}]");
         Indent();
 
         foreach (var stmt in node.TryBody)
@@ -746,7 +749,7 @@ public sealed class OpalEmitter : IAstVisitor<string>
             Dedent();
         }
 
-        AppendLine("§/TRY");
+        AppendLine($"§/TRY[{node.Id}]");
         return "";
     }
 
@@ -888,8 +891,9 @@ public sealed class OpalEmitter : IAstVisitor<string>
         var typeArgs = node.TypeArguments.Count > 0
             ? $"<{string.Join(",", node.TypeArguments)}>"
             : "";
-        var args = string.Join(" ", node.Arguments.Select(a => a.Accept(this)));
-        var argsStr = args.Length > 0 ? $" {args}" : "";
+        // Arguments need §A prefix for parser to recognize them
+        var args = node.Arguments.Select(a => $"§A {a.Accept(this)}");
+        var argsStr = node.Arguments.Count > 0 ? $" {string.Join(" ", args)}" : "";
 
         // Handle object initializers
         var initStr = "";
@@ -1186,8 +1190,10 @@ public sealed class OpalEmitter : IAstVisitor<string>
 
     public string Visit(EventDefinitionNode node)
     {
+        // Events are emitted as fields since the parser doesn't support §EVT in class bodies
         var visibility = GetVisibilityShorthand(node.Visibility);
-        AppendLine($"§EVENT[{node.DelegateType}:{node.Name}:{visibility}]");
+        var delegateType = TypeMapper.CSharpToOpal(node.DelegateType);
+        AppendLine($"§FLD[{delegateType}:{node.Name}:{visibility}]");
         return "";
     }
 
