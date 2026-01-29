@@ -29,4 +29,8 @@
     <ProjectReference Include="..\Opal.Runtime\Opal.Runtime.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="DiffPlex" Version="1.7.2" />
+  </ItemGroup>
+
 </Project>
