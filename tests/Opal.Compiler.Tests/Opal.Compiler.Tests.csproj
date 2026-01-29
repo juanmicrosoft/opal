@@ -23,4 +23,12 @@
     <ProjectReference Include="..\..\src\Opal.Compiler\Opal.Compiler.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Include all test data files in the output directory -->
+    <None Include="..\TestData\CSharpImport\**\*.*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>TestData\CSharpImport\%(RecursiveDir)%(FileName)%(Extension)</Link>
+    </None>
+  </ItemGroup>
+
 </Project>

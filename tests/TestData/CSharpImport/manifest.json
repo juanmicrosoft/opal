@@ -1,0 +1,806 @@
+{
+  "version": "1.0",
+  "description": "C# test files for validating the C# to OPAL converter",
+  "files": [
+    {
+      "id": "001",
+      "file": "Level1_Basic/001_HelloWorld.cs",
+      "level": 1,
+      "features": ["namespace", "static_class", "main_method", "console_write"],
+      "expectedResult": "success",
+      "notes": "Simple hello world program"
+    },
+    {
+      "id": "002",
+      "file": "Level1_Basic/002_ReturnValue.cs",
+      "level": 1,
+      "features": ["namespace", "static_class", "return_statement", "int_literal"],
+      "expectedResult": "success",
+      "notes": "Method returning integer value"
+    },
+    {
+      "id": "003",
+      "file": "Level1_Basic/003_StringLiteral.cs",
+      "level": 1,
+      "features": ["string_literal", "multiple_methods"],
+      "expectedResult": "success",
+      "notes": "String literal return values"
+    },
+    {
+      "id": "004",
+      "file": "Level1_Basic/004_IntLiteral.cs",
+      "level": 1,
+      "features": ["int_literal", "negative_number", "zero"],
+      "expectedResult": "success",
+      "notes": "Integer literals including negative"
+    },
+    {
+      "id": "005",
+      "file": "Level1_Basic/005_BoolLiteral.cs",
+      "level": 1,
+      "features": ["bool_literal", "true", "false"],
+      "expectedResult": "success",
+      "notes": "Boolean literal values"
+    },
+    {
+      "id": "006",
+      "file": "Level1_Basic/006_DoubleLiteral.cs",
+      "level": 1,
+      "features": ["double_literal", "floating_point"],
+      "expectedResult": "success",
+      "notes": "Double/floating-point literals"
+    },
+    {
+      "id": "007",
+      "file": "Level1_Basic/007_SimpleAddition.cs",
+      "level": 1,
+      "features": ["binary_expression", "addition", "parameters"],
+      "expectedResult": "success",
+      "notes": "Simple addition of two parameters"
+    },
+    {
+      "id": "008",
+      "file": "Level1_Basic/008_SimpleSubtraction.cs",
+      "level": 1,
+      "features": ["binary_expression", "subtraction", "parameters"],
+      "expectedResult": "success",
+      "notes": "Simple subtraction operation"
+    },
+    {
+      "id": "009",
+      "file": "Level1_Basic/009_SimpleMultiplication.cs",
+      "level": 1,
+      "features": ["binary_expression", "multiplication", "parameters"],
+      "expectedResult": "success",
+      "notes": "Simple multiplication operation"
+    },
+    {
+      "id": "010",
+      "file": "Level1_Basic/010_SimpleDivision.cs",
+      "level": 1,
+      "features": ["binary_expression", "division", "parameters"],
+      "expectedResult": "success",
+      "notes": "Simple division operation"
+    },
+    {
+      "id": "011",
+      "file": "Level1_Basic/011_Modulo.cs",
+      "level": 1,
+      "features": ["binary_expression", "modulo"],
+      "expectedResult": "success",
+      "notes": "Modulo/remainder operation"
+    },
+    {
+      "id": "012",
+      "file": "Level1_Basic/012_StringConcat.cs",
+      "level": 1,
+      "features": ["string_concatenation", "binary_expression"],
+      "expectedResult": "success",
+      "notes": "String concatenation with + operator"
+    },
+    {
+      "id": "013",
+      "file": "Level1_Basic/013_LocalVariable.cs",
+      "level": 1,
+      "features": ["local_variable", "variable_declaration", "assignment"],
+      "expectedResult": "success",
+      "notes": "Local variable declarations with types"
+    },
+    {
+      "id": "014",
+      "file": "Level1_Basic/014_VarKeyword.cs",
+      "level": 1,
+      "features": ["var_keyword", "type_inference"],
+      "expectedResult": "success",
+      "notes": "Type inference with var keyword"
+    },
+    {
+      "id": "015",
+      "file": "Level1_Basic/015_ComparisonOperators.cs",
+      "level": 1,
+      "features": ["comparison", "equals", "not_equals", "greater_than", "less_than"],
+      "expectedResult": "success",
+      "notes": "Comparison operators"
+    },
+    {
+      "id": "016",
+      "file": "Level1_Basic/016_LogicalOperators.cs",
+      "level": 1,
+      "features": ["logical_and", "logical_or", "logical_not"],
+      "expectedResult": "success",
+      "notes": "Logical operators &&, ||, !"
+    },
+    {
+      "id": "017",
+      "file": "Level1_Basic/017_UnaryOperators.cs",
+      "level": 1,
+      "features": ["unary_minus", "unary_plus"],
+      "expectedResult": "partial",
+      "notes": "Unary operators +, - - OPAL parser may not support unary plus"
+    },
+    {
+      "id": "018",
+      "file": "Level1_Basic/018_ParenthesizedExpr.cs",
+      "level": 1,
+      "features": ["parenthesized_expression", "operator_precedence"],
+      "expectedResult": "success",
+      "notes": "Parenthesized expressions for precedence"
+    },
+    {
+      "id": "019",
+      "file": "Level1_Basic/019_MultipleStatements.cs",
+      "level": 1,
+      "features": ["multiple_statements", "statement_sequence"],
+      "expectedResult": "success",
+      "notes": "Multiple statements in method body"
+    },
+    {
+      "id": "020",
+      "file": "Level1_Basic/020_BasicCalculator.cs",
+      "level": 1,
+      "features": ["multiple_methods", "arithmetic"],
+      "expectedResult": "success",
+      "notes": "Calculator with multiple arithmetic methods"
+    },
+    {
+      "id": "021",
+      "file": "Level2_ControlFlow/021_SimpleIf.cs",
+      "level": 2,
+      "features": ["if_statement", "conditional"],
+      "expectedResult": "success",
+      "notes": "Simple if statement without else"
+    },
+    {
+      "id": "022",
+      "file": "Level2_ControlFlow/022_IfElse.cs",
+      "level": 2,
+      "features": ["if_else", "conditional"],
+      "expectedResult": "success",
+      "notes": "If-else statement"
+    },
+    {
+      "id": "023",
+      "file": "Level2_ControlFlow/023_IfElseIfElse.cs",
+      "level": 2,
+      "features": ["if_elseif_else", "chained_conditional"],
+      "expectedResult": "success",
+      "notes": "Chained if-else-if-else"
+    },
+    {
+      "id": "024",
+      "file": "Level2_ControlFlow/024_ForLoop.cs",
+      "level": 2,
+      "features": ["for_loop", "loop_variable", "increment"],
+      "expectedResult": "success",
+      "notes": "Basic for loop"
+    },
+    {
+      "id": "025",
+      "file": "Level2_ControlFlow/025_WhileLoop.cs",
+      "level": 2,
+      "features": ["while_loop"],
+      "expectedResult": "success",
+      "notes": "Basic while loop"
+    },
+    {
+      "id": "026",
+      "file": "Level2_ControlFlow/026_DoWhileLoop.cs",
+      "level": 2,
+      "features": ["do_while_loop"],
+      "expectedResult": "success",
+      "notes": "Do-while loop"
+    },
+    {
+      "id": "027",
+      "file": "Level2_ControlFlow/027_NestedLoops.cs",
+      "level": 2,
+      "features": ["nested_loops", "for_loop"],
+      "expectedResult": "success",
+      "notes": "Nested for loops"
+    },
+    {
+      "id": "028",
+      "file": "Level2_ControlFlow/028_FizzBuzz.cs",
+      "level": 2,
+      "features": ["if_else", "modulo", "to_string"],
+      "expectedResult": "success",
+      "notes": "FizzBuzz implementation"
+    },
+    {
+      "id": "029",
+      "file": "Level2_ControlFlow/029_FactorialIterative.cs",
+      "level": 2,
+      "features": ["for_loop", "accumulator"],
+      "expectedResult": "success",
+      "notes": "Iterative factorial"
+    },
+    {
+      "id": "030",
+      "file": "Level2_ControlFlow/030_FactorialRecursive.cs",
+      "level": 2,
+      "features": ["recursion", "if_statement"],
+      "expectedResult": "success",
+      "notes": "Recursive factorial"
+    },
+    {
+      "id": "031",
+      "file": "Level2_ControlFlow/031_FibonacciIterative.cs",
+      "level": 2,
+      "features": ["for_loop", "multiple_variables"],
+      "expectedResult": "success",
+      "notes": "Iterative Fibonacci"
+    },
+    {
+      "id": "032",
+      "file": "Level2_ControlFlow/032_FibonacciRecursive.cs",
+      "level": 2,
+      "features": ["recursion", "binary_recursion"],
+      "expectedResult": "success",
+      "notes": "Recursive Fibonacci"
+    },
+    {
+      "id": "033",
+      "file": "Level2_ControlFlow/033_SwitchStatement.cs",
+      "level": 2,
+      "features": ["switch_statement", "case", "default"],
+      "expectedResult": "success",
+      "notes": "Classic switch statement"
+    },
+    {
+      "id": "034",
+      "file": "Level2_ControlFlow/034_SwitchExpression.cs",
+      "level": 2,
+      "features": ["switch_expression", "pattern_matching"],
+      "expectedResult": "partial",
+      "notes": "C# 8.0 switch expression syntax"
+    },
+    {
+      "id": "035",
+      "file": "Level2_ControlFlow/035_BreakStatement.cs",
+      "level": 2,
+      "features": ["break", "for_loop"],
+      "expectedResult": "success",
+      "notes": "Break statement in loop"
+    },
+    {
+      "id": "036",
+      "file": "Level2_ControlFlow/036_ContinueStatement.cs",
+      "level": 2,
+      "features": ["continue", "for_loop"],
+      "expectedResult": "success",
+      "notes": "Continue statement in loop"
+    },
+    {
+      "id": "037",
+      "file": "Level2_ControlFlow/037_TernaryOperator.cs",
+      "level": 2,
+      "features": ["ternary_operator", "conditional_expression"],
+      "expectedResult": "success",
+      "notes": "Ternary conditional operator"
+    },
+    {
+      "id": "038",
+      "file": "Level2_ControlFlow/038_NestedConditions.cs",
+      "level": 2,
+      "features": ["nested_if", "multiple_conditions"],
+      "expectedResult": "success",
+      "notes": "Nested if statements"
+    },
+    {
+      "id": "039",
+      "file": "Level2_ControlFlow/039_EarlyReturn.cs",
+      "level": 2,
+      "features": ["early_return", "guard_clause"],
+      "expectedResult": "success",
+      "notes": "Early return pattern"
+    },
+    {
+      "id": "040",
+      "file": "Level2_ControlFlow/040_ComplexConditions.cs",
+      "level": 2,
+      "features": ["complex_conditions", "logical_operators"],
+      "expectedResult": "success",
+      "notes": "Complex boolean conditions"
+    },
+    {
+      "id": "041",
+      "file": "Level3_Types/041_SimpleClass.cs",
+      "level": 3,
+      "features": ["class", "fields", "new_expression"],
+      "expectedResult": "success",
+      "notes": "Simple non-static class"
+    },
+    {
+      "id": "042",
+      "file": "Level3_Types/042_ClassWithFields.cs",
+      "level": 3,
+      "features": ["class", "public_fields", "instance_methods"],
+      "expectedResult": "success",
+      "notes": "Class with fields and methods"
+    },
+    {
+      "id": "043",
+      "file": "Level3_Types/043_ClassWithProperties.cs",
+      "level": 3,
+      "features": ["auto_properties", "get_set"],
+      "expectedResult": "partial",
+      "notes": "Auto-implemented properties"
+    },
+    {
+      "id": "044",
+      "file": "Level3_Types/044_Record.cs",
+      "level": 3,
+      "features": ["record", "positional_record"],
+      "expectedResult": "partial",
+      "notes": "Record type (C# 9.0)"
+    },
+    {
+      "id": "045",
+      "file": "Level3_Types/045_Enum.cs",
+      "level": 3,
+      "features": ["enum", "enum_member"],
+      "expectedResult": "success",
+      "notes": "Basic enum definition"
+    },
+    {
+      "id": "046",
+      "file": "Level3_Types/046_EnumWithValues.cs",
+      "level": 3,
+      "features": ["enum", "explicit_values", "cast"],
+      "expectedResult": "success",
+      "notes": "Enum with explicit values"
+    },
+    {
+      "id": "047",
+      "file": "Level3_Types/047_ArrayDeclaration.cs",
+      "level": 3,
+      "features": ["array", "array_access", "array_length"],
+      "expectedResult": "success",
+      "notes": "Array declaration and access"
+    },
+    {
+      "id": "048",
+      "file": "Level3_Types/048_ArrayInitializer.cs",
+      "level": 3,
+      "features": ["array_initializer", "collection_initializer"],
+      "expectedResult": "success",
+      "notes": "Array with initializer syntax"
+    },
+    {
+      "id": "049",
+      "file": "Level3_Types/049_ListUsage.cs",
+      "level": 3,
+      "features": ["list", "generic_type", "add_method"],
+      "expectedResult": "partial",
+      "notes": "List<T> usage"
+    },
+    {
+      "id": "050",
+      "file": "Level3_Types/050_DictionaryUsage.cs",
+      "level": 3,
+      "features": ["dictionary", "generic_type", "indexer"],
+      "expectedResult": "partial",
+      "notes": "Dictionary<K,V> usage"
+    },
+    {
+      "id": "051",
+      "file": "Level3_Types/051_Struct.cs",
+      "level": 3,
+      "features": ["struct", "value_type"],
+      "expectedResult": "partial",
+      "notes": "Struct definition"
+    },
+    {
+      "id": "052",
+      "file": "Level3_Types/052_NullableTypes.cs",
+      "level": 3,
+      "features": ["nullable", "has_value", "value"],
+      "expectedResult": "partial",
+      "notes": "Nullable value types"
+    },
+    {
+      "id": "053",
+      "file": "Level3_Types/053_ClassWithConstructor.cs",
+      "level": 3,
+      "features": ["constructor", "this", "decimal"],
+      "expectedResult": "success",
+      "notes": "Class with constructor"
+    },
+    {
+      "id": "054",
+      "file": "Level3_Types/054_Inheritance.cs",
+      "level": 3,
+      "features": ["inheritance", "base_class", "derived_class"],
+      "expectedResult": "partial",
+      "notes": "Class inheritance"
+    },
+    {
+      "id": "055",
+      "file": "Level3_Types/055_Interface.cs",
+      "level": 3,
+      "features": ["interface", "implements"],
+      "expectedResult": "partial",
+      "notes": "Interface definition and implementation"
+    },
+    {
+      "id": "056",
+      "file": "Level3_Types/056_AbstractClass.cs",
+      "level": 3,
+      "features": ["abstract_class", "abstract_method", "override"],
+      "expectedResult": "partial",
+      "notes": "Abstract class and override"
+    },
+    {
+      "id": "057",
+      "file": "Level3_Types/057_StaticClass.cs",
+      "level": 3,
+      "features": ["static_class", "readonly_field"],
+      "expectedResult": "success",
+      "notes": "Static class with constants"
+    },
+    {
+      "id": "058",
+      "file": "Level3_Types/058_NestedClass.cs",
+      "level": 3,
+      "features": ["nested_class", "inner_class"],
+      "expectedResult": "partial",
+      "notes": "Nested class definition"
+    },
+    {
+      "id": "059",
+      "file": "Level3_Types/059_Tuple.cs",
+      "level": 3,
+      "features": ["tuple", "named_tuple", "tuple_access"],
+      "expectedResult": "partial",
+      "notes": "ValueTuple usage"
+    },
+    {
+      "id": "060",
+      "file": "Level3_Types/060_ObjectInitializer.cs",
+      "level": 3,
+      "features": ["object_initializer"],
+      "expectedResult": "partial",
+      "notes": "Object initializer syntax"
+    },
+    {
+      "id": "061",
+      "file": "Level4_Methods/061_MultipleParameters.cs",
+      "level": 4,
+      "features": ["multiple_parameters", "three_params"],
+      "expectedResult": "success",
+      "notes": "Methods with 3+ parameters"
+    },
+    {
+      "id": "062",
+      "file": "Level4_Methods/062_OptionalParameters.cs",
+      "level": 4,
+      "features": ["optional_parameters", "default_values"],
+      "expectedResult": "partial",
+      "notes": "Optional parameters with defaults"
+    },
+    {
+      "id": "063",
+      "file": "Level4_Methods/063_RefParameters.cs",
+      "level": 4,
+      "features": ["ref_parameter"],
+      "expectedResult": "partial",
+      "notes": "Ref parameters"
+    },
+    {
+      "id": "064",
+      "file": "Level4_Methods/064_OutParameters.cs",
+      "level": 4,
+      "features": ["out_parameter"],
+      "expectedResult": "partial",
+      "notes": "Out parameters"
+    },
+    {
+      "id": "065",
+      "file": "Level4_Methods/065_MethodOverloads.cs",
+      "level": 4,
+      "features": ["method_overloading"],
+      "expectedResult": "success",
+      "notes": "Method overloading"
+    },
+    {
+      "id": "066",
+      "file": "Level4_Methods/066_ExpressionBodied.cs",
+      "level": 4,
+      "features": ["expression_bodied_member"],
+      "expectedResult": "success",
+      "notes": "Expression-bodied methods"
+    },
+    {
+      "id": "067",
+      "file": "Level4_Methods/067_PrivateMethods.cs",
+      "level": 4,
+      "features": ["private_method", "accessibility"],
+      "expectedResult": "success",
+      "notes": "Private methods"
+    },
+    {
+      "id": "068",
+      "file": "Level4_Methods/068_StaticVsInstance.cs",
+      "level": 4,
+      "features": ["static_method", "instance_method", "static_field"],
+      "expectedResult": "success",
+      "notes": "Static vs instance members"
+    },
+    {
+      "id": "069",
+      "file": "Level4_Methods/069_MethodChaining.cs",
+      "level": 4,
+      "features": ["method_chaining", "fluent_interface", "return_this"],
+      "expectedResult": "partial",
+      "notes": "Method chaining pattern"
+    },
+    {
+      "id": "070",
+      "file": "Level4_Methods/070_VoidMethods.cs",
+      "level": 4,
+      "features": ["void_method", "console_write"],
+      "expectedResult": "success",
+      "notes": "Void return type methods"
+    },
+    {
+      "id": "071",
+      "file": "Level4_Methods/071_ParamsArray.cs",
+      "level": 4,
+      "features": ["params", "variable_arguments"],
+      "expectedResult": "partial",
+      "notes": "Params array parameter"
+    },
+    {
+      "id": "072",
+      "file": "Level4_Methods/072_NamedArguments.cs",
+      "level": 4,
+      "features": ["named_arguments"],
+      "expectedResult": "partial",
+      "notes": "Named arguments in calls"
+    },
+    {
+      "id": "073",
+      "file": "Level4_Methods/073_RecursiveMethods.cs",
+      "level": 4,
+      "features": ["recursion", "tail_recursion"],
+      "expectedResult": "success",
+      "notes": "Recursive methods"
+    },
+    {
+      "id": "074",
+      "file": "Level4_Methods/074_LocalFunctions.cs",
+      "level": 4,
+      "features": ["local_function"],
+      "expectedResult": "partial",
+      "notes": "Local functions (C# 7.0)"
+    },
+    {
+      "id": "075",
+      "file": "Level4_Methods/075_ExtensionMethods.cs",
+      "level": 4,
+      "features": ["extension_method", "this_parameter"],
+      "expectedResult": "partial",
+      "notes": "Extension methods"
+    },
+    {
+      "id": "076",
+      "file": "Level4_Methods/076_VirtualMethods.cs",
+      "level": 4,
+      "features": ["virtual_method", "override"],
+      "expectedResult": "partial",
+      "notes": "Virtual and override methods"
+    },
+    {
+      "id": "077",
+      "file": "Level4_Methods/077_PropertyGetSet.cs",
+      "level": 4,
+      "features": ["property_getter", "property_setter", "backing_field"],
+      "expectedResult": "partial",
+      "notes": "Property with custom get/set"
+    },
+    {
+      "id": "078",
+      "file": "Level4_Methods/078_IndexerProperty.cs",
+      "level": 4,
+      "features": ["indexer"],
+      "expectedResult": "partial",
+      "notes": "Indexer property"
+    },
+    {
+      "id": "079",
+      "file": "Level4_Methods/079_OperatorOverload.cs",
+      "level": 4,
+      "features": ["operator_overload"],
+      "expectedResult": "partial",
+      "notes": "Operator overloading"
+    },
+    {
+      "id": "080",
+      "file": "Level4_Methods/080_ImplicitExplicitConversion.cs",
+      "level": 4,
+      "features": ["implicit_conversion", "explicit_conversion"],
+      "expectedResult": "unsupported",
+      "notes": "Implicit/explicit conversion operators"
+    },
+    {
+      "id": "081",
+      "file": "Level5_Advanced/081_AsyncMethod.cs",
+      "level": 5,
+      "features": ["async", "await", "task"],
+      "expectedResult": "partial",
+      "notes": "Async/await methods"
+    },
+    {
+      "id": "082",
+      "file": "Level5_Advanced/082_Lambda.cs",
+      "level": 5,
+      "features": ["lambda", "func", "action"],
+      "expectedResult": "partial",
+      "notes": "Lambda expressions"
+    },
+    {
+      "id": "083",
+      "file": "Level5_Advanced/083_LinqSelect.cs",
+      "level": 5,
+      "features": ["linq", "select", "ienumerable"],
+      "expectedResult": "partial",
+      "notes": "LINQ Select method"
+    },
+    {
+      "id": "084",
+      "file": "Level5_Advanced/084_LinqWhere.cs",
+      "level": 5,
+      "features": ["linq", "where", "filter"],
+      "expectedResult": "partial",
+      "notes": "LINQ Where method"
+    },
+    {
+      "id": "085",
+      "file": "Level5_Advanced/085_GenericClass.cs",
+      "level": 5,
+      "features": ["generic_class", "type_parameter"],
+      "expectedResult": "partial",
+      "notes": "Generic class definition"
+    },
+    {
+      "id": "086",
+      "file": "Level5_Advanced/086_GenericMethod.cs",
+      "level": 5,
+      "features": ["generic_method", "type_constraint"],
+      "expectedResult": "partial",
+      "notes": "Generic methods with constraints"
+    },
+    {
+      "id": "087",
+      "file": "Level5_Advanced/087_TryCatch.cs",
+      "level": 5,
+      "features": ["try_catch", "exception", "finally"],
+      "expectedResult": "partial",
+      "notes": "Exception handling"
+    },
+    {
+      "id": "088",
+      "file": "Level5_Advanced/088_UsingStatement.cs",
+      "level": 5,
+      "features": ["using_statement", "idisposable"],
+      "expectedResult": "partial",
+      "notes": "Using statement for IDisposable"
+    },
+    {
+      "id": "089",
+      "file": "Level5_Advanced/089_LinqAggregate.cs",
+      "level": 5,
+      "features": ["linq", "sum", "average", "max", "min"],
+      "expectedResult": "partial",
+      "notes": "LINQ aggregation methods"
+    },
+    {
+      "id": "090",
+      "file": "Level5_Advanced/090_LinqOrderBy.cs",
+      "level": 5,
+      "features": ["linq", "orderby", "thenby"],
+      "expectedResult": "partial",
+      "notes": "LINQ sorting methods"
+    },
+    {
+      "id": "091",
+      "file": "Level5_Advanced/091_LinqGroupBy.cs",
+      "level": 5,
+      "features": ["linq", "groupby", "igrouping"],
+      "expectedResult": "partial",
+      "notes": "LINQ GroupBy method"
+    },
+    {
+      "id": "092",
+      "file": "Level5_Advanced/092_Events.cs",
+      "level": 5,
+      "features": ["event", "eventhandler", "event_args"],
+      "expectedResult": "unsupported",
+      "notes": "Events and event handlers"
+    },
+    {
+      "id": "093",
+      "file": "Level5_Advanced/093_Delegates.cs",
+      "level": 5,
+      "features": ["delegate", "multicast_delegate"],
+      "expectedResult": "unsupported",
+      "notes": "Delegate types"
+    },
+    {
+      "id": "094",
+      "file": "Level5_Advanced/094_PatternMatching.cs",
+      "level": 5,
+      "features": ["pattern_matching", "is_expression", "switch_expression"],
+      "expectedResult": "partial",
+      "notes": "Pattern matching (C# 7.0+)"
+    },
+    {
+      "id": "095",
+      "file": "Level5_Advanced/095_NullCoalescing.cs",
+      "level": 5,
+      "features": ["null_coalescing", "null_conditional", "null_assignment"],
+      "expectedResult": "partial",
+      "notes": "Null coalescing operators"
+    },
+    {
+      "id": "096",
+      "file": "Level5_Advanced/096_StringInterpolation.cs",
+      "level": 5,
+      "features": ["string_interpolation", "format_string"],
+      "expectedResult": "partial",
+      "notes": "String interpolation"
+    },
+    {
+      "id": "097",
+      "file": "Level5_Advanced/097_AsyncAwaitChain.cs",
+      "level": 5,
+      "features": ["async", "await", "task_whenall", "parallel"],
+      "expectedResult": "partial",
+      "notes": "Complex async patterns"
+    },
+    {
+      "id": "098",
+      "file": "Level5_Advanced/098_GenericConstraints.cs",
+      "level": 5,
+      "features": ["generic_constraint", "where_clause", "new_constraint"],
+      "expectedResult": "partial",
+      "notes": "Generic constraints"
+    },
+    {
+      "id": "099",
+      "file": "Level5_Advanced/099_Deconstruction.cs",
+      "level": 5,
+      "features": ["deconstruction", "tuple_deconstruct"],
+      "expectedResult": "partial",
+      "notes": "Deconstruction patterns"
+    },
+    {
+      "id": "100",
+      "file": "Level5_Advanced/100_RecordWithMethods.cs",
+      "level": 5,
+      "features": ["record", "with_expression", "computed_property"],
+      "expectedResult": "partial",
+      "notes": "Record with methods and with-expression"
+    }
+  ]
+}
