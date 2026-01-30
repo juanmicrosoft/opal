@@ -730,6 +730,8 @@ public sealed class Parser
             TokenKind.Identifier => ParseReference(),
             // v2 Lisp-style expression: (op args...) or inline lambda: () → body
             TokenKind.OpenParen => ParseParenExpressionOrInlineLambda(),
+            // Collection/array initializer: {elem1, elem2, ...}
+            TokenKind.OpenBrace => ParseCollectionInitializer(),
             // Phase 3: Type System
             TokenKind.Some => ParseSomeExpression(),
             TokenKind.None => ParseNoneExpression(),
@@ -762,6 +764,46 @@ public sealed class Parser
             TokenKind.With => ParseWithExpression(),
             _ => throw new InvalidOperationException($"Unexpected token {Current.Kind}")
         };
+    }
+
+    /// <summary>
+    /// Parses a collection/array initializer: {elem1, elem2, ...}
+    /// </summary>
+    private ExpressionNode ParseCollectionInitializer()
+    {
+        var startToken = Expect(TokenKind.OpenBrace);
+        var elements = new List<ExpressionNode>();
+
+        // Parse elements until closing brace
+        while (!IsAtEnd && !Check(TokenKind.CloseBrace))
+        {
+            var element = ParseExpression();
+            elements.Add(element);
+
+            // Elements are separated by commas
+            if (Check(TokenKind.Comma))
+            {
+                Advance();
+            }
+            else if (!Check(TokenKind.CloseBrace))
+            {
+                // If there's no comma and no closing brace, something's wrong
+                break;
+            }
+        }
+
+        var endToken = Expect(TokenKind.CloseBrace);
+        var span = startToken.Span.Union(endToken.Span);
+
+        // Create an ArrayCreationNode with inferred type
+        return new ArrayCreationNode(
+            span,
+            "arr_init",
+            "arr_init",
+            "any", // Type will be inferred by context
+            null,  // No explicit size
+            elements,
+            new AttributeCollection());
     }
 
     /// <summary>
@@ -1102,19 +1144,32 @@ public sealed class Parser
         };
 
         // Handle trailing member access (e.g., §C[...] §/C.Length or run?.Status)
-        while (Check(TokenKind.Dot) || Check(TokenKind.NullConditional))
+        // and array access (e.g., array{index})
+        while (Check(TokenKind.Dot) || Check(TokenKind.NullConditional) || Check(TokenKind.OpenBrace))
         {
-            var isNullConditional = Check(TokenKind.NullConditional);
-            Advance(); // consume '.' or '?.'
-            var memberToken = Expect(TokenKind.Identifier);
-            var span = expr.Span.Union(memberToken.Span);
-            if (isNullConditional)
+            if (Check(TokenKind.OpenBrace))
             {
-                expr = new NullConditionalNode(span, expr, memberToken.Text);
+                // Array access: array{index}
+                Advance(); // consume '{'
+                var indexExpr = ParseExpression();
+                var endToken = Expect(TokenKind.CloseBrace);
+                var span = expr.Span.Union(endToken.Span);
+                expr = new ArrayAccessNode(span, expr, indexExpr);
             }
             else
             {
-                expr = new FieldAccessNode(span, expr, memberToken.Text);
+                var isNullConditional = Check(TokenKind.NullConditional);
+                Advance(); // consume '.' or '?.'
+                var memberToken = Expect(TokenKind.Identifier);
+                var span = expr.Span.Union(memberToken.Span);
+                if (isNullConditional)
+                {
+                    expr = new NullConditionalNode(span, expr, memberToken.Text);
+                }
+                else
+                {
+                    expr = new FieldAccessNode(span, expr, memberToken.Text);
+                }
             }
         }
 

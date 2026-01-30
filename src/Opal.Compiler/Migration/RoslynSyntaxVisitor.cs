@@ -1435,9 +1435,64 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
             return new ReferenceNode(GetTextSpan(collection), "default");
         }
 
-        // Non-empty collection: fall back to string representation
-        // OPAL doesn't have a direct equivalent to C# collection expressions
-        return new ReferenceNode(GetTextSpan(collection), collection.ToString());
+        // Convert collection expression to ArrayCreationNode
+        // This allows proper round-tripping through OPAL
+        var id = _context.GenerateId("arr");
+        var name = _context.GenerateId("arr");
+
+        var initializer = new List<ExpressionNode>();
+        string? elementType = null;
+
+        foreach (var element in collection.Elements)
+        {
+            if (element is ExpressionElementSyntax exprElement)
+            {
+                var converted = ConvertExpression(exprElement.Expression);
+                initializer.Add(converted);
+
+                // Try to infer element type from first element
+                if (elementType == null)
+                {
+                    elementType = InferTypeFromExpression(exprElement.Expression);
+                }
+            }
+            else if (element is SpreadElementSyntax spread)
+            {
+                // Spread elements like ..otherArray - fall back to string representation
+                return new ReferenceNode(GetTextSpan(collection), collection.ToString());
+            }
+        }
+
+        // Default to "any" if we can't infer the type
+        elementType ??= "any";
+
+        return new ArrayCreationNode(
+            GetTextSpan(collection),
+            id,
+            name,
+            elementType,
+            null, // no explicit size
+            initializer,
+            new AttributeCollection());
+    }
+
+    private string? InferTypeFromExpression(ExpressionSyntax expr)
+    {
+        return expr switch
+        {
+            LiteralExpressionSyntax literal => literal.Kind() switch
+            {
+                SyntaxKind.StringLiteralExpression => "str",
+                SyntaxKind.NumericLiteralExpression when literal.Token.Value is int => "i32",
+                SyntaxKind.NumericLiteralExpression when literal.Token.Value is long => "i64",
+                SyntaxKind.NumericLiteralExpression when literal.Token.Value is float => "f32",
+                SyntaxKind.NumericLiteralExpression when literal.Token.Value is double => "f64",
+                SyntaxKind.TrueLiteralExpression or SyntaxKind.FalseLiteralExpression => "bool",
+                SyntaxKind.CharacterLiteralExpression => "char",
+                _ => null
+            },
+            _ => null
+        };
     }
 
     private ExpressionNode ConvertImplicitObjectCreation(ImplicitObjectCreationExpressionSyntax implicitNew)
