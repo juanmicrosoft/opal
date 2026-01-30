@@ -2030,9 +2030,9 @@ public sealed class Parser
     {
         return value?.ToLowerInvariant() switch
         {
-            "public" => Visibility.Public,
-            "internal" => Visibility.Internal,
-            "private" => Visibility.Private,
+            "public" or "pub" => Visibility.Public,
+            "internal" or "int" => Visibility.Internal,
+            "private" or "priv" => Visibility.Private,
             _ => Visibility.Private
         };
     }
