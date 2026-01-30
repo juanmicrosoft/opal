@@ -290,7 +290,7 @@ test_github_project() {
     # Step 7: Build the project
     step "Building project with OPAL files..."
     cd "$csproj_dir"
-    if ! dotnet build --nologo -v q 2>&1; then
+    if ! dotnet build --nologo -v q -p:EnableSourceLink=false -p:EnableSourceControlManagerQueries=false 2>&1; then
         fail "$test_name - dotnet build failed after conversion"
         return 0
     fi
@@ -323,7 +323,7 @@ test_github_project() {
             detail "Tests passed"
         else
             # Try building and running tests
-            if dotnet test --nologo -v q 2>&1; then
+            if dotnet test --nologo -v q -p:EnableSourceLink=false -p:EnableSourceControlManagerQueries=false 2>&1; then
                 detail "Tests passed (after rebuild)"
             else
                 fail "$test_name - tests failed"
@@ -338,7 +338,7 @@ test_github_project() {
     step "Testing clean/rebuild cycle..."
     cd "$csproj_dir"
     dotnet clean --nologo -v q > /dev/null 2>&1
-    if ! dotnet build --nologo -v q 2>&1; then
+    if ! dotnet build --nologo -v q -p:EnableSourceLink=false -p:EnableSourceControlManagerQueries=false 2>&1; then
         fail "$test_name - rebuild after clean failed"
         return 0
     fi
@@ -392,7 +392,7 @@ Console.WriteLine($"21 + 21 = {result}");
 CS_EOF
 
     step "Building project..."
-    if ! dotnet build --nologo -v q 2>&1; then
+    if ! dotnet build --nologo -v q -p:EnableSourceLink=false -p:EnableSourceControlManagerQueries=false 2>&1; then
         fail "$test_name - dotnet build failed"
         return 0
     fi
@@ -413,7 +413,7 @@ CS_EOF
 
     step "Testing clean/rebuild..."
     dotnet clean --nologo -v q > /dev/null 2>&1
-    if ! dotnet build --nologo -v q 2>&1; then
+    if ! dotnet build --nologo -v q -p:EnableSourceLink=false -p:EnableSourceControlManagerQueries=false 2>&1; then
         fail "$test_name - rebuild failed"
         return 0
     fi
@@ -574,7 +574,7 @@ Console.WriteLine($"Multiply(3,4) = {Calc.Multiply(3, 4)}");
 Console.WriteLine($"IsPositive(5) = {Calc.IsPositive(5)}");
 CSEOF
 
-    if ! dotnet build --nologo -v q 2>&1; then
+    if ! dotnet build --nologo -v q -p:EnableSourceLink=false -p:EnableSourceControlManagerQueries=false 2>&1; then
         fail "$test_name - build failed after conversion"
         return 0
     fi

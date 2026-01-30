@@ -1049,6 +1049,7 @@ public sealed class Parser
     /// Parses an argument inside a Lisp expression.
     /// Can be a literal, identifier (bare variable), or nested Lisp expression.
     /// Supports trailing member access (e.g., §C[...] §/C.Length)
+    /// Also handles 'is' pattern expressions: expr is Type [variable]
     /// </summary>
     private ExpressionNode ParseLispArgument()
     {
@@ -1083,7 +1084,112 @@ public sealed class Parser
             }
         }
 
+        // Handle 'is' pattern expression: expr is Type [variable]
+        // This handles C# pattern matching like "other is UnitSystem otherUnitSystem"
+        if (Check(TokenKind.Identifier) && Current.Text == "is")
+        {
+            expr = ParseIsPatternExpression(expr);
+        }
+
         return expr;
+    }
+
+    /// <summary>
+    /// Parses an 'is' pattern expression: expr is Type [variable]
+    /// The expr has already been parsed, we're at the 'is' keyword.
+    /// Returns a ReferenceNode with the full pattern expression.
+    /// </summary>
+    private ExpressionNode ParseIsPatternExpression(ExpressionNode left)
+    {
+        var startSpan = left.Span;
+        Advance(); // consume 'is'
+
+        // Parse the type name (possibly qualified: Namespace.Type or generic: Type<T>)
+        var typeBuilder = new System.Text.StringBuilder();
+        if (!Check(TokenKind.Identifier))
+        {
+            _diagnostics.ReportError(Current.Span, DiagnosticCode.UnexpectedToken,
+                $"Expected type name after 'is', found '{Current.Text}'");
+            return left;
+        }
+
+        var typeToken = Current;
+        typeBuilder.Append(Current.Text);
+        Advance();
+
+        // Handle qualified names (Namespace.Type) and generic types (Type<T>)
+        while (Check(TokenKind.Dot) || Check(TokenKind.Less))
+        {
+            if (Check(TokenKind.Dot))
+            {
+                typeBuilder.Append('.');
+                Advance();
+                if (Check(TokenKind.Identifier))
+                {
+                    typeBuilder.Append(Current.Text);
+                    Advance();
+                }
+            }
+            else if (Check(TokenKind.Less))
+            {
+                // Parse generic type arguments: Type<T, U>
+                typeBuilder.Append('<');
+                Advance();
+                int depth = 1;
+                while (depth > 0 && !IsAtEnd)
+                {
+                    if (Check(TokenKind.Less))
+                        depth++;
+                    else if (Check(TokenKind.Greater))
+                        depth--;
+                    typeBuilder.Append(Current.Text);
+                    Advance();
+                }
+            }
+        }
+
+        var typeName = typeBuilder.ToString();
+        string? variableName = null;
+
+        // Check for optional variable declaration: is Type variableName
+        // Only consume if it's an identifier and not the start of another expression or close paren
+        if (Check(TokenKind.Identifier) && !IsLispOperatorStart(Current.Text))
+        {
+            variableName = Current.Text;
+            Advance();
+        }
+
+        // Build the full expression as a reference node
+        var leftStr = GetExpressionString(left);
+        var fullExpr = variableName != null
+            ? $"{leftStr} is {typeName} {variableName}"
+            : $"{leftStr} is {typeName}";
+
+        var endSpan = Peek(-1).Span;
+        return new ReferenceNode(startSpan.Union(endSpan), fullExpr);
+    }
+
+    /// <summary>
+    /// Checks if the identifier could be a Lisp operator (to avoid consuming it as a variable name).
+    /// </summary>
+    private bool IsLispOperatorStart(string text)
+    {
+        // Common Lisp operators that might appear after an 'is' pattern
+        return text is "and" or "or" or "not";
+    }
+
+    /// <summary>
+    /// Gets the string representation of an expression for use in pattern expressions.
+    /// </summary>
+    private string GetExpressionString(ExpressionNode expr)
+    {
+        return expr switch
+        {
+            ReferenceNode r => r.Name,
+            FieldAccessNode f => $"{GetExpressionString(f.Target)}.{f.FieldName}",
+            NullConditionalNode n => $"{GetExpressionString(n.Target)}?.{n.MemberName}",
+            _ => expr.ToString() ?? ""
+        };
     }
 
     /// <summary>

@@ -398,6 +398,13 @@ public sealed class CSharpEmitter : IAstVisitor<string>
 
     public string Visit(ReferenceNode node)
     {
+        // Handle 'is' pattern expressions like "other is UnitSystem otherUnitSystem"
+        // These should be emitted as-is without sanitization
+        if (node.Name.Contains(" is "))
+        {
+            return node.Name;
+        }
+
         // Handle member access like "args.Length" - preserve the dot notation
         if (node.Name.Contains('.'))
         {
