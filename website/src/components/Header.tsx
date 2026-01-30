@@ -7,12 +7,13 @@ import { Menu, X, Github, Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn, getBasePath } from '@/lib/utils';
 
+// basePath needed for pathname comparison since usePathname returns full path
 const basePath = getBasePath();
 
 const navigation = [
-  { name: 'Docs', href: `${basePath}/docs/` },
-  { name: 'Getting Started', href: `${basePath}/docs/getting-started/` },
-  { name: 'Benchmarks', href: `${basePath}/docs/benchmarking/` },
+  { name: 'Docs', href: '/docs/', path: `${basePath}/docs/` },
+  { name: 'Getting Started', href: '/docs/getting-started/', path: `${basePath}/docs/getting-started/` },
+  { name: 'Benchmarks', href: '/docs/benchmarking/', path: `${basePath}/docs/benchmarking/` },
 ];
 
 export function Header() {
@@ -29,7 +30,7 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <nav className="mx-auto flex max-w-7xl items-center justify-between p-4 lg:px-8">
         <div className="flex lg:flex-1">
-          <Link href={`${basePath}/`} className="-m-1.5 p-1.5">
+          <Link href="/" className="-m-1.5 p-1.5">
             <span className="text-xl font-bold">OPAL</span>
           </Link>
         </div>
@@ -52,7 +53,7 @@ export function Header() {
               href={item.href}
               className={cn(
                 'text-sm font-medium transition-colors hover:text-primary',
-                pathname?.startsWith(item.href.replace(/\/$/, ''))
+                pathname?.startsWith(item.path.replace(/\/$/, ''))
                   ? 'text-primary'
                   : 'text-muted-foreground'
               )}
@@ -90,7 +91,7 @@ export function Header() {
           <div className="fixed inset-0 z-50" />
           <div className="fixed inset-y-0 right-0 z-50 w-full overflow-y-auto bg-background px-6 py-6 sm:max-w-sm sm:ring-1 sm:ring-border">
             <div className="flex items-center justify-between">
-              <Link href={`${basePath}/`} className="-m-1.5 p-1.5">
+              <Link href="/" className="-m-1.5 p-1.5">
                 <span className="text-xl font-bold">OPAL</span>
               </Link>
               <button

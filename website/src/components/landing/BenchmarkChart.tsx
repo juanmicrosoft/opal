@@ -1,8 +1,6 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { cn, getBasePath } from '@/lib/utils';
-
-const basePath = getBasePath();
+import { cn } from '@/lib/utils';
 
 interface BenchmarkResult {
   category: string;
@@ -148,7 +146,7 @@ export function BenchmarkChart() {
 
           <div className="mt-8 text-center">
             <Button variant="outline" asChild>
-              <Link href={`${basePath}/docs/benchmarking/results/`}>
+              <Link href="/docs/benchmarking/results/">
                 View detailed benchmarks
               </Link>
             </Button>

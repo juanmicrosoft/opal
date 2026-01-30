@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { cn, getBasePath } from '@/lib/utils';
 import type { DocSection } from '@/lib/docs';
 
+// basePath is needed for pathname comparison since usePathname returns full path
 const basePath = getBasePath();
 
 interface MobileSidebarProps {
@@ -68,8 +69,9 @@ export function MobileSidebar({ sections }: MobileSidebarProps) {
             <ul className="space-y-1">
               {sections.map((section) => {
                 const isExpanded = expandedSections.has(section.slug);
-                const sectionHref = `${basePath}/docs/${section.slug}/`;
-                const isSectionActive = pathname?.startsWith(sectionHref.slice(0, -1));
+                const sectionHref = `/docs/${section.slug}/`;
+                const sectionPath = `${basePath}/docs/${section.slug}/`; // for pathname comparison
+                const isSectionActive = pathname?.startsWith(sectionPath.slice(0, -1));
 
                 return (
                   <li key={section.slug}>
@@ -93,7 +95,7 @@ export function MobileSidebar({ sections }: MobileSidebarProps) {
                     {isExpanded && (
                       <ul className="ml-4 mt-1 space-y-1 border-l pl-4">
                         {section.docs.map((doc) => {
-                          const href = `${basePath}/docs/${doc.slug}/`;
+                          const href = `/docs/${doc.slug}/`;
                           const active = isActive(doc.slug);
 
                           return (

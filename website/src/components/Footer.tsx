@@ -1,18 +1,15 @@
 import Link from 'next/link';
-import { getBasePath } from '@/lib/utils';
-
-const basePath = getBasePath();
 
 const footerLinks = {
   documentation: [
-    { name: 'Getting Started', href: `${basePath}/docs/getting-started/` },
-    { name: 'Syntax Reference', href: `${basePath}/docs/syntax-reference/` },
-    { name: 'CLI Reference', href: `${basePath}/docs/cli/` },
+    { name: 'Getting Started', href: '/docs/getting-started/' },
+    { name: 'Syntax Reference', href: '/docs/syntax-reference/' },
+    { name: 'CLI Reference', href: '/docs/cli/' },
   ],
   resources: [
-    { name: 'Benchmarking', href: `${basePath}/docs/benchmarking/` },
-    { name: 'Philosophy', href: `${basePath}/docs/philosophy/` },
-    { name: 'Contributing', href: `${basePath}/docs/contributing/` },
+    { name: 'Benchmarking', href: '/docs/benchmarking/' },
+    { name: 'Philosophy', href: '/docs/philosophy/' },
+    { name: 'Contributing', href: '/docs/contributing/' },
   ],
   community: [
     { name: 'GitHub', href: 'https://github.com/juanmicrosoft/opal', external: true },
@@ -26,7 +23,7 @@ export function Footer() {
       <div className="mx-auto max-w-7xl px-6 py-12 lg:px-8">
         <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
           <div className="col-span-2 md:col-span-1">
-            <Link href={`${basePath}/`} className="text-xl font-bold">
+            <Link href="/" className="text-xl font-bold">
               OPAL
             </Link>
             <p className="mt-4 text-sm text-muted-foreground">

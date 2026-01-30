@@ -1,9 +1,6 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Github, ArrowRight } from 'lucide-react';
-import { getBasePath } from '@/lib/utils';
-
-const basePath = getBasePath();
 
 export function Hero() {
   return (
@@ -13,8 +10,8 @@ export function Hero() {
           <h1 className="text-4xl font-bold tracking-tight sm:text-6xl">
             OPAL
           </h1>
-          <p className="mt-4 text-xl font-medium text-muted-foreground sm:text-2xl">
-            Optimized Programming for Agent Language
+          <p className="mt-4 text-xl font-medium text-primary sm:text-2xl">
+            The AI-Native Language
           </p>
           <p className="mt-6 text-lg leading-8 text-muted-foreground">
             A programming language designed specifically for AI coding agents,
@@ -23,7 +20,7 @@ export function Hero() {
 
           <div className="mt-10 flex items-center justify-center gap-x-4">
             <Button asChild size="lg">
-              <Link href={`${basePath}/docs/getting-started/`}>
+              <Link href="/docs/getting-started/">
                 Get Started
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>

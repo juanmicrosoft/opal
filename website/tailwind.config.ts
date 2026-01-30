@@ -41,6 +41,15 @@ const config: Config = {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
         },
+        terminal: {
+          green: '#00ff00',
+          'green-dim': '#00cc00',
+          'green-glow': 'rgba(0, 255, 0, 0.3)',
+        },
+        crt: {
+          black: '#0a0a0a',
+          dark: '#121212',
+        },
       },
       borderRadius: {
         lg: 'var(--radius)',
@@ -50,6 +59,16 @@ const config: Config = {
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
         mono: ['JetBrains Mono', 'Menlo', 'monospace'],
+        terminal: ['VT323', 'monospace'],
+      },
+      animation: {
+        'cursor-blink': 'blink 1s step-end infinite',
+      },
+      keyframes: {
+        blink: {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0' },
+        },
       },
     },
   },

@@ -1,23 +1,35 @@
 import { CodeBlock } from './CodeBlock';
 import { Callout } from './Callout';
-import { cn, getBasePath } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
-const basePath = getBasePath();
-
 // Transform Jekyll-style links to Next.js links
+// Note: Next.js Link automatically adds basePath, so we return paths without it
 function transformHref(href: string): string {
   if (!href) return href;
 
-  // Handle relative /opal/ links
+  // Handle relative /opal/ links (legacy Jekyll format)
   if (href.startsWith('/opal/')) {
-    // Convert /opal/getting-started/ to /opal/docs/getting-started/
+    // Convert /opal/getting-started/ to /docs/getting-started/
     const path = href.replace('/opal/', '');
     // Don't double-add docs/ prefix
     if (!path.startsWith('docs/')) {
-      return `${basePath}/docs/${path}`;
+      return `/docs/${path}`;
     }
-    return `${basePath}/${path}`;
+    return `/${path}`;
+  }
+
+  // Handle links that already start with /docs/
+  if (href.startsWith('/docs/')) {
+    return href;
+  }
+
+  // Handle relative doc links like /philosophy/design-principles/
+  if (href.startsWith('/') && !href.startsWith('//')) {
+    // Assume it's a docs link if it doesn't look like a full path
+    if (!href.includes('.')) {
+      return `/docs${href}`;
+    }
   }
 
   return href;

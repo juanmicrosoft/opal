@@ -5,9 +5,9 @@ import { Check, Copy, Terminal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const commands = [
-  { label: 'Clone and build', command: 'git clone https://github.com/juanmicrosoft/opal.git\ncd opal && dotnet build' },
-  { label: 'Compile OPAL to C#', command: 'dotnet run --project src/Opal.Compiler -- \\\n  --input samples/HelloWorld/hello.opal \\\n  --output samples/HelloWorld/hello.g.cs' },
-  { label: 'Run the program', command: 'dotnet run --project samples/HelloWorld' },
+  { label: 'Install the compiler', command: 'dotnet tool install -g opalc' },
+  { label: 'Compile OPAL to C#', command: 'opalc --input program.opal --output program.g.cs' },
+  { label: 'Run with .NET', command: 'dotnet run' },
 ];
 
 export function QuickStart() {
