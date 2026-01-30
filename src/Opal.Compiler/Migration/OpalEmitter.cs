@@ -830,7 +830,7 @@ public sealed class OpalEmitter : IAstVisitor<string>
     public string Visit(MatchCaseNode node)
     {
         var pattern = EmitPattern(node.Pattern);
-        AppendLine($"§CASE {pattern} →");
+        AppendLine($"§CASE {pattern}");
         Indent();
 
         foreach (var stmt in node.Body)
@@ -935,11 +935,26 @@ public sealed class OpalEmitter : IAstVisitor<string>
 
     public string Visit(CallExpressionNode node)
     {
+        // Escape braces in target to avoid conflicts with OPAL tag syntax
+        var escapedTarget = EscapeBraces(node.Target);
+
         if (node.Arguments.Count == 0)
-            return $"§C{{{node.Target}}} §/C";
+            return $"§C{{{escapedTarget}}} §/C";
 
         var args = node.Arguments.Select(a => $"§A {a.Accept(this)}");
-        return $"§C{{{node.Target}}} {string.Join(" ", args)} §/C";
+        return $"§C{{{escapedTarget}}} {string.Join(" ", args)} §/C";
+    }
+
+    /// <summary>
+    /// Escapes braces in a string to avoid conflicts with OPAL tag syntax.
+    /// { becomes \{ and } becomes \}
+    /// </summary>
+    private static string EscapeBraces(string input)
+    {
+        if (!input.Contains('{') && !input.Contains('}'))
+            return input;
+
+        return input.Replace("{", "\\{").Replace("}", "\\}");
     }
 
     public string Visit(ThisExpressionNode node)

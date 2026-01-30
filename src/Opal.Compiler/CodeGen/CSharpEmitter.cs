@@ -1204,8 +1204,22 @@ public sealed class CSharpEmitter : IAstVisitor<string>
 
     public string Visit(CallExpressionNode node)
     {
+        // Unescape braces that were escaped for OPAL syntax: \{ -> { and \} -> }
+        var target = UnescapeBraces(node.Target);
         var args = string.Join(", ", node.Arguments.Select(a => a.Accept(this)));
-        return $"{node.Target}({args})";
+        return $"{target}({args})";
+    }
+
+    /// <summary>
+    /// Unescapes braces that were escaped for OPAL syntax.
+    /// \{ becomes { and \} becomes }
+    /// </summary>
+    private static string UnescapeBraces(string input)
+    {
+        if (!input.Contains('\\'))
+            return input;
+
+        return input.Replace("\\{", "{").Replace("\\}", "}");
     }
 
     public string Visit(ThisExpressionNode node)

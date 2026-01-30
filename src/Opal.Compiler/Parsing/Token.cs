@@ -30,6 +30,7 @@ public enum TokenKind
     Minus,              // -
     Star,               // *
     Slash,              // /
+    Backslash,          // \
     Percent,            // %
     EqualEqual,         // ==
     BangEqual,          // !=

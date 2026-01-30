@@ -346,6 +346,7 @@ public sealed class Lexer
             '+' => ScanSingle(TokenKind.Plus),
             '*' => ScanStarOrOperator(),
             '/' => ScanSingle(TokenKind.Slash),
+            '\\' => ScanSingle(TokenKind.Backslash),
             '%' => ScanSingle(TokenKind.Percent),
             '<' => ScanLessOrOperator(),
             '>' => ScanGreaterOrOperator(),

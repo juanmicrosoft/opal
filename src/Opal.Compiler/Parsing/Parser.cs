@@ -1207,14 +1207,19 @@ public sealed class Parser
     {
         var startToken = Expect(TokenKind.Match);
         var attrs = ParseAttributes();
-        var id = GetRequiredAttribute(attrs, "id", "MATCH", startToken.Span);
+        var id = V2AttributeHelper.InterpretMatchAttributes(attrs);
+        if (string.IsNullOrEmpty(id))
+        {
+            _diagnostics.ReportMissingRequiredAttribute(startToken.Span, "MATCH", "id");
+            id = "";
+        }
 
         var target = ParseExpression();
         var cases = ParseMatchCases();
 
         var endToken = Expect(TokenKind.EndMatch);
         var endAttrs = ParseAttributes();
-        var endId = GetRequiredAttribute(endAttrs, "id", "END_MATCH", endToken.Span);
+        var endId = V2AttributeHelper.InterpretEndMatchAttributes(endAttrs);
 
         if (endId != id)
         {
@@ -1229,14 +1234,19 @@ public sealed class Parser
     {
         var startToken = Expect(TokenKind.Match);
         var attrs = ParseAttributes();
-        var id = GetRequiredAttribute(attrs, "id", "MATCH", startToken.Span);
+        var id = V2AttributeHelper.InterpretMatchAttributes(attrs);
+        if (string.IsNullOrEmpty(id))
+        {
+            _diagnostics.ReportMissingRequiredAttribute(startToken.Span, "MATCH", "id");
+            id = "";
+        }
 
         var target = ParseExpression();
         var cases = ParseMatchCases();
 
         var endToken = Expect(TokenKind.EndMatch);
         var endAttrs = ParseAttributes();
-        var endId = GetRequiredAttribute(endAttrs, "id", "END_MATCH", endToken.Span);
+        var endId = V2AttributeHelper.InterpretEndMatchAttributes(endAttrs);
 
         if (endId != id)
         {
@@ -1717,7 +1727,7 @@ public sealed class Parser
 
     private void ParseV2PositionalAttributes(AttributeCollection attrs)
     {
-        // Parse colon-separated values: [value1:value2:value3]
+        // Parse colon-separated values: {value1:value2:value3}
         // Store them as _pos0, _pos1, _pos2, etc. for later interpretation
         var values = new List<string>();
         var position = 0;
@@ -1733,6 +1743,31 @@ public sealed class Parser
 
         // Also store the raw positional count
         attrs.Add("_posCount", position.ToString());
+    }
+
+    /// <summary>
+    /// Checks if current position has an escaped brace (\{ or \}).
+    /// If so, returns the brace character and advances past both tokens.
+    /// </summary>
+    private char? TryParseEscapedBrace()
+    {
+        if (Check(TokenKind.Backslash))
+        {
+            var next = Peek(1).Kind;
+            if (next == TokenKind.OpenBrace)
+            {
+                Advance(); // consume backslash
+                Advance(); // consume {
+                return '{';
+            }
+            if (next == TokenKind.CloseBrace)
+            {
+                Advance(); // consume backslash
+                Advance(); // consume }
+                return '}';
+            }
+        }
+        return null;
     }
 
     private string ParseV2Value()
@@ -1934,6 +1969,73 @@ public sealed class Parser
             if (Check(TokenKind.Identifier))
             {
                 sb.Append(Advance().Text);
+            }
+        }
+
+        // Handle complex expressions that may contain escaped braces and other tokens
+        // Continue parsing until we hit a colon (separator) or unescaped close brace (end of attributes)
+        while (!IsAtEnd && !Check(TokenKind.Colon) && !Check(TokenKind.CloseBrace))
+        {
+            // Handle escaped braces: \{ and \}
+            var escapedBrace = TryParseEscapedBrace();
+            if (escapedBrace.HasValue)
+            {
+                sb.Append(escapedBrace.Value);
+                continue;
+            }
+
+            // Handle common expression tokens
+            if (Check(TokenKind.Identifier))
+            {
+                sb.Append(Advance().Text);
+            }
+            else if (Current.Text == ".")
+            {
+                sb.Append('.');
+                Advance();
+            }
+            else if (Check(TokenKind.OpenParen))
+            {
+                sb.Append('(');
+                Advance();
+            }
+            else if (Check(TokenKind.CloseParen))
+            {
+                sb.Append(')');
+                Advance();
+            }
+            else if (Check(TokenKind.Comma))
+            {
+                // Only consume comma if not followed by close brace (end of args)
+                if (Peek(1).Kind == TokenKind.CloseBrace)
+                    break;
+                sb.Append(',');
+                Advance();
+            }
+            else if (Check(TokenKind.Less))
+            {
+                sb.Append('<');
+                Advance();
+            }
+            else if (Check(TokenKind.Greater))
+            {
+                sb.Append('>');
+                Advance();
+            }
+            else if (Check(TokenKind.IntLiteral))
+            {
+                sb.Append(Advance().Value?.ToString() ?? "");
+            }
+            else if (Check(TokenKind.StrLiteral))
+            {
+                sb.Append('"');
+                sb.Append(Advance().Value as string ?? "");
+                sb.Append('"');
+            }
+            else
+            {
+                // Unknown token, stop parsing this value
+                break;
             }
         }
 
