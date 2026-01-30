@@ -109,15 +109,16 @@ use_local_compiler() {
 }
 
 # Analyze a project and return files suitable for conversion
-# Returns JSON array of file paths that meet the threshold
+# Returns file paths that meet the threshold (one per line)
 analyze_project() {
     local project_dir="$1"
     local threshold="$2"
     local max_files="$3"
 
     # Run analyze with JSON output
+    # Note: analyze may return exit code 1 even on success, so we capture output regardless
     local json_output
-    json_output=$("$COMPILER" analyze "$project_dir" --format json --threshold "$threshold" 2>/dev/null) || return 1
+    json_output=$("$COMPILER" analyze "$project_dir" --format json --threshold "$threshold" 2>/dev/null) || true
 
     # Extract file paths from JSON (files with score >= threshold)
     # Using grep and sed for portability (no jq dependency)
@@ -667,23 +668,39 @@ main() {
     local clean_only=false
     local keep_workdir=false
     local quick_only=false
+    local run_tier=""
     for arg in "$@"; do
         case $arg in
             --clean) clean_only=true ;;
             --keep) keep_workdir=true ;;
             --quick) quick_only=true ;;
+            --tier=*) run_tier="${arg#*=}" ;;
+            --tier1) run_tier="1" ;;
+            --tier2) run_tier="2" ;;
+            --tier3) run_tier="3" ;;
+            --all-tiers) run_tier="all" ;;
             --help)
-                echo "Usage: $0 [--clean] [--keep] [--quick] [--help]"
+                echo "Usage: $0 [--clean] [--keep] [--quick] [--tier=N] [--help]"
                 echo ""
                 echo "Options:"
-                echo "  --clean  Clean work directory only"
-                echo "  --keep   Keep work directory after tests"
-                echo "  --quick  Run only basic local tests (no GitHub clones)"
-                echo "  --help   Show this help"
+                echo "  --clean      Clean work directory only"
+                echo "  --keep       Keep work directory after tests"
+                echo "  --quick      Run only basic local tests (no GitHub clones)"
+                echo "  --tier=N     Run only tier N GitHub tests (1, 2, 3, or 'all')"
+                echo "  --tier1      Shorthand for --tier=1 (small libraries)"
+                echo "  --tier2      Shorthand for --tier=2 (medium libraries)"
+                echo "  --tier3      Shorthand for --tier=3 (large libraries)"
+                echo "  --all-tiers  Run all GitHub project tiers"
+                echo "  --help       Show this help"
+                echo ""
+                echo "Tiers:"
+                echo "  Tier 1: Small, focused libraries (Humanizer, Slugify, HashIds, etc.)"
+                echo "  Tier 2: Medium complexity (FluentValidation, Polly, AutoMapper, etc.)"
+                echo "  Tier 3: Large libraries (Newtonsoft.Json, Dapper, Serilog, etc.)"
                 echo ""
                 echo "Environment variables:"
-                echo "  OPAL_MIN_SCORE     Minimum analyze score for conversion (default: 50)"
-                echo "  OPAL_MAX_FILES     Maximum files to convert per project (default: 10)"
+                echo "  OPAL_MIN_SCORE     Minimum analyze score for conversion (default: 30)"
+                echo "  OPAL_MAX_FILES     Maximum files to convert per project (default: 5)"
                 echo "  OPAL_CLONE_TIMEOUT Timeout for git clone in seconds (default: 120)"
                 echo "  OPAL_TEST_WORKDIR  Work directory (default: /tmp/opal-e2e-project-init)"
                 exit 0
@@ -708,7 +725,28 @@ main() {
     test_legacy_project_rejection
     test_full_pipeline
 
-    if ! $quick_only; then
+    # Determine which tiers to run
+    local run_github_tests=true
+    local run_tier1=false
+    local run_tier2=false
+    local run_tier3=false
+
+    if $quick_only; then
+        run_github_tests=false
+    elif [[ -n "$run_tier" ]]; then
+        case "$run_tier" in
+            1) run_tier1=true ;;
+            2) run_tier2=true ;;
+            3) run_tier3=true ;;
+            all) run_tier1=true; run_tier2=true; run_tier3=true ;;
+            *) echo "Invalid tier: $run_tier"; exit 1 ;;
+        esac
+    else
+        # Default: run tier 1 only (for reasonable test time)
+        run_tier1=true
+    fi
+
+    if $run_github_tests; then
         echo ""
         info "Running GitHub project integration tests..."
         info "Note: These tests may fail due to converter bugs or project-specific issues"
@@ -719,30 +757,161 @@ main() {
         # Failures may indicate converter bugs rather than init bugs
         # Format: test_github_project "name" "repo_url" "src_subdir" [branch]
 
-        # Humanizer - Popular string manipulation library
-        # Note: Uses Nerdbank.GitVersioning which may fail with shallow clones
-        test_github_project \
-            "humanizer" \
-            "https://github.com/Humanizr/Humanizer.git" \
-            "src/Humanizer"
+        # =====================================================================
+        # TIER 1: Small, Focused Libraries (7 projects)
+        # These are ideal for testing - small, pure functions, well-tested
+        # =====================================================================
+        if $run_tier1; then
+            echo ""
+            info "=== TIER 1: Small, Focused Libraries ==="
+            echo ""
 
-        # FluentValidation - Validation library with many simple validators
-        test_github_project \
-            "fluentvalidation" \
-            "https://github.com/FluentValidation/FluentValidation.git" \
-            "src/FluentValidation"
+            # 1. Humanizer - String/date manipulation with pure functions
+            test_github_project \
+                "humanizer" \
+                "https://github.com/Humanizr/Humanizer.git" \
+                "src/Humanizer"
 
-        # Polly - Resilience library, clean structure
-        test_github_project \
-            "polly" \
-            "https://github.com/App-vNext/Polly.git" \
-            "src/Polly.Core"
+            # 2. Slugify - URL slug generation, simple focused logic
+            test_github_project \
+                "slugify" \
+                "https://github.com/ctolkien/Slugify.git" \
+                "src/Slugify.Core"
 
-        # AutoMapper - Object mapping library
-        test_github_project \
-            "automapper" \
-            "https://github.com/AutoMapper/AutoMapper.git" \
-            "src/AutoMapper"
+            # 3. StronglyTypedId - Simple ID wrapper types
+            test_github_project \
+                "stronglytypedid" \
+                "https://github.com/andrewlock/StronglyTypedId.git" \
+                "src/StronglyTypedId"
+
+            # 4. Bogus - Fake data generator, many pure functions
+            test_github_project \
+                "bogus" \
+                "https://github.com/bchavez/Bogus.git" \
+                "Source/Bogus"
+
+            # 5. FluentResults - Result pattern, clean patterns
+            test_github_project \
+                "fluentresults" \
+                "https://github.com/altmann/FluentResults.git" \
+                "src/FluentResults"
+
+            # 6. Ardalis.GuardClauses - Guard clauses, simple validation logic
+            test_github_project \
+                "guardclauses" \
+                "https://github.com/ardalis/GuardClauses.git" \
+                "src/GuardClauses"
+
+            # 7. UnitsNet - Unit conversion, math-heavy pure functions
+            test_github_project \
+                "unitsnet" \
+                "https://github.com/angularsen/UnitsNet.git" \
+                "UnitsNet"
+        fi
+
+        # =====================================================================
+        # TIER 2: Medium Complexity Libraries (8 projects)
+        # More complex but still well-structured
+        # =====================================================================
+        if $run_tier2; then
+            echo ""
+            info "=== TIER 2: Medium Complexity Libraries ==="
+            echo ""
+
+            # 1. FluentValidation - Validation library with many simple validators
+            test_github_project \
+                "fluentvalidation" \
+                "https://github.com/FluentValidation/FluentValidation.git" \
+                "src/FluentValidation"
+
+            # 2. Polly - Resilience library, clean structure
+            test_github_project \
+                "polly" \
+                "https://github.com/App-vNext/Polly.git" \
+                "src/Polly.Core"
+
+            # 3. AutoMapper - Object mapping library
+            test_github_project \
+                "automapper" \
+                "https://github.com/AutoMapper/AutoMapper.git" \
+                "src/AutoMapper"
+
+            # 4. MediatR - Mediator pattern, clean CQRS patterns
+            test_github_project \
+                "mediatr" \
+                "https://github.com/jbogard/MediatR.git" \
+                "src/MediatR"
+
+            # 5. CsvHelper - CSV parsing library
+            test_github_project \
+                "csvhelper" \
+                "https://github.com/JoshClose/CsvHelper.git" \
+                "src/CsvHelper"
+
+            # 6. MoreLINQ - LINQ extension methods
+            test_github_project \
+                "morelinq" \
+                "https://github.com/morelinq/MoreLINQ.git" \
+                "MoreLinq"
+
+            # 7. Flurl - Fluent URL builder and HTTP client
+            test_github_project \
+                "flurl" \
+                "https://github.com/tmenier/Flurl.git" \
+                "src/Flurl"
+
+            # 8. Spectre.Console - Beautiful console applications
+            test_github_project \
+                "spectre-console" \
+                "https://github.com/spectreconsole/spectre.console.git" \
+                "src/Spectre.Console"
+        fi
+
+        # =====================================================================
+        # TIER 3: Large Libraries (6 projects)
+        # More complex, stress test the converter
+        # =====================================================================
+        if $run_tier3; then
+            echo ""
+            info "=== TIER 3: Large Libraries ==="
+            echo ""
+
+            # 1. Newtonsoft.Json - JSON serialization (very mature)
+            test_github_project \
+                "newtonsoft-json" \
+                "https://github.com/JamesNK/Newtonsoft.Json.git" \
+                "Src/Newtonsoft.Json"
+
+            # 2. Dapper - Micro ORM
+            test_github_project \
+                "dapper" \
+                "https://github.com/DapperLib/Dapper.git" \
+                "Dapper"
+
+            # 3. Serilog - Structured logging
+            test_github_project \
+                "serilog" \
+                "https://github.com/serilog/serilog.git" \
+                "src/Serilog"
+
+            # 4. RestSharp - REST client
+            test_github_project \
+                "restsharp" \
+                "https://github.com/restsharp/RestSharp.git" \
+                "src/RestSharp"
+
+            # 5. AngleSharp - HTML parser
+            test_github_project \
+                "anglesharp" \
+                "https://github.com/AngleSharp/AngleSharp.git" \
+                "src/AngleSharp"
+
+            # 6. Markdig - Markdown parser
+            test_github_project \
+                "markdig" \
+                "https://github.com/xoofx/markdig.git" \
+                "src/Markdig"
+        fi
     fi
 
     # Cleanup unless --keep
