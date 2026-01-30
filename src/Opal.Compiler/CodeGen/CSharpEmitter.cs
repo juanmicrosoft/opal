@@ -1,5 +1,6 @@
 using System.Text;
 using Opal.Compiler.Ast;
+using Opal.Compiler.Migration;
 
 namespace Opal.Compiler.CodeGen;
 
@@ -2063,47 +2064,8 @@ public sealed class CSharpEmitter : IAstVisitor<string>
 
     private static string MapTypeName(string opalType)
     {
-        // Handle array types: [T] -> T[]
-        if (opalType.StartsWith("[") && opalType.EndsWith("]"))
-        {
-            var elementType = opalType.Substring(1, opalType.Length - 2);
-            // Handle nested arrays: [[T]] -> T[][]
-            var arrayDepth = 0;
-            while (elementType.StartsWith("[") && elementType.EndsWith("]"))
-            {
-                arrayDepth++;
-                elementType = elementType.Substring(1, elementType.Length - 2);
-            }
-            var mappedElement = MapTypeName(elementType);
-            return mappedElement + "[]" + new string('[', arrayDepth) + new string(']', arrayDepth);
-        }
-
-        return opalType.ToUpperInvariant() switch
-        {
-            "VOID" => "void",
-            "INT" => "int",
-            "I32" => "int",
-            "INT32" => "int",
-            "I64" => "long",
-            "INT64" => "long",
-            "F32" => "float",
-            "FLOAT32" => "float",
-            "F64" => "double",
-            "FLOAT" => "double",
-            "FLOAT64" => "double",
-            "BOOL" => "bool",
-            "STRING" => "string",
-            "STR" => "string",
-            "U8" => "byte",
-            "U16" => "ushort",
-            "U32" => "uint",
-            "U64" => "ulong",
-            "I8" => "sbyte",
-            "I16" => "short",
-            "CHAR" => "char",
-            "OBJECT" => "object",
-            _ => opalType
-        };
+        // Use the centralized TypeMapper for bidirectional type mapping
+        return TypeMapper.OpalToCSharp(opalType);
     }
 
     private static string SanitizeIdentifier(string name)

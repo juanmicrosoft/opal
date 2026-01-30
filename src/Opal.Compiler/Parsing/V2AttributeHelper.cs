@@ -342,7 +342,7 @@ public static class V2AttributeHelper
             "void" => "VOID",
             "never" => "NEVER",
             "char" => "CHAR",
-            _ => compactType.ToUpperInvariant() // Pass through unknown types
+            _ => compactType // Pass through unknown types preserving original casing
         };
     }
 
