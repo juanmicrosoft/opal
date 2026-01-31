@@ -536,14 +536,46 @@ public sealed class OpalEmitter : IAstVisitor<string>
     {
         if (node.Expression != null)
         {
-            var expr = node.Expression.Accept(this);
-            AppendLine($"§R {expr}");
+            // If the expression is a match expression, emit it as a statement block
+            // since each case already contains a return statement
+            if (node.Expression is MatchExpressionNode matchExpr)
+            {
+                EmitMatchExpressionAsStatement(matchExpr);
+            }
+            else
+            {
+                var expr = node.Expression.Accept(this);
+                AppendLine($"§R {expr}");
+            }
         }
         else
         {
             AppendLine("§R");
         }
         return "";
+    }
+
+    /// <summary>
+    /// Emits a MatchExpressionNode as a statement block instead of inline expression.
+    /// Used when the match expression is the direct child of a return statement.
+    /// Uses :expr suffix to distinguish from match statements when parsing back.
+    /// </summary>
+    private void EmitMatchExpressionAsStatement(MatchExpressionNode node)
+    {
+        var target = node.Target.Accept(this);
+        var id = string.IsNullOrEmpty(node.Id) ? $"sw{_switchCounter++}" : node.Id;
+
+        // Add :expr suffix to indicate this is a match expression (not statement)
+        AppendLine($"§MATCH{{{id}:expr}} {target}");
+        Indent();
+
+        foreach (var matchCase in node.Cases)
+        {
+            Visit(matchCase);
+        }
+
+        Dedent();
+        AppendLine($"§/MATCH{{{id}}}");
     }
 
     public string Visit(CallStatementNode node)
@@ -1005,17 +1037,34 @@ public sealed class OpalEmitter : IAstVisitor<string>
 
     public string Visit(MatchExpressionNode node)
     {
+        // Use block syntax that the OPAL parser can understand
+        // §MATCH{id} target
+        // §CASE pattern
+        //     body statements
+        // §/MATCH{id}
         var target = node.Target.Accept(this);
-        var cases = string.Join(", ", node.Cases.Select(c =>
-        {
-            var pattern = EmitPattern(c.Pattern);
-            var body = c.Body.Count > 0 && c.Body[^1] is ReturnStatementNode ret && ret.Expression != null
-                ? ret.Expression.Accept(this)
-                : "default";
-            return $"{pattern} → {body}";
-        }));
+        var id = string.IsNullOrEmpty(node.Id) ? $"sw{_switchCounter++}" : node.Id;
 
-        return $"(match {target} {{ {cases} }})";
+        var sb = new StringBuilder();
+        sb.AppendLine($"§MATCH{{{id}}} {target}");
+
+        foreach (var matchCase in node.Cases)
+        {
+            var pattern = EmitPattern(matchCase.Pattern);
+            sb.AppendLine($"  §CASE {pattern}");
+
+            foreach (var stmt in matchCase.Body)
+            {
+                var stmtStr = CaptureStatementOutput(stmt);
+                if (!string.IsNullOrWhiteSpace(stmtStr))
+                {
+                    sb.AppendLine($"    {stmtStr.Trim()}");
+                }
+            }
+        }
+
+        sb.Append($"§/MATCH{{{id}}}");
+        return sb.ToString();
     }
 
     public string Visit(SomeExpressionNode node)

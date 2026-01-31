@@ -1425,7 +1425,7 @@ public sealed class Parser
         return new MatchExpressionNode(span, id, target, cases, attrs);
     }
 
-    private MatchStatementNode ParseMatchStatement()
+    private StatementNode ParseMatchStatement()
     {
         var startToken = Expect(TokenKind.Match);
         var attrs = ParseAttributes();
@@ -1435,6 +1435,10 @@ public sealed class Parser
             _diagnostics.ReportMissingRequiredAttribute(startToken.Span, "MATCH", "id");
             id = "";
         }
+
+        // Check if this is a match expression (indicated by :expr in second positional attribute)
+        // In v2 syntax, {match003:expr} parses as _pos0="match003", _pos1="expr"
+        var isExpression = attrs["_pos1"] == "expr";
 
         var target = ParseExpression();
         var cases = ParseMatchCases();
@@ -1449,6 +1453,14 @@ public sealed class Parser
         }
 
         var span = startToken.Span.Union(endToken.Span);
+
+        // Return MatchExpressionNode wrapped in ReturnStatementNode if :expr was present
+        if (isExpression)
+        {
+            var matchExpr = new MatchExpressionNode(span, id, target, cases, attrs);
+            return new ReturnStatementNode(span, matchExpr);
+        }
+
         return new MatchStatementNode(span, id, target, cases, attrs);
     }
 
@@ -1483,9 +1495,42 @@ public sealed class Parser
 
     private PatternNode ParsePattern()
     {
+        // Handle relational patterns: gte, lte, gt, lt followed by a value
         if (Check(TokenKind.Identifier))
         {
-            var token = Advance();
+            var token = Current;
+            var op = token.Text switch
+            {
+                "gte" => ">=",
+                "lte" => "<=",
+                "gt" => ">",
+                "lt" => "<",
+                _ => null
+            };
+
+            if (op != null)
+            {
+                Advance(); // consume the operator keyword
+                var operand = ParseExpression();
+                return new RelationalPatternNode(token.Span.Union(operand.Span), op, operand);
+            }
+
+            // Handle var pattern: var name
+            if (token.Text == "var" && Peek(1).Kind == TokenKind.Identifier)
+            {
+                Advance(); // consume 'var'
+                var nameToken = Advance(); // consume name
+                return new VarPatternNode(token.Span.Union(nameToken.Span), nameToken.Text);
+            }
+
+            // Handle null pattern
+            if (token.Text == "null")
+            {
+                Advance();
+                return new ConstantPatternNode(token.Span, new ReferenceNode(token.Span, "null"));
+            }
+
+            Advance();
             if (token.Text == "_")
             {
                 return new WildcardPatternNode(token.Span);

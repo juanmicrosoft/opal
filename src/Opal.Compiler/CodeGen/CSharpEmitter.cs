@@ -368,15 +368,35 @@ public sealed class CSharpEmitter : IAstVisitor<string>
 
     public string Visit(StringLiteralNode node)
     {
+        // Check if this is an interpolated string (contains ${...})
+        if (node.Value.Contains("${"))
+        {
+            // Convert OPAL interpolation ${expr} to C# interpolation {expr}
+            var converted = System.Text.RegularExpressions.Regex.Replace(
+                node.Value,
+                @"\$\{([^}]+)\}",
+                "{$1}");
+
+            // Escape for C# string literal (but not the interpolation braces)
+            var escaped = converted
+                .Replace("\\", "\\\\")
+                .Replace("\"", "\\\"")
+                .Replace("\n", "\\n")
+                .Replace("\r", "\\r")
+                .Replace("\t", "\\t");
+
+            return $"$\"{escaped}\"";
+        }
+
         // Escape the string for C#
-        var escaped = node.Value
+        var escapedValue = node.Value
             .Replace("\\", "\\\\")
             .Replace("\"", "\\\"")
             .Replace("\n", "\\n")
             .Replace("\r", "\\r")
             .Replace("\t", "\\t");
 
-        return $"\"{escaped}\"";
+        return $"\"{escapedValue}\"";
     }
 
     public string Visit(BoolLiteralNode node)
@@ -402,6 +422,12 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         // Handle 'is' pattern expressions like "other is UnitSystem otherUnitSystem"
         // These should be emitted as-is without sanitization
         if (node.Name.Contains(" is "))
+        {
+            return node.Name;
+        }
+
+        // Handle C# keywords that are used as literals (not identifiers)
+        if (node.Name is "null" or "true" or "false")
         {
             return node.Name;
         }
