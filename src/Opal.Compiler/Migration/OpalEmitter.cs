@@ -1202,6 +1202,10 @@ public sealed class OpalEmitter : IAstVisitor<string>
             ErrPatternNode ep => $"err({EmitPattern(ep.InnerPattern)})",
             VarPatternNode varp => $"var {varp.Name}",
             ConstantPatternNode cp => cp.Value.Accept(this),
+            RelationalPatternNode rp => Visit(rp),
+            PropertyPatternNode pp => Visit(pp),
+            PositionalPatternNode pos => Visit(pos),
+            ListPatternNode lp => Visit(lp),
             _ => "_"
         };
     }

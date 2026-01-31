@@ -651,7 +651,7 @@ public class MigrationAnalyzerTests
     #region Unsupported Constructs Detection
 
     [Fact]
-    public void AnalyzeSource_SwitchExpression_DetectedAsUnsupported()
+    public void AnalyzeSource_SwitchExpression_NowSupported()
     {
         var source = """
             public class Service
@@ -667,8 +667,10 @@ public class MigrationAnalyzerTests
 
         var result = _analyzer.AnalyzeSource(source, "test.cs", "test.cs");
 
-        Assert.True(result.HasUnsupportedConstructs);
-        Assert.Contains(result.UnsupportedConstructs, c => c.Name == "SwitchExpression");
+        // Switch expressions are now supported - they should NOT appear in unsupported constructs
+        Assert.DoesNotContain(result.UnsupportedConstructs, c => c.Name == "SwitchExpression");
+        // Should still be detected for pattern matching potential
+        Assert.True(result.Dimensions[ScoreDimension.PatternMatchPotential].PatternCount > 0);
     }
 
     [Fact]
@@ -876,12 +878,8 @@ public class MigrationAnalyzerTests
                     if (input == null)
                         throw new ArgumentNullException(nameof(input));
 
-                    // Unsupported: switch expression
-                    var result = input.Length switch
-                    {
-                        0 => "empty",
-                        _ => "has content"
-                    };
+                    // Unsupported: throw expression
+                    var result = input ?? throw new ArgumentNullException(nameof(input));
                 }
             }
             """;
@@ -897,17 +895,8 @@ public class MigrationAnalyzerTests
                     if (input == null)
                         throw new ArgumentNullException(nameof(input));
 
-                    // Supported: switch statement
-                    string result;
-                    switch (input.Length)
-                    {
-                        case 0:
-                            result = "empty";
-                            break;
-                        default:
-                            result = "has content";
-                            break;
-                    }
+                    // Supported: null coalescing without throw
+                    var result = input ?? "default";
                 }
             }
             """;
@@ -923,14 +912,16 @@ public class MigrationAnalyzerTests
     [Fact]
     public void AnalyzeSource_MultipleUnsupportedConstructs_CompoundPenalty()
     {
+        // Note: switch expression is now supported, so we don't count it as unsupported
+        // This test uses: primary constructor, relational pattern, compound pattern, lambda
         var source = """
-            public class Service(string name) where T : class
+            public class Service(string name)
             {
-                public string GetValue(int x) => x switch
+                public bool IsInRange(int x)
                 {
-                    > 0 and < 10 => "small",
-                    _ => "other"
-                };
+                    // Unsupported: relational + compound pattern
+                    return x is > 0 and < 10;
+                }
 
                 public Func<int, int> Doubler => x => x * 2;
             }

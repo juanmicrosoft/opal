@@ -1327,6 +1327,158 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
         return new MatchStatementNode(GetTextSpan(node), id, target, cases, new AttributeCollection());
     }
 
+    private MatchExpressionNode ConvertSwitchExpression(SwitchExpressionSyntax node)
+    {
+        _context.RecordFeatureUsage("switch-expression");
+        _context.IncrementConverted();
+
+        var id = _context.GenerateId("match");
+        var target = ConvertExpression(node.GoverningExpression);
+        var cases = new List<MatchCaseNode>();
+
+        foreach (var arm in node.Arms)
+        {
+            var pattern = ConvertPattern(arm.Pattern);
+            ExpressionNode? guard = arm.WhenClause != null
+                ? ConvertExpression(arm.WhenClause.Condition)
+                : null;
+
+            var body = new List<StatementNode>
+            {
+                new ReturnStatementNode(GetTextSpan(arm.Expression), ConvertExpression(arm.Expression))
+            };
+
+            cases.Add(new MatchCaseNode(GetTextSpan(arm), pattern, guard, body));
+        }
+
+        return new MatchExpressionNode(GetTextSpan(node), id, target, cases, new AttributeCollection());
+    }
+
+    private PatternNode ConvertPattern(PatternSyntax pattern)
+    {
+        var span = GetTextSpan(pattern);
+
+        return pattern switch
+        {
+            // Discard pattern: _
+            DiscardPatternSyntax => new WildcardPatternNode(span),
+
+            // Constant pattern: 1, "hello", null
+            ConstantPatternSyntax constant => new LiteralPatternNode(span, ConvertExpression(constant.Expression)),
+
+            // Var pattern: var x
+            VarPatternSyntax varPattern when varPattern.Designation is SingleVariableDesignationSyntax single =>
+                new VarPatternNode(span, single.Identifier.Text),
+
+            // Declaration pattern: string s, Type name
+            DeclarationPatternSyntax declPattern when declPattern.Designation is SingleVariableDesignationSyntax singleDecl =>
+                new VarPatternNode(span, singleDecl.Identifier.Text),
+
+            // Relational pattern: > 0, < 100, >= 10, <= 50
+            RelationalPatternSyntax relPattern => ConvertRelationalPattern(relPattern),
+
+            // Type pattern: string, int (without variable)
+            TypePatternSyntax typePattern =>
+                new LiteralPatternNode(span, new ReferenceNode(span, typePattern.Type.ToString())),
+
+            // Property pattern: { Length: > 5 }
+            RecursivePatternSyntax recursivePattern => ConvertRecursivePattern(recursivePattern),
+
+            // Binary patterns: and, or (emit as raw text for now)
+            BinaryPatternSyntax binaryPattern =>
+                HandleUnsupportedPattern(binaryPattern, "binary pattern (and/or)"),
+
+            // Unary pattern: not null
+            UnaryPatternSyntax unaryPattern =>
+                HandleUnsupportedPattern(unaryPattern, "unary pattern (not)"),
+
+            // Parenthesized pattern: (pattern)
+            ParenthesizedPatternSyntax parenPattern => ConvertPattern(parenPattern.Pattern),
+
+            // Default fallback: emit as raw text
+            _ => new LiteralPatternNode(span, new ReferenceNode(span, pattern.ToString()))
+        };
+    }
+
+    private RelationalPatternNode ConvertRelationalPattern(RelationalPatternSyntax relPattern)
+    {
+        var span = GetTextSpan(relPattern);
+        var value = ConvertExpression(relPattern.Expression);
+
+        // Convert C# operator token to OPAL operator string
+        var opString = relPattern.OperatorToken.Kind() switch
+        {
+            SyntaxKind.LessThanToken => "lt",
+            SyntaxKind.LessThanEqualsToken => "lte",
+            SyntaxKind.GreaterThanToken => "gt",
+            SyntaxKind.GreaterThanEqualsToken => "gte",
+            _ => relPattern.OperatorToken.Text
+        };
+
+        return new RelationalPatternNode(span, opString, value);
+    }
+
+    private PatternNode ConvertRecursivePattern(RecursivePatternSyntax pattern)
+    {
+        var span = GetTextSpan(pattern);
+
+        // Handle property pattern: { Length: > 5 }
+        if (pattern.PropertyPatternClause != null)
+        {
+            var typeName = pattern.Type?.ToString();
+            var matches = new List<PropertyMatchNode>();
+
+            foreach (var subpattern in pattern.PropertyPatternClause.Subpatterns)
+            {
+                if (subpattern.NameColon != null)
+                {
+                    var propName = subpattern.NameColon.Name.Identifier.Text;
+                    var propPattern = ConvertPattern(subpattern.Pattern);
+                    matches.Add(new PropertyMatchNode(GetTextSpan(subpattern), propName, propPattern));
+                }
+            }
+
+            return new PropertyPatternNode(span, typeName, matches);
+        }
+
+        // Handle positional pattern: Point(x, y)
+        if (pattern.PositionalPatternClause != null)
+        {
+            var typeName = pattern.Type?.ToString() ?? "";
+            var patterns = pattern.PositionalPatternClause.Subpatterns
+                .Select(sp => ConvertPattern(sp.Pattern))
+                .ToList();
+
+            return new PositionalPatternNode(span, typeName, patterns);
+        }
+
+        // Fallback: type pattern with no destructuring
+        if (pattern.Type != null)
+        {
+            var designation = pattern.Designation as SingleVariableDesignationSyntax;
+            if (designation != null)
+            {
+                return new VarPatternNode(span, designation.Identifier.Text);
+            }
+            return new LiteralPatternNode(span, new ReferenceNode(span, pattern.Type.ToString()));
+        }
+
+        return new LiteralPatternNode(span, new ReferenceNode(span, pattern.ToString()));
+    }
+
+    private PatternNode HandleUnsupportedPattern(PatternSyntax pattern, string description)
+    {
+        var span = GetTextSpan(pattern);
+        var lineSpan = pattern.GetLocation().GetLineSpan();
+        _context.AddWarning(
+            $"Partial support for {description}: may not round-trip exactly",
+            line: lineSpan.StartLinePosition.Line + 1,
+            column: lineSpan.StartLinePosition.Character + 1);
+
+        // Emit as a literal pattern containing the raw text
+        return new LiteralPatternNode(span, new ReferenceNode(span, pattern.ToString()));
+    }
+
     private ExpressionNode ConvertExpression(ExpressionSyntax expression)
     {
         _context.Stats.ExpressionsConverted++;
@@ -1355,6 +1507,7 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
             IsPatternExpressionSyntax isPattern => ConvertIsPatternExpression(isPattern),
             CollectionExpressionSyntax collection => ConvertCollectionExpression(collection),
             ImplicitObjectCreationExpressionSyntax implicitNew => ConvertImplicitObjectCreation(implicitNew),
+            SwitchExpressionSyntax switchExpr => ConvertSwitchExpression(switchExpr),
             _ => new ReferenceNode(GetTextSpan(expression), expression.ToString())
         };
     }

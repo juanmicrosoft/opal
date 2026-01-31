@@ -145,16 +145,7 @@ public sealed class MigrationAnalyzer
     {
         var result = new List<UnsupportedConstruct>();
 
-        if (visitor.SwitchExpressionCount > 0)
-        {
-            result.Add(new UnsupportedConstruct
-            {
-                Name = "SwitchExpression",
-                Description = "C# switch expressions (x switch { ... }) not yet supported",
-                Count = visitor.SwitchExpressionCount,
-                Examples = visitor.SwitchExpressionExamples
-            });
-        }
+        // Switch expressions are now supported - no longer tracking as unsupported
 
         if (visitor.RelationalPatternCount > 0)
         {
@@ -806,7 +797,8 @@ internal sealed class MigrationAnalysisVisitor : CSharpSyntaxWalker
         PatternMatchPatterns++;
         AddExample(PatternMatchExamples, $"switch expression ({node.Arms.Count} arms)");
 
-        // Track as unsupported (OPAL converter doesn't handle switch expressions yet)
+        // Switch expressions are now supported by the OPAL converter
+        // Keeping SwitchExpressionCount for informational purposes only (not used for penalty)
         SwitchExpressionCount++;
         AddExample(SwitchExpressionExamples, $"switch expression with {node.Arms.Count} arms");
 

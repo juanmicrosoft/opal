@@ -755,11 +755,17 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         {
             WildcardPatternNode => "_",
             VariablePatternNode vp => $"var {SanitizeIdentifier(vp.Name)}",
+            VarPatternNode varP => $"var {SanitizeIdentifier(varP.Name)}",
             LiteralPatternNode lp => lp.Literal.Accept(this),
+            RelationalPatternNode rp => Visit(rp),
+            PropertyPatternNode pp => Visit(pp),
+            PositionalPatternNode pos => Visit(pos),
+            ConstantPatternNode cp => cp.Value.Accept(this),
             SomePatternNode sp => $"{{ IsSome: true, Value: {EmitPattern(sp.InnerPattern)} }}",
             NonePatternNode => "{ IsNone: true }",
             OkPatternNode op => $"{{ IsOk: true, Value: {EmitPattern(op.InnerPattern)} }}",
             ErrPatternNode ep => $"{{ IsErr: true, Error: {EmitPattern(ep.InnerPattern)} }}",
+            ListPatternNode lp => Visit(lp),
             _ => "_"
         };
     }
