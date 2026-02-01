@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import { MDXRemote } from 'next-mdx-remote/rsc';
+import remarkGfm from 'remark-gfm';
 import {
   getDocBySlug,
   getDocSlugs,
@@ -77,7 +78,15 @@ export default async function DocPage({ params }: DocPageProps) {
               <p className="lead text-xl text-muted-foreground">{doc.description}</p>
             )}
 
-            <MDXRemote source={doc.content} components={mdxComponents} />
+            <MDXRemote
+              source={doc.content}
+              components={mdxComponents}
+              options={{
+                mdxOptions: {
+                  remarkPlugins: [remarkGfm],
+                },
+              }}
+            />
           </article>
 
           <Pagination prev={prev} next={next} />
