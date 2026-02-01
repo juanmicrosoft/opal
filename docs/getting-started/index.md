@@ -85,15 +85,25 @@ This adds `/opal` and `/opal-convert` skills, plus CLAUDE.md with guidelines tha
 
 ### Step 4: Write OPAL Code
 
-After init, create `.opal` files and they compile automatically:
+After init, create `.opal` files and they compile automatically. Create `Program.opal`:
+
+```
+§M{m001:MyApp}
+§F{f001:Main:pub}
+  §O{void}
+  §E{cw}
+  §P "Hello from OPAL!"
+§/F{f001}
+§/M{m001}
+```
+
+Then build:
 
 ```bash
-# Create your first OPAL file
-echo 'namespace MyApp { §M Main() { Console.WriteLine("Hello from OPAL!") } }' > Program.opal
-
-# Build runs OPAL compilation automatically
 dotnet build
 ```
+
+See [Hello World](/opal/getting-started/hello-world/) for a detailed explanation of the syntax.
 
 ### Step 5: (Optional) Migrate Existing C# Files
 
