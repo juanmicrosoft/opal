@@ -154,8 +154,8 @@ public class InitCommandIntegrationTests : IDisposable
 
         // OPAL section should be appended
         Assert.Contains("<!-- BEGIN OPALC SECTION - DO NOT EDIT -->", content);
-        Assert.Contains("## OPAL Project", content);
-        Assert.Contains("Coding Guidelines for AI Agents", content);
+        Assert.Contains("## OPAL-First Project", content);
+        Assert.Contains("MANDATORY Rules for AI Agents", content);
         Assert.Contains("<!-- END OPALC SECTION -->", content);
     }
 
@@ -203,8 +203,8 @@ public class InitCommandIntegrationTests : IDisposable
         Assert.DoesNotContain("Old version info here", content);
 
         // New OPAL content should be present
-        Assert.Contains("## OPAL Project", content);
-        Assert.Contains("Coding Guidelines for AI Agents", content);
+        Assert.Contains("## OPAL-First Project", content);
+        Assert.Contains("MANDATORY Rules for AI Agents", content);
         Assert.Matches(@"opalc v\d+\.\d+\.\d+", content);
     }
 

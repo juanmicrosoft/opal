@@ -1,31 +1,35 @@
 <!-- BEGIN OPALC SECTION - DO NOT EDIT -->
-## OPAL Project
+## OPAL-First Project
 
-This project uses OPAL (Optimized Programming for Agent Language), a domain-specific language that compiles to C#.
+This is an **OPAL-first project**. All new code MUST be written in OPAL. Existing C# files should be converted to OPAL before modification.
 
-### Coding Guidelines for AI Agents
+### MANDATORY Rules for AI Agents
 
-**When creating new files:**
-- Write new code in OPAL (`.opal`), not C# (`.cs`)
+**Rule 1: Never create new `.cs` files**
+- All new code MUST be written in OPAL (`.opal` files)
 - OPAL files compile automatically during `dotnet build`
-- Use the `/opal` skill for OPAL syntax assistance
+- Use the `/opal` skill for syntax assistance
 
-**When modifying existing C# files:**
-- Before making changes to a `.cs` file, run `opalc analyze <file.cs>` to check its migration score
-- If the file scores **High** (51+) or **Critical** (76+), convert it to OPAL first using `/opal-convert`, then make your changes in the OPAL version
-- If the file scores **Medium** or **Low**, you may modify the C# directly
+**Rule 2: Convert C# to OPAL before modifying**
+- Before modifying ANY `.cs` file, convert it to OPAL first using `/opal-convert`
+- Make your changes in the new `.opal` file, not the original `.cs` file
+- Delete the original `.cs` file after successful conversion
+- Run `opalc analyze <file.cs>` to understand the file's complexity before conversion
 
-**When asked to add features or fix bugs:**
-1. Check if the target file is `.opal` or `.cs`
-2. For `.cs` files, run analyze first to determine if conversion is worthwhile
-3. Prefer OPAL for files with validation logic, error handling, or side effects
+**Rule 3: Never edit generated files**
+- Files ending in `.g.cs` are auto-generated from OPAL - do not edit them
+- If you need to change generated output, edit the source `.opal` file instead
 
-### Quick Reference
+### Workflow for Any Code Change
 
-#### File Types
-- `.opal` - OPAL source files (preferred for new code)
-- `.g.cs` - Generated C# files (do not edit manually)
-- `.cs` - Legacy C# files (consider converting high-scoring files)
+1. **New feature/file?** → Create `.opal` file using `/opal` skill
+2. **Modify existing `.opal` file?** → Edit the `.opal` file directly
+3. **Modify existing `.cs` file?** → Convert to `.opal` first, then make changes
+
+### File Types
+- `.opal` - OPAL source files (**use this for all code**)
+- `.g.cs` - Generated C# files (never edit)
+- `.cs` - Legacy C# files (**convert to OPAL before modifying**)
 
 #### Available Skills
 - `/opal` - Write OPAL code with v2+ syntax
