@@ -396,4 +396,37 @@ Run `dotnet build` to compile.
         Assert.Contains("not yet implemented", result.Messages[0]);
         Assert.Contains("GitHub Copilot", result.Messages[0]);
     }
+
+    [Fact]
+    public void ClaudeMdTemplate_ContainsAiCodingGuidelines()
+    {
+        var template = EmbeddedResourceHelper.ReadTemplate("CLAUDE.md.template");
+
+        // Verify the new AI coding guidelines section exists
+        Assert.Contains("Coding Guidelines for AI Agents", template);
+        Assert.Contains("When creating new files:", template);
+        Assert.Contains("Write new code in OPAL", template);
+        Assert.Contains("When modifying existing C# files:", template);
+        Assert.Contains("opalc analyze", template);
+        Assert.Contains("High", template);
+        Assert.Contains("Critical", template);
+    }
+
+    [Fact]
+    public async Task ClaudeInitializer_Initialize_ClaudeMdContainsAiGuidelines()
+    {
+        var initializer = new ClaudeInitializer();
+
+        await initializer.InitializeAsync(_testDirectory, force: false);
+
+        var claudeMdPath = Path.Combine(_testDirectory, "CLAUDE.md");
+        var content = await File.ReadAllTextAsync(claudeMdPath);
+
+        // Verify AI guidelines are in the generated file
+        Assert.Contains("Coding Guidelines for AI Agents", content);
+        Assert.Contains("When creating new files:", content);
+        Assert.Contains("Write new code in OPAL", content);
+        Assert.Contains("When modifying existing C# files:", content);
+        Assert.Contains("opalc analyze", content);
+    }
 }
