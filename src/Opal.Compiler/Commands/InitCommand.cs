@@ -10,12 +10,9 @@ public static class InitCommand
 {
     public static Command Create()
     {
-        var aiOption = new Option<string>(
+        var aiOption = new Option<string?>(
             aliases: new[] { "--ai", "-a" },
-            description: $"The AI agent to configure ({string.Join(", ", AiInitializerFactory.SupportedAgents)})")
-        {
-            IsRequired = true
-        };
+            description: $"AI agent to configure (optional): {string.Join(", ", AiInitializerFactory.SupportedAgents)}");
 
         var projectOption = new Option<string?>(
             aliases: new[] { "--project", "-p" },
@@ -37,7 +34,7 @@ public static class InitCommand
         return command;
     }
 
-    private static async Task ExecuteAsync(string ai, string? project, bool force)
+    private static async Task ExecuteAsync(string? ai, string? project, bool force)
     {
         try
         {
@@ -45,14 +42,18 @@ public static class InitCommand
             var createdFiles = new List<string>();
             var updatedFiles = new List<string>();
             var warnings = new List<string>();
+            string? agentName = null;
 
-            // Validate AI agent type
-            if (!AiInitializerFactory.IsSupported(ai))
+            // Validate AI agent type if provided
+            if (!string.IsNullOrEmpty(ai))
             {
-                Console.Error.WriteLine($"Error: Unknown AI agent type: '{ai}'");
-                Console.Error.WriteLine($"Supported types: {string.Join(", ", AiInitializerFactory.SupportedAgents)}");
-                Environment.ExitCode = 1;
-                return;
+                if (!AiInitializerFactory.IsSupported(ai))
+                {
+                    Console.Error.WriteLine($"Error: Unknown AI agent type: '{ai}'");
+                    Console.Error.WriteLine($"Supported types: {string.Join(", ", AiInitializerFactory.SupportedAgents)}");
+                    Environment.ExitCode = 1;
+                    return;
+                }
             }
 
             // Step 1: Detect and validate .csproj file
@@ -68,23 +69,27 @@ public static class InitCommand
 
             var projectPath = detection.ProjectPath!;
 
-            // Step 2: Initialize AI agent configuration
-            var aiInitializer = AiInitializerFactory.Create(ai);
-            var aiResult = await aiInitializer.InitializeAsync(targetDirectory, force);
-
-            if (!aiResult.Success)
+            // Step 2: Initialize AI agent configuration (if --ai specified)
+            if (!string.IsNullOrEmpty(ai))
             {
-                foreach (var message in aiResult.Messages)
-                {
-                    Console.Error.WriteLine($"Error: {message}");
-                }
-                Environment.ExitCode = 1;
-                return;
-            }
+                var aiInitializer = AiInitializerFactory.Create(ai);
+                agentName = aiInitializer.AgentName;
+                var aiResult = await aiInitializer.InitializeAsync(targetDirectory, force);
 
-            createdFiles.AddRange(aiResult.CreatedFiles);
-            updatedFiles.AddRange(aiResult.UpdatedFiles);
-            warnings.AddRange(aiResult.Warnings);
+                if (!aiResult.Success)
+                {
+                    foreach (var message in aiResult.Messages)
+                    {
+                        Console.Error.WriteLine($"Error: {message}");
+                    }
+                    Environment.ExitCode = 1;
+                    return;
+                }
+
+                createdFiles.AddRange(aiResult.CreatedFiles);
+                updatedFiles.AddRange(aiResult.UpdatedFiles);
+                warnings.AddRange(aiResult.Warnings);
+            }
 
             // Step 3: Initialize .csproj with OPAL targets
             var csprojInitializer = new CsprojInitializer(detector);
@@ -114,7 +119,14 @@ public static class InitCommand
 
             // Show success message
             var version = EmbeddedResourceHelper.GetVersion();
-            Console.WriteLine($"Initialized OPAL project for {aiInitializer.AgentName} (opalc v{version})");
+            if (agentName != null)
+            {
+                Console.WriteLine($"Initialized OPAL project for {agentName} (opalc v{version})");
+            }
+            else
+            {
+                Console.WriteLine($"Initialized OPAL project with MSBuild integration (opalc v{version})");
+            }
 
             // Show created files
             if (createdFiles.Count > 0)
@@ -164,9 +176,14 @@ public static class InitCommand
             // Show next steps
             Console.WriteLine();
             Console.WriteLine("Next steps:");
-            Console.WriteLine("  1. Create .opal files in your project");
-            Console.WriteLine("  2. Run 'dotnet build' to compile OPAL to C#");
-            Console.WriteLine("  3. Generated code will be in obj/<config>/<tfm>/opal/");
+            Console.WriteLine("  1. Run 'opalc analyze ./src' to find migration candidates");
+            Console.WriteLine("  2. Create .opal files in your project");
+            Console.WriteLine("  3. Run 'dotnet build' to compile OPAL to C#");
+            if (agentName == null)
+            {
+                Console.WriteLine();
+                Console.WriteLine("Optional: Run 'opalc init --ai claude' to add Claude Code skills");
+            }
         }
         catch (Exception ex)
         {
