@@ -8,10 +8,10 @@ permalink: /cli/init/
 
 # opalc init
 
-Initialize OPAL development environment with AI agent support and .csproj integration.
+Initialize OPAL development environment with MSBuild integration and optional AI agent support.
 
 ```bash
-opalc init --ai <agent> [options]
+opalc init [options]
 ```
 
 ---
@@ -20,9 +20,8 @@ opalc init --ai <agent> [options]
 
 The `init` command sets up your project for OPAL development by:
 
-1. **Configuring AI agent integration** - Creates skills/prompts for your preferred AI coding assistant
-2. **Adding MSBuild targets** - Integrates OPAL compilation into your .NET build process
-3. **Setting up project documentation** - Creates or updates documentation files
+1. **Adding MSBuild targets** - Integrates OPAL compilation into your .NET build process
+2. **Configuring AI agent integration** (optional) - Creates skills/prompts for your preferred AI coding assistant
 
 After running `init`, you can write `.opal` files alongside your `.cs` files and they'll compile automatically during `dotnet build`.
 
@@ -31,14 +30,17 @@ After running `init`, you can write `.opal` files alongside your `.cs` files and
 ## Quick Start
 
 ```bash
+# Basic initialization (MSBuild integration only)
+opalc init
+
 # Initialize with Claude Code support
 opalc init --ai claude
 
 # Initialize with a specific .csproj
-opalc init --ai claude --project MyApp.csproj
+opalc init --project MyApp.csproj
 
-# Overwrite existing files
-opalc init --ai claude --force
+# Initialize with both Claude and specific project
+opalc init --ai claude --project MyApp.csproj
 ```
 
 ---
@@ -47,13 +49,15 @@ opalc init --ai claude --force
 
 | Option | Short | Required | Description |
 |:-------|:------|:---------|:------------|
-| `--ai` | `-a` | Yes | AI agent to configure: `claude`, `codex`, `gemini`, `github` |
+| `--ai` | `-a` | No | AI agent to configure: `claude`, `codex`, `gemini`, `github` |
 | `--project` | `-p` | No | Target .csproj file (auto-detects if single .csproj exists) |
 | `--force` | `-f` | No | Overwrite existing files without prompting |
 
 ---
 
-## AI Agent Support
+## AI Agent Support (Optional)
+
+When you specify `--ai`, the command also sets up AI-specific configuration files.
 
 ### Claude (`--ai claude`)
 
@@ -204,35 +208,50 @@ You can safely run `opalc init` multiple times:
 
 ## Examples
 
+### Basic Initialization
+
+```bash
+# Navigate to your project
+cd ~/projects/MyApp
+
+# Initialize OPAL (MSBuild integration only)
+opalc init
+
+# Analyze codebase for migration candidates
+opalc analyze ./src --top 10
+```
+
+### Initialize with Claude Code
+
+```bash
+# Initialize with Claude Code support
+opalc init --ai claude
+```
+
+This adds `/opal` and `/opal-convert` skills plus CLAUDE.md with guidelines that instruct Claude to:
+- Write new files in OPAL instead of C#
+- Analyze C# files before modifying to check if they should be converted first
+
 ### Initialize New Project
 
 ```bash
 # Create a new console app and initialize OPAL
 dotnet new console -o MyOpalApp
 cd MyOpalApp
-opalc init --ai claude
-```
-
-### Initialize Existing Project
-
-```bash
-# Navigate to your existing project
-cd ~/projects/MyExistingApp
-
-# Initialize with Claude support
-opalc init --ai claude
-
-# Or specify the exact project file
-opalc init --ai claude --project src/MyApp/MyApp.csproj
+opalc init
+opalc init --ai claude  # Optional: add Claude support
 ```
 
 ### Initialize Multiple Projects
 
 ```bash
 # Initialize each project in a solution
+opalc init --project src/Core/Core.csproj
+opalc init --project src/Web/Web.csproj
+opalc init --project src/Tests/Tests.csproj
+
+# Optionally add Claude support to all
 opalc init --ai claude --project src/Core/Core.csproj
-opalc init --ai claude --project src/Web/Web.csproj
-opalc init --ai claude --project src/Tests/Tests.csproj
 ```
 
 ---
