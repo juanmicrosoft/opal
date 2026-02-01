@@ -47,7 +47,7 @@ public class InitCommandTests : IDisposable
         var content = EmbeddedResourceHelper.ReadTemplate("CLAUDE.md.template");
 
         Assert.NotEmpty(content);
-        Assert.Contains("OPAL Project", content);
+        Assert.Contains("OPAL-First Project", content);
         Assert.Contains("{{VERSION}}", content);
         Assert.Contains("<!-- BEGIN OPALC SECTION - DO NOT EDIT -->", content);
         Assert.Contains("<!-- END OPALC SECTION -->", content);
@@ -166,7 +166,7 @@ public class InitCommandTests : IDisposable
         Assert.Contains(claudeMdPath, result.CreatedFiles);
 
         var content = await File.ReadAllTextAsync(claudeMdPath);
-        Assert.Contains("OPAL Project", content);
+        Assert.Contains("OPAL-First Project", content);
         Assert.DoesNotContain("{{VERSION}}", content); // Version should be replaced
         Assert.Matches(@"opalc v\d+\.\d+\.\d+", content);
         Assert.Contains("<!-- BEGIN OPALC SECTION - DO NOT EDIT -->", content);
@@ -261,7 +261,7 @@ This should be preserved.
         Assert.DoesNotContain("This is old content that should be replaced.", content);
 
         // New OPAL content should be present
-        Assert.Contains("## OPAL Project", content);
+        Assert.Contains("## OPAL-First Project", content);
         Assert.Matches(@"opalc v\d+\.\d+\.\d+", content);
     }
 
@@ -297,7 +297,7 @@ Run `dotnet build` to compile.
         // OPAL section should be appended
         Assert.Contains("<!-- BEGIN OPALC SECTION - DO NOT EDIT -->", content);
         Assert.Contains("<!-- END OPALC SECTION -->", content);
-        Assert.Contains("## OPAL Project", content);
+        Assert.Contains("## OPAL-First Project", content);
 
         // OPAL section should come after original content
         var userContentIndex = content.IndexOf("## Build Instructions");
@@ -335,7 +335,7 @@ Run `dotnet build` to compile.
         // OPAL section should still be present and valid
         Assert.Contains("<!-- BEGIN OPALC SECTION - DO NOT EDIT -->", finalContent);
         Assert.Contains("<!-- END OPALC SECTION -->", finalContent);
-        Assert.Contains("## OPAL Project", finalContent);
+        Assert.Contains("## OPAL-First Project", finalContent);
     }
 
     [Fact]
@@ -402,14 +402,14 @@ Run `dotnet build` to compile.
     {
         var template = EmbeddedResourceHelper.ReadTemplate("CLAUDE.md.template");
 
-        // Verify the new AI coding guidelines section exists
-        Assert.Contains("Coding Guidelines for AI Agents", template);
-        Assert.Contains("When creating new files:", template);
-        Assert.Contains("Write new code in OPAL", template);
-        Assert.Contains("When modifying existing C# files:", template);
+        // Verify the OPAL-first mandatory rules section exists
+        Assert.Contains("OPAL-First Project", template);
+        Assert.Contains("MANDATORY Rules for AI Agents", template);
+        Assert.Contains("Rule 1: Never create new `.cs` files", template);
+        Assert.Contains("All new code MUST be written in OPAL", template);
+        Assert.Contains("Rule 2: Convert C# to OPAL before modifying", template);
+        Assert.Contains("Rule 3: Never edit generated files", template);
         Assert.Contains("opalc analyze", template);
-        Assert.Contains("High", template);
-        Assert.Contains("Critical", template);
     }
 
     [Fact]
@@ -422,11 +422,11 @@ Run `dotnet build` to compile.
         var claudeMdPath = Path.Combine(_testDirectory, "CLAUDE.md");
         var content = await File.ReadAllTextAsync(claudeMdPath);
 
-        // Verify AI guidelines are in the generated file
-        Assert.Contains("Coding Guidelines for AI Agents", content);
-        Assert.Contains("When creating new files:", content);
-        Assert.Contains("Write new code in OPAL", content);
-        Assert.Contains("When modifying existing C# files:", content);
+        // Verify OPAL-first mandatory rules are in the generated file
+        Assert.Contains("OPAL-First Project", content);
+        Assert.Contains("MANDATORY Rules for AI Agents", content);
+        Assert.Contains("Rule 1: Never create new `.cs` files", content);
+        Assert.Contains("Rule 2: Convert C# to OPAL before modifying", content);
         Assert.Contains("opalc analyze", content);
     }
 }
