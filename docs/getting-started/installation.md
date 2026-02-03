@@ -16,26 +16,26 @@ This guide covers installing the Calor compiler and setting up your development 
 Install the Calor compiler as a global .NET tool:
 
 ```bash
-dotnet tool install -g calorc
+dotnet tool install -g calor
 ```
 
 After installation, you can compile Calor files from anywhere:
 
 ```bash
-calorc --input program.calor --output program.g.cs
+calor --input program.calr --output program.g.cs
 ```
 
 To update to the latest version:
 
 ```bash
-dotnet tool update -g calorc
+dotnet tool update -g calor
 ```
 
 ---
 
 ## AI Agent Integration
 
-Calor provides first-class support for AI coding agents. The `calorc init` command sets up your project for AI-assisted development.
+Calor provides first-class support for AI coding agents. The `calor init` command sets up your project for AI-assisted development.
 
 ### Supported AI Agents
 
@@ -51,7 +51,7 @@ Calor provides first-class support for AI coding agents. The `calorc init` comma
 Initialize your project for Claude Code:
 
 ```bash
-calorc init --ai claude
+calor init --ai claude
 ```
 
 This creates:
@@ -73,7 +73,7 @@ After initialization, use these commands in Claude Code:
 
 ### Re-running Init
 
-You can run `calorc init --ai claude` multiple times safely:
+You can run `calor init --ai claude` multiple times safely:
 
 - **CLAUDE.md** - Updates only the Calor section, preserving your custom content
 - **Skills files** - Updates to latest version (prompts to confirm or use `--force`)
@@ -85,21 +85,21 @@ The `init` command also adds MSBuild targets to your `.csproj` file for automati
 
 ```bash
 # Specify project explicitly
-calorc init --ai claude --project MyApp.csproj
+calor init --ai claude --project MyApp.csproj
 
 # Auto-detect single .csproj
-calorc init --ai claude
+calor init --ai claude
 ```
 
 After initialization, Calor files compile automatically during `dotnet build`:
 
 ```
 dotnet build
-# → Compiles all .calor files to obj/<config>/<tfm>/calor/*.g.cs
+# → Compiles all .calr files to obj/<config>/<tfm>/calor/*.g.cs
 # → Includes generated C# in compilation
 ```
 
-See [`calorc init`](/calor/cli/init/) for complete documentation.
+See [`calor init`](/calor/cli/init/) for complete documentation.
 
 ---
 
@@ -151,7 +151,7 @@ Expected output:
 Calor Compiler - Coding Agent Language for Optimized Reasoning
 
 Usage:
-  calorc --input <file.calor> --output <file.cs>
+  calor --input <file.calr> --output <file.cs>
 
 Options:
   --input, -i    Input Calor source file
@@ -183,7 +183,7 @@ Basic usage:
 
 ```bash
 dotnet run --project src/Calor.Compiler -- \
-  --input path/to/your/program.calor \
+  --input path/to/your/program.calr \
   --output path/to/output/program.g.cs
 ```
 
@@ -200,7 +200,7 @@ After compilation, you need a C# project to run the generated code:
 ```bash
 # Compile your Calor file
 dotnet run --project src/Calor.Compiler -- \
-  --input your-program.calor \
+  --input your-program.calr \
   --output samples/HelloWorld/your-program.g.cs
 
 # Run it (requires modifying HelloWorld.csproj or including the file)
@@ -216,7 +216,7 @@ cd MyCalorProgram
 
 # Compile Calor to the project directory
 dotnet run --project ../src/Calor.Compiler -- \
-  --input ../my-code.calor \
+  --input ../my-code.calr \
   --output my-code.g.cs
 
 # Run the program

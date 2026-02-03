@@ -15,7 +15,7 @@ This guide explains how to use Calor with OpenAI Codex CLI. For Claude Code inte
 Initialize your project for Codex CLI with a single command:
 
 ```bash
-calorc init --ai codex
+calor init --ai codex
 ```
 
 This creates:
@@ -33,9 +33,9 @@ This creates:
 Unlike Claude Code which uses hooks to enforce Calor-first development, **Codex CLI does not support hooks**. This means:
 
 - Calor-first development is **guidance-based only**
-- Codex *should* follow the instructions and create `.calor` files
+- Codex *should* follow the instructions and create `.calr` files
 - Enforcement is not automatic - review file extensions after generation
-- Use `calorc analyze` to find any unconverted `.cs` files
+- Use `calor analyze` to find any unconverted `.cs` files
 
 ---
 
@@ -83,15 +83,15 @@ public class Calculator
 
 ## Best Practices
 
-1. **Review generated files** - Check that Codex created `.calor` files, not `.cs`
+1. **Review generated files** - Check that Codex created `.calr` files, not `.cs`
 2. **Use explicit instructions** - Be specific about wanting Calor output
 3. **Start with skill reference** - Begin prompts with `$calor` or `$calor-convert`
-4. **Run analysis regularly** - Use `calorc analyze` to find migration candidates
+4. **Run analysis regularly** - Use `calor analyze` to find migration candidates
 
 ---
 
 ## See Also
 
 - [Syntax Reference](/syntax-reference/) - Complete language reference
-- [calorc init](/cli/init/) - Full init command documentation
+- [calor init](/cli/init/) - Full init command documentation
 - [Claude Integration](/getting-started/claude-integration/) - Alternative with enforced Calor-first

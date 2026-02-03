@@ -4,12 +4,12 @@ section: "cli"
 order: 5
 ---
 
-# calorc benchmark
+# calor benchmark
 
 Compare Calor vs C# across evaluation metrics.
 
 ```bash
-calorc benchmark [project] [options]
+calor benchmark [project] [options]
 ```
 
 ---
@@ -32,16 +32,16 @@ The `benchmark` command measures and compares Calor against C# across seven eval
 
 ```bash
 # Compare two files
-calorc benchmark --calor Calculator.calor --csharp Calculator.cs
+calor benchmark --calor Calculator.calr --csharp Calculator.cs
 
 # Benchmark entire project
-calorc benchmark ./src
+calor benchmark ./src
 
 # Quick token-only comparison
-calorc benchmark --calor file.calor --csharp file.cs --quick
+calor benchmark --calor file.calr --csharp file.cs --quick
 
 # Generate markdown report
-calorc benchmark ./src --format markdown --output report.md
+calor benchmark ./src --format markdown --output report.md
 ```
 
 ---
@@ -65,7 +65,7 @@ calorc benchmark ./src --format markdown --output report.md
 Compare a specific Calor file against its C# equivalent:
 
 ```bash
-calorc benchmark --calor PaymentService.calor --csharp PaymentService.cs
+calor benchmark --calor PaymentService.calr --csharp PaymentService.cs
 ```
 
 Output:
@@ -90,7 +90,7 @@ Calor shows 1.27x overall advantage for AI agent tasks.
 For fast token/line comparison without the full 7-metric evaluation:
 
 ```bash
-calorc benchmark --calor file.calor --csharp file.cs --quick
+calor benchmark --calor file.calr --csharp file.cs --quick
 ```
 
 Output:
@@ -117,6 +117,6 @@ Output:
 
 ## See Also
 
-- [calorc analyze](/cli/analyze/) - Score files for migration potential
+- [calor analyze](/cli/analyze/) - Score files for migration potential
 - [Benchmarking Methodology](/benchmarking/methodology/) - Detailed methodology
 - [Benchmark Results](/benchmarking/results/) - Published results

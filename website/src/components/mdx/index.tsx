@@ -8,10 +8,10 @@ import Link from 'next/link';
 function transformHref(href: string): string {
   if (!href) return href;
 
-  // Handle relative /opal/ links (legacy Jekyll format)
-  if (href.startsWith('/opal/')) {
-    // Convert /opal/getting-started/ to /docs/getting-started/
-    const path = href.replace('/opal/', '');
+  // Handle relative /calor/ links (legacy Jekyll format)
+  if (href.startsWith('/calor/')) {
+    // Convert /calor/getting-started/ to /docs/getting-started/
+    const path = href.replace('/calor/', '');
     // Don't double-add docs/ prefix
     if (!path.startsWith('docs/')) {
       return `/docs/${path}`;

@@ -7,22 +7,22 @@ hasChildren: true
 
 # CLI Reference
 
-The `calorc` command-line tool provides commands for working with Calor code and analyzing C# codebases for migration.
+The `calor` command-line tool provides commands for working with Calor code and analyzing C# codebases for migration.
 
 ---
 
 ## Installation
 
-Install `calorc` as a global .NET tool:
+Install `calor` as a global .NET tool:
 
 ```bash
-dotnet tool install -g calorc --version 0.1.3
+dotnet tool install -g calor --version 0.1.3
 ```
 
 Or update an existing installation:
 
 ```bash
-dotnet tool update -g calorc
+dotnet tool update -g calor
 ```
 
 ---
@@ -31,15 +31,15 @@ dotnet tool update -g calorc
 
 | Command | Description |
 |:--------|:------------|
-| `calorc` (default) | Compile Calor source files to C# |
-| [`calorc analyze`](/cli/analyze/) | Score C# files for Calor migration potential |
-| [`calorc init`](/cli/init/) | Initialize Calor with AI agent support and .csproj integration |
-| [`calorc convert`](/cli/convert/) | Convert single files between C# and Calor |
-| [`calorc migrate`](/cli/migrate/) | Migrate entire projects between C# and Calor |
-| [`calorc benchmark`](/cli/benchmark/) | Compare Calor vs C# across evaluation metrics |
-| [`calorc format`](/cli/format/) | Format Calor source files to canonical style |
-| [`calorc diagnose`](/cli/diagnose/) | Output machine-readable diagnostics for tooling |
-| [`calorc hook`](/cli/hook/) | Claude Code hook commands (internal) |
+| `calor` (default) | Compile Calor source files to C# |
+| [`calor analyze`](/cli/analyze/) | Score C# files for Calor migration potential |
+| [`calor init`](/cli/init/) | Initialize Calor with AI agent support and .csproj integration |
+| [`calor convert`](/cli/convert/) | Convert single files between C# and Calor |
+| [`calor migrate`](/cli/migrate/) | Migrate entire projects between C# and Calor |
+| [`calor benchmark`](/cli/benchmark/) | Compare Calor vs C# across evaluation metrics |
+| [`calor format`](/cli/format/) | Format Calor source files to canonical style |
+| [`calor diagnose`](/cli/diagnose/) | Output machine-readable diagnostics for tooling |
+| [`calor hook`](/cli/hook/) | Claude Code hook commands (internal) |
 
 ---
 
@@ -48,7 +48,7 @@ dotnet tool update -g calorc
 Compile Calor source files to C#:
 
 ```bash
-calorc --input file.calor --output file.g.cs
+calor --input file.calr --output file.g.cs
 ```
 
 ### Options
@@ -63,10 +63,10 @@ calorc --input file.calor --output file.g.cs
 
 ```bash
 # Compile a single file
-calorc --input src/MyModule.calor --output src/MyModule.g.cs
+calor --input src/MyModule.calr --output src/MyModule.g.cs
 
 # Compile with verbose output
-calorc -v -i src/MyModule.calor -o src/MyModule.g.cs
+calor -v -i src/MyModule.calr -o src/MyModule.g.cs
 ```
 
 ---

@@ -6,19 +6,19 @@ nav_order: 0
 permalink: /cli/compile/
 ---
 
-# calorc (compile)
+# calor (compile)
 
 Compile Calor source files to C#.
 
 ```bash
-calorc --input <file.calor> --output <file.cs>
+calor --input <file.calr> --output <file.cs>
 ```
 
 ---
 
 ## Overview
 
-The default `calorc` command (when no subcommand is specified) compiles Calor source files to C#. This is the core functionality of the Calor compiler.
+The default `calor` command (when no subcommand is specified) compiles Calor source files to C#. This is the core functionality of the Calor compiler.
 
 ---
 
@@ -26,13 +26,13 @@ The default `calorc` command (when no subcommand is specified) compiles Calor so
 
 ```bash
 # Compile a single file
-calorc --input MyModule.calor --output MyModule.g.cs
+calor --input MyModule.calr --output MyModule.g.cs
 
 # Short form
-calorc -i MyModule.calor -o MyModule.g.cs
+calor -i MyModule.calr -o MyModule.g.cs
 
 # With verbose output
-calorc -v -i MyModule.calor -o MyModule.g.cs
+calor -v -i MyModule.calr -o MyModule.g.cs
 ```
 
 ---
@@ -52,7 +52,7 @@ calorc -v -i MyModule.calor -o MyModule.g.cs
 The recommended convention for generated C# files is the `.g.cs` extension:
 
 ```
-MyModule.calor → MyModule.g.cs
+MyModule.calr → MyModule.g.cs
 ```
 
 This indicates "generated C#" and helps distinguish Calor-generated code from hand-written C#.
@@ -76,12 +76,12 @@ The compiler performs these steps:
 Use `--verbose` to see compilation details:
 
 ```bash
-calorc -v -i Calculator.calor -o Calculator.g.cs
+calor -v -i Calculator.calr -o Calculator.g.cs
 ```
 
 Output:
 ```
-Compiling Calculator.calor...
+Compiling Calculator.calr...
   Parsing: OK
   Validating: OK
   Modules: 1
@@ -100,7 +100,7 @@ Compilation successful
 When compilation fails, errors are reported with file location:
 
 ```
-Error in Calculator.calor:12:5
+Error in Calculator.calr:12:5
   Undefined variable 'x' in expression
 
   §R (+ x 1)
@@ -109,13 +109,13 @@ Error in Calculator.calor:12:5
 Compilation failed with 1 error
 ```
 
-For machine-readable error output, use [`calorc diagnose`](/calor/cli/diagnose/).
+For machine-readable error output, use [`calor diagnose`](/calor/cli/diagnose/).
 
 ---
 
 ## Integration with MSBuild
 
-For automatic compilation during `dotnet build`, use [`calorc init`](/calor/cli/init/) to set up MSBuild integration. This eliminates the need to run `calorc` manually.
+For automatic compilation during `dotnet build`, use [`calor init`](/calor/cli/init/) to set up MSBuild integration. This eliminates the need to run `calor` manually.
 
 After initialization:
 
@@ -131,9 +131,9 @@ dotnet build
 To compile multiple files, use shell scripting:
 
 ```bash
-# Compile all .calor files in a directory
-for f in src/*.calor; do
-  calorc -i "$f" -o "${f%.calor}.g.cs"
+# Compile all .calr files in a directory
+for f in src/*.calr; do
+  calor -i "$f" -o "${f%.calr}.g.cs"
 done
 ```
 
@@ -157,7 +157,7 @@ Or use the MSBuild integration which handles this automatically.
 
 ```bash
 # Compile Calor to C#
-calorc -i Program.calor -o Program.g.cs
+calor -i Program.calr -o Program.g.cs
 
 # Build and run with .NET
 dotnet run
@@ -167,18 +167,18 @@ dotnet run
 
 ```bash
 # Output to build directory
-calorc -i src/MyModule.calor -o build/generated/MyModule.g.cs
+calor -i src/MyModule.calr -o build/generated/MyModule.g.cs
 ```
 
 ### Watch Mode (using external tools)
 
 ```bash
 # Using fswatch (macOS)
-fswatch -o src/*.calor | xargs -n1 -I{} calorc -i src/MyModule.calor -o src/MyModule.g.cs
+fswatch -o src/*.calr | xargs -n1 -I{} calor -i src/MyModule.calr -o src/MyModule.g.cs
 
 # Using inotifywait (Linux)
-while inotifywait -e modify src/*.calor; do
-  calorc -i src/MyModule.calor -o src/MyModule.g.cs
+while inotifywait -e modify src/*.calr; do
+  calor -i src/MyModule.calr -o src/MyModule.g.cs
 done
 ```
 
@@ -186,7 +186,7 @@ done
 
 ## See Also
 
-- [calorc init](/calor/cli/init/) - Set up automatic compilation with MSBuild
-- [calorc diagnose](/calor/cli/diagnose/) - Machine-readable diagnostics
-- [calorc format](/calor/cli/format/) - Format Calor source files
+- [calor init](/calor/cli/init/) - Set up automatic compilation with MSBuild
+- [calor diagnose](/calor/cli/diagnose/) - Machine-readable diagnostics
+- [calor format](/calor/cli/format/) - Format Calor source files
 - [Getting Started](/calor/getting-started/) - Installation and first program

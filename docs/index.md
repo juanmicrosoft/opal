@@ -100,7 +100,7 @@ cd calor && dotnet build
 
 # Compile Calor to C#
 dotnet run --project src/Calor.Compiler -- \
-  --input samples/HelloWorld/hello.calor \
+  --input samples/HelloWorld/hello.calr \
   --output samples/HelloWorld/hello.g.cs
 
 # Run the generated program
@@ -113,11 +113,11 @@ dotnet run --project samples/HelloWorld
 
 ## Migration Analysis
 
-Have an existing C# codebase? Use `calorc analyze` to find files that would benefit most from Calor:
+Have an existing C# codebase? Use `calor analyze` to find files that would benefit most from Calor:
 
 ```bash
 # Score C# files for migration potential
-calorc analyze ./src
+calor analyze ./src
 
 # Output:
 # === Calor Migration Analysis ===

@@ -27,15 +27,15 @@ Each benchmark needs:
 ```
 tests/Calor.Evaluation/Benchmarks/
 ├── HelloWorld/
-│   ├── hello.calor
+│   ├── hello.calr
 │   ├── hello.cs
 │   └── metadata.json
 ├── FizzBuzz/
-│   ├── fizzbuzz.calor
+│   ├── fizzbuzz.calr
 │   ├── fizzbuzz.cs
 │   └── metadata.json
 └── YourNewBenchmark/
-    ├── program.calor
+    ├── program.calr
     ├── program.cs
     └── metadata.json
 ```
@@ -53,7 +53,7 @@ cd tests/Calor.Evaluation/Benchmarks/YourBenchmark
 
 ### Step 2: Write Calor Code
 
-Create `program.calor`:
+Create `program.calr`:
 
 ```
 §M[m001:YourModule]
@@ -115,7 +115,7 @@ Create `metadata.json`:
 ```bash
 # Compile Calor
 dotnet run --project src/Calor.Compiler -- \
-  --input tests/Calor.Evaluation/Benchmarks/YourBenchmark/program.calor \
+  --input tests/Calor.Evaluation/Benchmarks/YourBenchmark/program.calr \
   --output /tmp/test.g.cs
 
 # Verify C# compiles
@@ -143,7 +143,7 @@ dotnet run --project tests/Calor.Evaluation -- --output report.json
 
 ## Example: Factorial Benchmark
 
-### Calor (`factorial.calor`)
+### Calor (`factorial.calr`)
 
 ```
 §M[m001:Math]
@@ -253,13 +253,13 @@ For simpler test cases, you can add to the E2E test suite instead:
 ```
 tests/E2E/scenarios/
 ├── 01_hello_world/
-│   ├── input.calor
+│   ├── input.calr
 │   └── verify.sh
 ├── 02_fizzbuzz/
-│   ├── input.calor
+│   ├── input.calr
 │   └── verify.sh
 └── XX_your_test/
-    ├── input.calor
+    ├── input.calr
     └── verify.sh
 ```
 

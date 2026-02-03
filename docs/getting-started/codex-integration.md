@@ -16,7 +16,7 @@ This guide explains how to use Calor with OpenAI Codex CLI. For Claude Code inte
 Initialize your project for Codex CLI with a single command:
 
 ```bash
-calorc init --ai codex
+calor init --ai codex
 ```
 
 This creates:
@@ -36,10 +36,10 @@ You can run this command again anytime to update the Calor documentation section
 Unlike Claude Code which uses hooks to enforce Calor-first development, **Codex CLI does not support hooks**. This means:
 
 - Calor-first development is **guidance-based only**
-- Codex *should* follow the instructions in AGENTS.md and create `.calor` files
+- Codex *should* follow the instructions in AGENTS.md and create `.calr` files
 - However, enforcement is not automatic - Codex may occasionally create `.cs` files
 - Always review file extensions after code generation
-- Use `calorc analyze` to find any unconverted `.cs` files
+- Use `calor analyze` to find any unconverted `.cs` files
 
 ---
 
@@ -222,9 +222,9 @@ Since Codex doesn't enforce Calor-first automatically, periodically check for un
 
 ```bash
 # Find C# files that might need conversion
-calorc analyze ./src --top 10
+calor analyze ./src --top 10
 
-# Check for any new .cs files that should be .calor
+# Check for any new .cs files that should be .calr
 find . -name "*.cs" -not -name "*.g.cs" -not -path "./obj/*"
 ```
 
@@ -232,27 +232,27 @@ find . -name "*.cs" -not -name "*.g.cs" -not -path "./obj/*"
 
 ## Best Practices
 
-1. **Review generated files** - Always check that Codex created `.calor` files, not `.cs`
+1. **Review generated files** - Always check that Codex created `.calr` files, not `.cs`
 2. **Use explicit instructions** - Be specific about wanting Calor output
 3. **Include skill reference** - Start prompts with `$calor` or `$calor-convert`
-4. **Run analysis regularly** - Use `calorc analyze` to find migration candidates
+4. **Run analysis regularly** - Use `calor analyze` to find migration candidates
 5. **Convert promptly** - If Codex creates a `.cs` file, convert it immediately
 
 ---
 
 ## Troubleshooting
 
-### Codex Creates `.cs` Files Instead of `.calor`
+### Codex Creates `.cs` Files Instead of `.calr`
 
 This can happen since enforcement is guidance-based. Solutions:
 
-1. Be more explicit: "Create this as an Calor file (`.calor`), not C#"
+1. Be more explicit: "Create this as an Calor file (`.calr`), not C#"
 2. Start your prompt with `$calor` to activate the skill
-3. Convert the file: `calorc convert filename.cs`
+3. Convert the file: `calor convert filename.cs`
 
 ### Skills Not Recognized
 
-Ensure you've run `calorc init --ai codex` and the skill files exist:
+Ensure you've run `calor init --ai codex` and the skill files exist:
 
 ```bash
 ls -la .codex/skills/calor/SKILL.md
@@ -265,5 +265,5 @@ ls -la .codex/skills/calor-convert/SKILL.md
 
 - [Syntax Reference](/calor/syntax-reference/) - Complete language reference
 - [Adding Calor to Existing Projects](/calor/guides/adding-calor-to-existing-projects/) - Migration guide
-- [calorc init](/calor/cli/init/) - Full init command documentation
+- [calor init](/calor/cli/init/) - Full init command documentation
 - [Claude Integration](/calor/getting-started/claude-integration/) - Alternative with enforced Calor-first

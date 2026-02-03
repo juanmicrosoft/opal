@@ -5,27 +5,27 @@ const comparisons = [
     rows: [
       {
         feature: 'Contracts',
-        opal: 'First-class syntax (§Q, §S)',
+        calor: 'First-class syntax (§Q, §S)',
         others: 'Deprecated / Comments / None',
       },
       {
         feature: 'Side Effects',
-        opal: 'Declared explicitly (§E)',
+        calor: 'Declared explicitly (§E)',
         others: 'Implicit, inferred from I/O',
       },
       {
         feature: 'References',
-        opal: 'Unique IDs (f001, m001)',
+        calor: 'Unique IDs (f001, m001)',
         others: 'Line numbers, fragile paths',
       },
       {
         feature: 'Scope Boundaries',
-        opal: 'Matched open/close tags',
+        calor: 'Matched open/close tags',
         others: 'Braces, indentation rules',
       },
       {
         feature: 'Agent Optimization',
-        opal: 'Primary design goal',
+        calor: 'Primary design goal',
         others: 'Not considered',
       },
     ],
@@ -36,22 +36,22 @@ const comparisons = [
     rows: [
       {
         feature: 'Primary Focus',
-        opal: 'AI agent collaboration',
+        calor: 'AI agent collaboration',
         others: 'Memory safety, zero-cost abstractions',
       },
       {
         feature: 'Learning Curve',
-        opal: '.NET ecosystem, familiar concepts',
+        calor: '.NET ecosystem, familiar concepts',
         others: 'Ownership model, lifetimes, borrowing',
       },
       {
         feature: 'Contracts',
-        opal: 'Native preconditions/postconditions',
+        calor: 'Native preconditions/postconditions',
         others: 'Via debug_assert! or external crates',
       },
       {
         feature: 'Target Use Case',
-        opal: 'AI-generated business logic',
+        calor: 'AI-generated business logic',
         others: 'Systems programming, performance-critical',
       },
     ],
@@ -62,22 +62,22 @@ const comparisons = [
     rows: [
       {
         feature: 'Modern Ecosystem',
-        opal: '.NET, NuGet, full interop',
+        calor: '.NET, NuGet, full interop',
         others: 'Limited package ecosystem',
       },
       {
         feature: 'Adoption Path',
-        opal: 'Interop with existing C# code',
+        calor: 'Interop with existing C# code',
         others: 'Full rewrite typically required',
       },
       {
         feature: 'AI Optimization',
-        opal: 'Unique IDs, explicit structure',
+        calor: 'Unique IDs, explicit structure',
         others: 'Human-readable syntax only',
       },
       {
         feature: 'Industry Adoption',
-        opal: 'Emerging, .NET compatible',
+        calor: 'Emerging, .NET compatible',
         others: 'Niche, specialized domains',
       },
     ],
@@ -90,10 +90,10 @@ export function CompetitivePositioning() {
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
         <div className="mx-auto max-w-2xl text-center mb-16">
           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-            How OPAL Compares
+            How Calor Compares
           </h2>
           <p className="mt-4 text-lg text-muted-foreground">
-            See how OPAL stacks up against existing solutions
+            See how Calor stacks up against existing solutions
           </p>
         </div>
 
@@ -122,7 +122,7 @@ export function CompetitivePositioning() {
                         Feature
                       </th>
                       <th className="px-6 py-3 text-left text-sm font-medium text-primary">
-                        OPAL
+                        Calor
                       </th>
                       <th className="px-6 py-3 text-left text-sm font-medium text-muted-foreground">
                         Others
@@ -136,7 +136,7 @@ export function CompetitivePositioning() {
                           {row.feature}
                         </td>
                         <td className="px-6 py-3 text-sm text-foreground">
-                          {row.opal}
+                          {row.calor}
                         </td>
                         <td className="px-6 py-3 text-sm text-muted-foreground">
                           {row.others}

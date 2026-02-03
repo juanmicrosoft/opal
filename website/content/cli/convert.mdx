@@ -4,12 +4,12 @@ section: "cli"
 order: 3
 ---
 
-# calorc convert
+# calor convert
 
 Convert a single file between C# and Calor.
 
 ```bash
-calorc convert <input> [options]
+calor convert <input> [options]
 ```
 
 ---
@@ -19,7 +19,7 @@ calorc convert <input> [options]
 The `convert` command performs bidirectional conversion between C# and Calor:
 
 - **C# → Calor**: Convert `.cs` files to Calor syntax
-- **Calor → C#**: Convert `.calor` files to generated C#
+- **Calor → C#**: Convert `.calr` files to generated C#
 
 The conversion direction is automatically detected from the input file extension.
 
@@ -29,16 +29,16 @@ The conversion direction is automatically detected from the input file extension
 
 ```bash
 # Convert C# to Calor
-calorc convert MyService.cs
+calor convert MyService.cs
 
 # Convert Calor to C#
-calorc convert MyService.calor
+calor convert MyService.calr
 
 # Specify output path
-calorc convert MyService.cs --output src/MyService.calor
+calor convert MyService.cs --output src/MyService.calr
 
 # Include benchmark comparison
-calorc convert MyService.cs --benchmark
+calor convert MyService.cs --benchmark
 ```
 
 ---
@@ -59,8 +59,8 @@ If `--output` is not specified:
 
 | Input | Output |
 |:------|:-------|
-| `MyFile.cs` | `MyFile.calor` |
-| `MyFile.calor` | `MyFile.g.cs` |
+| `MyFile.cs` | `MyFile.calr` |
+| `MyFile.calr` | `MyFile.g.cs` |
 
 ---
 
@@ -84,7 +84,7 @@ If `--output` is not specified:
 Use `--benchmark` to see how the Calor version compares to C#:
 
 ```bash
-calorc convert PaymentService.cs --benchmark
+calor convert PaymentService.cs --benchmark
 ```
 
 Output:
@@ -113,6 +113,6 @@ Benchmark Comparison:
 
 ## See Also
 
-- [calorc migrate](/cli/migrate/) - Convert entire projects
-- [calorc analyze](/cli/analyze/) - Find best conversion candidates
-- [calorc benchmark](/cli/benchmark/) - Detailed metrics comparison
+- [calor migrate](/cli/migrate/) - Convert entire projects
+- [calor analyze](/cli/analyze/) - Find best conversion candidates
+- [calor benchmark](/cli/benchmark/) - Detailed metrics comparison

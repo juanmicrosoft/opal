@@ -15,7 +15,7 @@ This guide explains how to use Calor with Google Gemini CLI. For other AI integr
 Initialize your project for Gemini CLI with a single command:
 
 ```bash
-calorc init --ai gemini
+calor init --ai gemini
 ```
 
 This creates:
@@ -39,11 +39,11 @@ When Gemini tries to create a `.cs` file, the hook blocks the operation and retu
 {
   "decision": "deny",
   "reason": "BLOCKED: Cannot create C# file 'MyClass.cs'",
-  "systemMessage": "This is an Calor-first project. Create an .calor file instead..."
+  "systemMessage": "This is an Calor-first project. Create an .calr file instead..."
 }
 ```
 
-Gemini will then automatically retry with an `.calor` file.
+Gemini will then automatically retry with an `.calr` file.
 
 ---
 
@@ -109,14 +109,14 @@ Verify the settings file exists:
 cat .gemini/settings.json
 ```
 
-It should contain the `BeforeTool` hook configuration with `calorc hook validate-write --format gemini`.
+It should contain the `BeforeTool` hook configuration with `calor hook validate-write --format gemini`.
 
-### calorc Not Found
+### calor Not Found
 
 Ensure the Calor compiler is installed:
 
 ```bash
-dotnet tool install -g calorc
+dotnet tool install -g calor
 export PATH="$PATH:$HOME/.dotnet/tools"
 ```
 
@@ -125,6 +125,6 @@ export PATH="$PATH:$HOME/.dotnet/tools"
 ## See Also
 
 - [Syntax Reference](/syntax-reference/) - Complete language reference
-- [calorc init](/cli/init/) - Full init command documentation
+- [calor init](/cli/init/) - Full init command documentation
 - [Claude Integration](/getting-started/claude-integration/) - Alternative with Claude Code
 - [Codex Integration](/getting-started/codex-integration/) - Alternative with OpenAI Codex CLI

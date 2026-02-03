@@ -16,7 +16,7 @@ Calor is designed specifically for AI coding agents. This guide explains how to 
 Initialize your project for Claude Code with a single command:
 
 ```bash
-calorc init --ai claude
+calor init --ai claude
 ```
 
 This creates:
@@ -43,24 +43,24 @@ When Claude tries to create a C# file:
 ```
 BLOCKED: Cannot create C# file 'UserService.cs'
 
-This is an Calor-first project. Create an .calor file instead:
-  UserService.calor
+This is an Calor-first project. Create an .calr file instead:
+  UserService.calr
 
 Use /calor skill for Calor syntax help.
 ```
 
-Claude will automatically retry with an `.calor` file - no user intervention required.
+Claude will automatically retry with an `.calr` file - no user intervention required.
 
 ### Allowed Files
 
 The hook allows:
-- **`.calor` files** - All Calor source files
+- **`.calr` files** - All Calor source files
 - **`.g.cs` files** - Generated C# output from Calor compilation
 - **`obj/` directory** - Build artifacts
 
 ### Disabling Enforcement
 
-If you need to temporarily allow `.cs` file creation, remove or rename `.claude/settings.json`. Re-run `calorc init --ai claude` to restore enforcement.
+If you need to temporarily allow `.cs` file creation, remove or rename `.claude/settings.json`. Re-run `calor init --ai claude` to restore enforcement.
 
 ---
 
@@ -394,7 +394,7 @@ Convert src/Services/PaymentService.cs to Calor, adding:
 Reference specific elements by their IDs:
 
 ```
-In PaymentService.calor:
+In PaymentService.calr:
 - Extract the validation logic from f002 into a new private function
 - Add a postcondition to f001 ensuring the result is positive
 - Rename loop l001 to something more descriptive
@@ -403,7 +403,7 @@ In PaymentService.calor:
 ### Debugging with Claude
 
 ```
-Review OrderService.calor and identify:
+Review OrderService.calr and identify:
 1. Any missing preconditions that could cause runtime errors
 2. Functions that should be marked pure but have undeclared effects
 3. Opportunities to use Result<T,E> instead of exceptions
@@ -438,5 +438,5 @@ Then use the skills as normal.
 
 - [Syntax Reference](/calor/syntax-reference/) - Complete language reference
 - [Adding Calor to Existing Projects](/calor/guides/adding-calor-to-existing-projects/) - Migration guide
-- [calorc init](/calor/cli/init/) - Full init command documentation
+- [calor init](/calor/cli/init/) - Full init command documentation
 - [Benchmarking](/calor/benchmarking/) - See how Calor compares to C#

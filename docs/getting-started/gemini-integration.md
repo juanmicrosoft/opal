@@ -16,7 +16,7 @@ This guide explains how to use Calor with Google Gemini CLI. For other AI integr
 Initialize your project for Gemini CLI with a single command:
 
 ```bash
-calorc init --ai gemini
+calor init --ai gemini
 ```
 
 This creates:
@@ -42,14 +42,14 @@ When Gemini tries to create a `.cs` file, the hook blocks the operation:
 {
   "decision": "deny",
   "reason": "BLOCKED: Cannot create C# file 'MyClass.cs'",
-  "systemMessage": "This is an Calor-first project. Create an .calor file instead: MyClass.calor\n\nUse @calor skill for Calor syntax help."
+  "systemMessage": "This is an Calor-first project. Create an .calr file instead: MyClass.calr\n\nUse @calor skill for Calor syntax help."
 }
 ```
 
-Gemini will then automatically retry with an `.calor` file.
+Gemini will then automatically retry with an `.calr` file.
 
 **Allowed file types:**
-- `.calor` files (Calor source code)
+- `.calr` files (Calor source code)
 - `.g.cs` files (generated C# from Calor)
 - Files in `obj/` directory (build artifacts)
 
@@ -249,7 +249,7 @@ Test that the hook blocks `.cs` creation:
 # Ask Gemini to create a C# file
 gemini "Create a new utility class called StringHelper in StringHelper.cs"
 
-# The hook should block and suggest StringHelper.calor instead
+# The hook should block and suggest StringHelper.calr instead
 ```
 
 ---
@@ -285,7 +285,7 @@ Expected content includes:
           {
             "name": "calor-validate-write",
             "type": "command",
-            "command": "calorc hook validate-write --format gemini $TOOL_INPUT"
+            "command": "calor hook validate-write --format gemini $TOOL_INPUT"
           }
         ]
       }
@@ -294,18 +294,18 @@ Expected content includes:
 }
 ```
 
-### "calorc: command not found"
+### "calor: command not found"
 
 Ensure the Calor compiler is installed and in your PATH:
 
 ```bash
-dotnet tool install -g calorc
+dotnet tool install -g calor
 export PATH="$PATH:$HOME/.dotnet/tools"
 ```
 
 ### Skills Not Recognized
 
-Ensure you've run `calorc init --ai gemini` and the skill files exist:
+Ensure you've run `calor init --ai gemini` and the skill files exist:
 
 ```bash
 ls -la .gemini/skills/calor/SKILL.md
@@ -318,6 +318,6 @@ ls -la .gemini/skills/calor-convert/SKILL.md
 
 - [Syntax Reference](/calor/syntax-reference/) - Complete language reference
 - [Adding Calor to Existing Projects](/calor/guides/adding-calor-to-existing-projects/) - Migration guide
-- [calorc init](/calor/cli/init/) - Full init command documentation
+- [calor init](/calor/cli/init/) - Full init command documentation
 - [Claude Integration](/calor/getting-started/claude-integration/) - Alternative with Claude Code
 - [Codex Integration](/calor/getting-started/codex-integration/) - Alternative with OpenAI Codex CLI

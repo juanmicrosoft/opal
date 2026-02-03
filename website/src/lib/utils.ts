@@ -6,5 +6,5 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function getBasePath() {
-  return process.env.NEXT_PUBLIC_BASE_PATH || '/opal';
+  return process.env.NEXT_PUBLIC_BASE_PATH || '/calor';
 }

@@ -6,12 +6,12 @@ nav_order: 2
 permalink: /cli/init/
 ---
 
-# calorc init
+# calor init
 
 Initialize Calor development environment with MSBuild integration and optional AI agent support.
 
 ```bash
-calorc init [options]
+calor init [options]
 ```
 
 ---
@@ -23,7 +23,7 @@ The `init` command sets up your project for Calor development by:
 1. **Adding MSBuild targets** - Integrates Calor compilation into your .NET build process
 2. **Configuring AI agent integration** (optional) - Creates skills/prompts for your preferred AI coding assistant
 
-After running `init`, you can write `.calor` files alongside your `.cs` files and they'll compile automatically during `dotnet build`.
+After running `init`, you can write `.calr` files alongside your `.cs` files and they'll compile automatically during `dotnet build`.
 
 ---
 
@@ -81,22 +81,22 @@ MyProject/
 
 ```bash
 # Basic initialization (MSBuild integration only)
-calorc init
+calor init
 
 # Initialize with Claude Code support
-calorc init --ai claude
+calor init --ai claude
 
 # Initialize a solution (auto-detected or explicit)
-calorc init --ai claude
+calor init --ai claude
 
 # Initialize with explicit solution file
-calorc init --solution MySolution.sln --ai claude
+calor init --solution MySolution.sln --ai claude
 
 # Initialize with a specific .csproj
-calorc init --project MyApp.csproj
+calor init --project MyApp.csproj
 
 # Initialize with both Claude and specific project
-calorc init --ai claude --project MyApp.csproj
+calor init --ai claude --project MyApp.csproj
 ```
 
 ---
@@ -134,16 +134,16 @@ The `.claude/settings.json` file configures a `PreToolUse` hook that **blocks Cl
 ```
 BLOCKED: Cannot create C# file 'MyClass.cs'
 
-This is an Calor-first project. Create an .calor file instead:
-  MyClass.calor
+This is an Calor-first project. Create an .calr file instead:
+  MyClass.calr
 
 Use /calor skill for Calor syntax help.
 ```
 
-Claude will then automatically retry with an `.calor` file. This enforcement ensures all new code is written in Calor.
+Claude will then automatically retry with an `.calr` file. This enforcement ensures all new code is written in Calor.
 
 **Allowed file types:**
-- `.calor` files (always allowed)
+- `.calr` files (always allowed)
 - `.g.cs` generated files (build output)
 - Files in `obj/` directory (build artifacts)
 
@@ -169,10 +169,10 @@ Creates the following files:
 **Important:** Codex CLI does not support hooks like Claude Code. Calor-first development is **guidance-based only**, relying on instructions in `AGENTS.md` and the skill files.
 
 This means:
-- Codex *should* create `.calor` files based on the instructions
+- Codex *should* create `.calr` files based on the instructions
 - However, enforcement is not automatic - Codex may occasionally create `.cs` files
 - Review file extensions after code generation
-- Use `calorc analyze` to find any unconverted `.cs` files
+- Use `calor analyze` to find any unconverted `.cs` files
 
 After initialization, use these Codex commands:
 
@@ -216,14 +216,14 @@ When Gemini tries to write a C# file, the hook returns a JSON response that bloc
 {
   "decision": "deny",
   "reason": "BLOCKED: Cannot create C# file 'MyClass.cs'",
-  "systemMessage": "This is an Calor-first project. Create an .calor file instead: MyClass.calor\n\nUse @calor skill for Calor syntax help."
+  "systemMessage": "This is an Calor-first project. Create an .calr file instead: MyClass.calr\n\nUse @calor skill for Calor syntax help."
 }
 ```
 
-Gemini will then automatically retry with an `.calor` file. This enforcement ensures all new code is written in Calor.
+Gemini will then automatically retry with an `.calr` file. This enforcement ensures all new code is written in Calor.
 
 **Allowed file types:**
-- `.calor` files (always allowed)
+- `.calr` files (always allowed)
 - `.g.cs` generated files (build output)
 - Files in `obj/` directory (build artifacts)
 
@@ -264,10 +264,10 @@ Creates the following files:
 **Important:** GitHub Copilot does not support hooks like Claude Code. Calor-first development is **guidance-based only**, relying on instructions in `copilot-instructions.md` and the skill files.
 
 This means:
-- Copilot *should* create `.calor` files based on the instructions
+- Copilot *should* create `.calr` files based on the instructions
 - However, enforcement is not automatic - Copilot may occasionally create `.cs` files
 - Review file extensions after code generation
-- Use `calorc analyze` to find any unconverted `.cs` files
+- Use `calor analyze` to find any unconverted `.cs` files
 
 After initialization, reference the Calor skills when asking Copilot about Calor syntax or converting C# code.
 
@@ -294,11 +294,11 @@ The `init` command adds three MSBuild targets to your `.csproj` file:
 
 ### CompileCalorFiles
 
-Compiles all `.calor` files before C# compilation:
+Compiles all `.calr` files before C# compilation:
 
 ```xml
 <Target Name="CompileCalorFiles" BeforeTargets="BeforeBuild">
-  <Exec Command="calorc --input %(CalorFiles.Identity) --output $(CalorOutputPath)%(CalorFiles.Filename).g.cs" />
+  <Exec Command="calor --input %(CalorFiles.Identity) --output $(CalorOutputPath)%(CalorFiles.Filename).g.cs" />
 </Target>
 ```
 
@@ -340,7 +340,7 @@ This keeps generated files out of your source tree while still making them part 
 
 ## Calor/C# Coexistence
 
-After initialization, `.calor` and `.cs` files coexist seamlessly in your project:
+After initialization, `.calr` and `.cs` files coexist seamlessly in your project:
 
 ```
 MyProject/
@@ -348,7 +348,7 @@ MyProject/
 ├── Program.cs              # Existing C# code
 ├── Services/
 │   ├── UserService.cs      # Existing C# service
-│   └── PaymentService.calor # New Calor service
+│   └── PaymentService.calr # New Calor service
 └── obj/
     └── Debug/net8.0/calor/
         └── PaymentService.g.cs  # Generated C#
@@ -358,13 +358,13 @@ MyProject/
 
 1. Run `dotnet build`
 2. MSBuild triggers `CompileCalorFiles` target
-3. Each `.calor` file is compiled to `.g.cs` in `obj/calor/`
+3. Each `.calr` file is compiled to `.g.cs` in `obj/calor/`
 4. Generated files are included in C# compilation
 5. Normal .NET build continues
 
 ### No Manual Steps
 
-- No need to run `calorc` manually
+- No need to run `calor` manually
 - No need to manage generated file paths
 - `dotnet clean` removes generated files automatically
 
@@ -387,10 +387,10 @@ If multiple solution files are found in the current directory, you must specify 
 
 ```bash
 # Error: Multiple solutions found
-calorc init --ai claude
+calor init --ai claude
 
 # Specify the solution explicitly
-calorc init --solution MyApp.sln --ai claude
+calor init --solution MyApp.sln --ai claude
 ```
 
 ### Solution Parsing
@@ -418,7 +418,7 @@ This allows you to restore the original if needed.
 
 ## Re-running Init
 
-You can safely run `calorc init` multiple times:
+You can safely run `calor init` multiple times:
 
 - **CLAUDE.md**: Updates only the Calor section, preserving your custom content
 - **Skills files**: Overwrites with latest version (use `--force` or confirm)
@@ -435,17 +435,17 @@ You can safely run `calorc init` multiple times:
 cd ~/projects/MyApp
 
 # Initialize Calor (MSBuild integration only)
-calorc init
+calor init
 
 # Analyze codebase for migration candidates
-calorc analyze ./src --top 10
+calor analyze ./src --top 10
 ```
 
 ### Initialize with Claude Code
 
 ```bash
 # Initialize with Claude Code support
-calorc init --ai claude
+calor init --ai claude
 ```
 
 This adds `/calor` and `/calor-convert` skills plus CLAUDE.md with guidelines that instruct Claude to:
@@ -458,24 +458,24 @@ This adds `/calor` and `/calor-convert` skills plus CLAUDE.md with guidelines th
 # Create a new console app and initialize Calor
 dotnet new console -o MyCalorApp
 cd MyCalorApp
-calorc init
-calorc init --ai claude  # Optional: add Claude support
+calor init
+calor init --ai claude  # Optional: add Claude support
 ```
 
 ### Initialize a Solution
 
 ```bash
 # Initialize all projects in a solution (auto-detected)
-calorc init --ai claude
+calor init --ai claude
 
 # Or specify the solution explicitly
-calorc init --solution MySolution.sln --ai claude
+calor init --solution MySolution.sln --ai claude
 ```
 
 This creates AI files in the solution root and adds MSBuild targets to all projects:
 
 ```
-Initialized Calor solution for Claude Code (calorc v0.1.5)
+Initialized Calor solution for Claude Code (calor v0.1.5)
 
 Solution: MySolution.sln (3 projects)
 
@@ -499,20 +499,20 @@ MSBuild configuration:
 If you need to initialize projects independently (different AI configs per project):
 
 ```bash
-calorc init --ai claude --project src/Core/Core.csproj
-calorc init --ai claude --project src/Web/Web.csproj
+calor init --ai claude --project src/Core/Core.csproj
+calor init --ai claude --project src/Web/Web.csproj
 ```
 
 ---
 
 ## Troubleshooting
 
-### "calorc not found"
+### "calor not found"
 
 Ensure the Calor compiler is installed globally:
 
 ```bash
-dotnet tool install -g calorc
+dotnet tool install -g calor
 ```
 
 And that your PATH includes the .NET tools directory:
@@ -526,7 +526,7 @@ export PATH="$PATH:$HOME/.dotnet/tools"
 Specify the exact project:
 
 ```bash
-calorc init --ai claude --project ./src/MyApp/MyApp.csproj
+calor init --ai claude --project ./src/MyApp/MyApp.csproj
 ```
 
 ### "Multiple solution files found"
@@ -534,22 +534,22 @@ calorc init --ai claude --project ./src/MyApp/MyApp.csproj
 Specify which solution to use:
 
 ```bash
-calorc init --solution MyApp.sln --ai claude
+calor init --solution MyApp.sln --ai claude
 ```
 
 ### Build Fails After Init
 
-1. Verify `calorc` is in PATH: `which calorc`
+1. Verify `calor` is in PATH: `which calor`
 2. Check the `.csproj` has the Calor targets
-3. Try running `calorc` manually on a test file
+3. Try running `calor` manually on a test file
 
 ---
 
 ## See Also
 
 - [Adding Calor to Existing Projects](/calor/guides/adding-calor-to-existing-projects/) - Complete migration guide
-- [calorc convert](/calor/cli/convert/) - Convert individual files
-- [calorc analyze](/calor/cli/analyze/) - Find migration candidates
+- [calor convert](/calor/cli/convert/) - Convert individual files
+- [calor analyze](/calor/cli/analyze/) - Find migration candidates
 - [Claude Integration](/calor/getting-started/claude-integration/) - Using Calor with Claude Code
 - [Codex Integration](/calor/getting-started/codex-integration/) - Using Calor with OpenAI Codex CLI
 - [Gemini Integration](/calor/getting-started/gemini-integration/) - Using Calor with Google Gemini CLI

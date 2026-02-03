@@ -18,7 +18,7 @@ export function Sidebar({ sections }: SidebarProps) {
   const pathname = usePathname();
   const [expandedSections, setExpandedSections] = useState<Set<string>>(() => {
     // Expand the current section by default
-    const currentSection = pathname?.split('/')[3]; // /opal/docs/{section}/...
+    const currentSection = pathname?.split('/')[3]; // /calor/docs/{section}/...
     return new Set(currentSection ? [currentSection] : sections.map((s) => s.slug));
   });
 

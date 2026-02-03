@@ -6,12 +6,12 @@ nav_order: 7
 permalink: /cli/diagnose/
 ---
 
-# calorc diagnose
+# calor diagnose
 
 Output machine-readable diagnostics for Calor files.
 
 ```bash
-calorc diagnose <files...> [options]
+calor diagnose <files...> [options]
 ```
 
 ---
@@ -32,16 +32,16 @@ Use this for automated fix workflows, CI/CD pipelines, and editor integrations.
 
 ```bash
 # Diagnose a single file (text output)
-calorc diagnose MyModule.calor
+calor diagnose MyModule.calr
 
 # JSON output for processing
-calorc diagnose MyModule.calor --format json
+calor diagnose MyModule.calr --format json
 
 # SARIF output for IDE integration
-calorc diagnose src/*.calor --format sarif --output diagnostics.sarif
+calor diagnose src/*.calr --format sarif --output diagnostics.sarif
 
 # Enable strict checking
-calorc diagnose MyModule.calor --strict-api --require-docs
+calor diagnose MyModule.calr --strict-api --require-docs
 ```
 
 ---
@@ -72,19 +72,19 @@ calorc diagnose MyModule.calor --strict-api --require-docs
 Human-readable diagnostics:
 
 ```bash
-calorc diagnose Calculator.calor
+calor diagnose Calculator.calr
 ```
 
 Output:
 ```
-Calculator.calor:12:5: error: Undefined variable 'x'
+Calculator.calr:12:5: error: Undefined variable 'x'
   §R (+ x 1)
        ^
 
-Calculator.calor:8:3: warning: Function 'Calculate' has no effect declaration
+Calculator.calr:8:3: warning: Function 'Calculate' has no effect declaration
   Consider adding §E[] for pure functions
 
-Calculator.calor:15:3: info: Unused variable 'temp'
+Calculator.calr:15:3: info: Unused variable 'temp'
   §B[temp] 42
 
 Summary: 1 error, 1 warning, 1 info
@@ -95,7 +95,7 @@ Summary: 1 error, 1 warning, 1 info
 Machine-readable format for automated processing:
 
 ```bash
-calorc diagnose Calculator.calor --format json
+calor diagnose Calculator.calr --format json
 ```
 
 Output:
@@ -104,7 +104,7 @@ Output:
   "version": "1.0",
   "files": [
     {
-      "path": "Calculator.calor",
+      "path": "Calculator.calr",
       "diagnostics": [
         {
           "severity": "error",
@@ -155,7 +155,7 @@ Output:
 [SARIF](https://sarifweb.azurewebsites.net/) format for IDE and CI/CD integration:
 
 ```bash
-calorc diagnose src/*.calor --format sarif --output diagnostics.sarif
+calor diagnose src/*.calr --format sarif --output diagnostics.sarif
 ```
 
 SARIF output integrates with:
@@ -194,7 +194,7 @@ Enforces stricter API rules:
 - No implicit any types
 
 ```bash
-calorc diagnose MyModule.calor --strict-api
+calor diagnose MyModule.calr --strict-api
 ```
 
 ### Require Docs (`--require-docs`)
@@ -202,12 +202,12 @@ calorc diagnose MyModule.calor --strict-api
 Requires documentation on public APIs:
 
 ```bash
-calorc diagnose MyModule.calor --require-docs
+calor diagnose MyModule.calr --require-docs
 ```
 
 Error:
 ```
-MyModule.calor:5:1: error: Public function 'ProcessOrder' missing documentation
+MyModule.calr:5:1: error: Public function 'ProcessOrder' missing documentation
   Add documentation comment before function declaration
 ```
 
@@ -218,7 +218,7 @@ MyModule.calor:5:1: error: Public function 'ProcessOrder' missing documentation
 Diagnostics from all files are aggregated:
 
 ```bash
-calorc diagnose src/*.calor --format json
+calor diagnose src/*.calr --format json
 ```
 
 The output includes diagnostics from all files in a single report.
@@ -243,12 +243,12 @@ The `diagnose` command is designed for AI agent workflows:
 
 ```bash
 # 1. Get diagnostics in JSON
-calorc diagnose MyModule.calor --format json > diagnostics.json
+calor diagnose MyModule.calr --format json > diagnostics.json
 
 # 2. AI agent reads diagnostics and applies fixes
 
 # 3. Re-run diagnostics to verify
-calorc diagnose MyModule.calor --format json
+calor diagnose MyModule.calr --format json
 ```
 
 ### Claude Code Integration
@@ -256,7 +256,7 @@ calorc diagnose MyModule.calor --format json
 In Claude Code, use the diagnostics to guide fixes:
 
 ```
-Run calorc diagnose on MyModule.calor and fix any errors
+Run calor diagnose on MyModule.calr and fix any errors
 ```
 
 Claude will:
@@ -274,7 +274,7 @@ Claude will:
 ```yaml
 - name: Check Calor diagnostics
   run: |
-    calorc diagnose src/**/*.calor --format sarif --output calor.sarif
+    calor diagnose src/**/*.calr --format sarif --output calor.sarif
 
 - name: Upload SARIF
   uses: github/codeql-action/upload-sarif@v2
@@ -286,7 +286,7 @@ Claude will:
 
 ```yaml
 - script: |
-    calorc diagnose src/**/*.calor --format sarif --output $(Build.ArtifactStagingDirectory)/calor.sarif
+    calor diagnose src/**/*.calr --format sarif --output $(Build.ArtifactStagingDirectory)/calor.sarif
   displayName: 'Run Calor diagnostics'
 
 - task: PublishBuildArtifacts@1
@@ -303,7 +303,7 @@ Claude will:
 
 ```bash
 # Check for errors only
-calorc diagnose MyModule.calor
+calor diagnose MyModule.calr
 if [ $? -ne 0 ]; then
   echo "Errors found, fix before committing"
   exit 1
@@ -314,7 +314,7 @@ fi
 
 ```bash
 # Generate comprehensive report
-calorc diagnose src/*.calor \
+calor diagnose src/*.calr \
   --strict-api \
   --require-docs \
   --format json \
@@ -327,10 +327,10 @@ calorc diagnose src/*.calor \
 #!/bin/bash
 # .git/hooks/pre-commit
 
-Calor_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.calor$')
+Calor_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.calr$')
 
 if [ -n "$Calor_FILES" ]; then
-  echo "$Calor_FILES" | xargs calorc diagnose
+  echo "$Calor_FILES" | xargs calor diagnose
   if [ $? -ne 0 ]; then
     echo "Calor diagnostics found errors. Fix before committing."
     exit 1
@@ -342,6 +342,6 @@ fi
 
 ## See Also
 
-- [calorc format](/calor/cli/format/) - Format Calor source files
-- [calorc compile](/calor/cli/compile/) - Compile with error reporting
-- [calorc analyze](/calor/cli/analyze/) - Analyze C# for migration potential
+- [calor format](/calor/cli/format/) - Format Calor source files
+- [calor compile](/calor/cli/compile/) - Compile with error reporting
+- [calor analyze](/calor/cli/analyze/) - Analyze C# for migration potential

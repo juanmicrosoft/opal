@@ -41,13 +41,13 @@ export function ProjectStatus() {
                 className={cn(
                   'flex items-center gap-3 rounded-lg border p-4 transition-colors',
                   item.completed
-                    ? 'bg-green-500/5 border-green-500/20'
+                    ? 'bg-calor-cyan/5 border-calor-cyan/20'
                     : 'bg-background'
                 )}
               >
                 {item.completed ? (
-                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-500">
-                    <Check className="h-4 w-4 text-white" />
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-calor-cyan">
+                    <Check className="h-4 w-4 text-calor-navy" />
                   </div>
                 ) : (
                   <div className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-muted-foreground/30">
@@ -76,7 +76,7 @@ export function ProjectStatus() {
             </div>
             <div className="h-2 bg-muted rounded-full overflow-hidden">
               <div
-                className="h-full bg-green-500 rounded-full transition-all duration-500"
+                className="h-full bg-calor-cyan rounded-full transition-all duration-500"
                 style={{ width: `${(completedCount / statusItems.length) * 100}%` }}
               />
             </div>

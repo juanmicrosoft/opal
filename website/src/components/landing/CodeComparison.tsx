@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 
-const opalCode = `§F[f002:Square:pub]
+const calorCode = `§F[f002:Square:pub]
   §I[i32:x]
   §O[i32]
   §Q (>= x 0)
@@ -21,7 +21,7 @@ const csharpCode = `public static int Square(int x)
     return result;
 }`;
 
-const opalAnnotations = [
+const calorAnnotations = [
   { line: 0, text: 'Function ID: f002 - can reference precisely' },
   { line: 3, text: 'Precondition (§Q): x >= 0' },
   { line: 4, text: 'Postcondition (§S): result >= 0' },
@@ -35,7 +35,7 @@ const csharpAnnotations = [
 ];
 
 export function CodeComparison() {
-  const [activeTab, setActiveTab] = useState<'opal' | 'csharp'>('opal');
+  const [activeTab, setActiveTab] = useState<'calor' | 'csharp'>('calor');
 
   return (
     <section className="py-24 bg-muted/30">
@@ -45,7 +45,7 @@ export function CodeComparison() {
             What Agents See
           </h2>
           <p className="mt-4 text-lg text-muted-foreground">
-            OPAL makes semantics explicit. C# requires inference.
+            Calor makes semantics explicit. C# requires inference.
           </p>
         </div>
 
@@ -54,15 +54,15 @@ export function CodeComparison() {
           <div className="flex justify-center mb-6">
             <div className="inline-flex rounded-lg border p-1 bg-background">
               <button
-                onClick={() => setActiveTab('opal')}
+                onClick={() => setActiveTab('calor')}
                 className={cn(
                   'px-4 py-2 rounded-md text-sm font-medium transition-colors',
-                  activeTab === 'opal'
+                  activeTab === 'calor'
                     ? 'bg-primary text-primary-foreground'
                     : 'hover:bg-muted'
                 )}
               >
-                OPAL - Everything Explicit
+                Calor - Everything Explicit
               </button>
               <button
                 onClick={() => setActiveTab('csharp')}
@@ -84,12 +84,12 @@ export function CodeComparison() {
             <div className="rounded-lg border bg-zinc-950 overflow-hidden">
               <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-2">
                 <span className="text-sm text-zinc-400">
-                  {activeTab === 'opal' ? 'program.opal' : 'Program.cs'}
+                  {activeTab === 'calor' ? 'program.calr' : 'Program.cs'}
                 </span>
               </div>
               <pre className="p-4 text-sm leading-6 overflow-x-auto">
                 <code className="text-zinc-100">
-                  {activeTab === 'opal' ? opalCode : csharpCode}
+                  {activeTab === 'calor' ? calorCode : csharpCode}
                 </code>
               </pre>
             </div>
@@ -97,18 +97,18 @@ export function CodeComparison() {
             {/* Annotations */}
             <div className="space-y-4">
               <h3 className="font-semibold text-lg">
-                {activeTab === 'opal'
-                  ? 'What OPAL tells the agent directly:'
+                {activeTab === 'calor'
+                  ? 'What Calor tells the agent directly:'
                   : 'What C# requires the agent to infer:'}
               </h3>
               <ul className="space-y-3">
-                {(activeTab === 'opal' ? opalAnnotations : csharpAnnotations).map(
+                {(activeTab === 'calor' ? calorAnnotations : csharpAnnotations).map(
                   (annotation, i) => (
                     <li
                       key={i}
                       className={cn(
                         'flex items-start gap-3 p-3 rounded-lg',
-                        activeTab === 'opal'
+                        activeTab === 'calor'
                           ? 'bg-green-500/10 border border-green-500/20'
                           : 'bg-yellow-500/10 border border-yellow-500/20'
                       )}
@@ -116,7 +116,7 @@ export function CodeComparison() {
                       <span
                         className={cn(
                           'shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium',
-                          activeTab === 'opal'
+                          activeTab === 'calor'
                             ? 'bg-green-500/20 text-green-600'
                             : 'bg-yellow-500/20 text-yellow-600'
                         )}

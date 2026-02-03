@@ -12,8 +12,8 @@ const footerLinks = {
     { name: 'Contributing', href: '/docs/contributing/' },
   ],
   community: [
-    { name: 'GitHub', href: 'https://github.com/juanmicrosoft/opal', external: true },
-    { name: 'Issues', href: 'https://github.com/juanmicrosoft/opal/issues', external: true },
+    { name: 'GitHub', href: 'https://github.com/juanmicrosoft/calor', external: true },
+    { name: 'Issues', href: 'https://github.com/juanmicrosoft/calor/issues', external: true },
   ],
 };
 
@@ -24,7 +24,7 @@ export function Footer() {
         <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
           <div className="col-span-2 md:col-span-1">
             <Link href="/" className="text-xl font-bold">
-              OPAL
+              Calor
             </Link>
             <p className="mt-4 text-sm text-muted-foreground">
               Coding Agent Language for Optimized Reasoning. A language designed for AI coding agents.
@@ -84,7 +84,7 @@ export function Footer() {
 
         <div className="mt-12 border-t pt-8">
           <p className="text-center text-sm text-muted-foreground">
-            OPAL is open source. Licensed under MIT.
+            Calor is open source. Licensed under MIT.
           </p>
         </div>
       </div>

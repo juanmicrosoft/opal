@@ -6,12 +6,12 @@ nav_order: 1
 permalink: /cli/analyze/
 ---
 
-# calorc analyze
+# calor analyze
 
 Score C# files for Calor migration potential.
 
 ```bash
-calorc analyze <path> [options]
+calor analyze <path> [options]
 ```
 
 ---
@@ -32,13 +32,13 @@ Use this command to:
 
 ```bash
 # Analyze current directory
-calorc analyze .
+calor analyze .
 
 # Analyze with detailed breakdown
-calorc analyze ./src --verbose
+calor analyze ./src --verbose
 
 # Export as JSON for processing
-calorc analyze ./src --format json --output analysis.json
+calor analyze ./src --format json --output analysis.json
 ```
 
 ---
@@ -135,7 +135,7 @@ With `--verbose`, each file shows dimension breakdown:
 Machine-readable format for processing:
 
 ```bash
-calorc analyze ./src --format json --output analysis.json
+calor analyze ./src --format json --output analysis.json
 ```
 
 ```json
@@ -189,7 +189,7 @@ calorc analyze ./src --format json --output analysis.json
 [SARIF](https://sarifweb.azurewebsites.net/) (Static Analysis Results Interchange Format) for IDE and CI/CD integration:
 
 ```bash
-calorc analyze ./src --format sarif --output analysis.sarif
+calor analyze ./src --format sarif --output analysis.sarif
 ```
 
 SARIF output integrates with:
@@ -214,7 +214,7 @@ Use exit code `1` in CI/CD to flag codebases with high migration potential:
 
 ```bash
 # Fail CI if high-priority migration candidates exist
-calorc analyze ./src --threshold 51
+calor analyze ./src --threshold 51
 if [ $? -eq 1 ]; then
   echo "High-priority Calor migration candidates found"
 fi
@@ -228,7 +228,7 @@ fi
 
 ```bash
 # Show top 10 files scoring above 50
-calorc analyze ./src --threshold 50 --top 10
+calor analyze ./src --threshold 50 --top 10
 ```
 
 ### CI/CD Integration
@@ -237,7 +237,7 @@ calorc analyze ./src --threshold 50 --top 10
 # GitHub Actions example
 - name: Analyze Calor migration potential
   run: |
-    calorc analyze ./src --format sarif --output calor-analysis.sarif
+    calor analyze ./src --format sarif --output calor-analysis.sarif
 
 - name: Upload SARIF
   uses: github/codeql-action/upload-sarif@v2
@@ -249,7 +249,7 @@ calorc analyze ./src --threshold 50 --top 10
 
 ```bash
 # Full JSON report for documentation
-calorc analyze . --format json --output migration-report.json
+calor analyze . --format json --output migration-report.json
 
 # Parse with jq to find critical files
 cat migration-report.json | jq '.files[] | select(.priority == "critical") | .path'
@@ -259,7 +259,7 @@ cat migration-report.json | jq '.files[] | select(.priority == "critical") | .pa
 
 ```bash
 # Deep dive into a specific directory
-calorc analyze ./src/Services --verbose --top 50
+calor analyze ./src/Services --verbose --top 50
 ```
 
 ---

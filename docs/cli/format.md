@@ -6,12 +6,12 @@ nav_order: 6
 permalink: /cli/format/
 ---
 
-# calorc format
+# calor format
 
 Format Calor source files to canonical style.
 
 ```bash
-calorc format <files...> [options]
+calor format <files...> [options]
 ```
 
 ---
@@ -26,16 +26,16 @@ The `format` command formats Calor source files according to the canonical Calor
 
 ```bash
 # Format a single file (output to stdout)
-calorc format MyModule.calor
+calor format MyModule.calr
 
 # Format and overwrite the file
-calorc format MyModule.calor --write
+calor format MyModule.calr --write
 
 # Check if files are formatted (for CI)
-calorc format src/*.calor --check
+calor format src/*.calr --check
 
 # Show diff of changes
-calorc format MyModule.calor --diff
+calor format MyModule.calr --diff
 ```
 
 ---
@@ -64,7 +64,7 @@ calorc format MyModule.calor --diff
 By default (no flags), the formatted output is written to stdout:
 
 ```bash
-calorc format MyModule.calor
+calor format MyModule.calr
 ```
 
 This allows you to preview changes before applying them.
@@ -77,10 +77,10 @@ Use `--write` to format files in place:
 
 ```bash
 # Format single file
-calorc format MyModule.calor --write
+calor format MyModule.calr --write
 
 # Format multiple files
-calorc format src/*.calor --write
+calor format src/*.calr --write
 ```
 
 ---
@@ -90,7 +90,7 @@ calorc format src/*.calor --write
 Use `--check` in CI/CD to verify formatting:
 
 ```bash
-calorc format src/*.calor --check
+calor format src/*.calr --check
 ```
 
 Exit codes:
@@ -102,7 +102,7 @@ Example CI configuration:
 ```yaml
 # GitHub Actions
 - name: Check Calor formatting
-  run: calorc format src/**/*.calor --check
+  run: calor format src/**/*.calr --check
 ```
 
 ---
@@ -112,12 +112,12 @@ Example CI configuration:
 Use `--diff` to see what would change:
 
 ```bash
-calorc format MyModule.calor --diff
+calor format MyModule.calr --diff
 ```
 
 Output:
 ```
-MyModule.calor
+MyModule.calr
 --- original
 +++ formatted
 @@ -5,7 +5,7 @@
@@ -199,17 +199,17 @@ The Calor formatter applies these rules:
 When formatting multiple files, errors in one file don't stop processing of others:
 
 ```bash
-calorc format src/*.calor --write --verbose
+calor format src/*.calr --write --verbose
 ```
 
 Output:
 ```
 Formatting 5 files...
-  [OK] src/Calculator.calor
-  [OK] src/UserService.calor
-  [ERR] src/Broken.calor: Parse error at line 12
-  [OK] src/OrderService.calor
-  [OK] src/PaymentService.calor
+  [OK] src/Calculator.calr
+  [OK] src/UserService.calr
+  [ERR] src/Broken.calr: Parse error at line 12
+  [OK] src/OrderService.calr
+  [OK] src/PaymentService.calr
 
 Summary: 4 formatted, 1 error
 ```
@@ -221,12 +221,12 @@ Summary: 4 formatted, 1 error
 Use `--verbose` to see detailed processing information:
 
 ```bash
-calorc format MyModule.calor --write --verbose
+calor format MyModule.calr --write --verbose
 ```
 
 Output:
 ```
-Formatting MyModule.calor...
+Formatting MyModule.calr...
   Parsing: OK
   Changes: 3 lines modified
   Writing: OK
@@ -249,11 +249,11 @@ Formatting MyModule.calor...
 ### Format All Calor Files
 
 ```bash
-# Find and format all .calor files
-find . -name "*.calor" -exec calorc format {} --write \;
+# Find and format all .calr files
+find . -name "*.calr" -exec calor format {} --write \;
 
 # Or use shell globbing
-calorc format **/*.calor --write
+calor format **/*.calr --write
 ```
 
 ### Pre-Commit Hook
@@ -263,13 +263,13 @@ calorc format **/*.calor --write
 # .git/hooks/pre-commit
 
 # Check if any Calor files are staged
-Calor_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.calor$')
+Calor_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.calr$')
 
 if [ -n "$Calor_FILES" ]; then
   # Format staged files
-  echo "$Calor_FILES" | xargs calorc format --check
+  echo "$Calor_FILES" | xargs calor format --check
   if [ $? -ne 0 ]; then
-    echo "Calor files are not formatted. Run 'calorc format --write' to fix."
+    echo "Calor files are not formatted. Run 'calor format --write' to fix."
     exit 1
   fi
 fi
@@ -285,7 +285,7 @@ Most editors can be configured to run formatters on save:
   "[calor]": {
     "editor.formatOnSave": true
   },
-  "calor.formatCommand": "calorc format --write"
+  "calor.formatCommand": "calor format --write"
 }
 ```
 
@@ -293,6 +293,6 @@ Most editors can be configured to run formatters on save:
 
 ## See Also
 
-- [calorc diagnose](/calor/cli/diagnose/) - Check for errors and warnings
-- [calorc compile](/calor/cli/compile/) - Compile Calor to C#
+- [calor diagnose](/calor/cli/diagnose/) - Check for errors and warnings
+- [calor compile](/calor/cli/compile/) - Compile Calor to C#
 - [Syntax Reference](/calor/syntax-reference/) - Calor language reference
