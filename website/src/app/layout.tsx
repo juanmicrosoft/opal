@@ -22,25 +22,25 @@ const vt323 = VT323({
 
 export const metadata: Metadata = {
   title: {
-    default: 'OPAL - Coding Agent Language for Optimized Reasoning',
-    template: '%s | OPAL',
+    default: 'Calor - Coding Agent Language for Optimized Reasoning',
+    template: '%s | Calor',
   },
   description:
     'A programming language designed specifically for AI coding agents, compiling to .NET via C# emission.',
-  keywords: ['OPAL', 'programming language', 'AI', 'coding agents', 'compiler', '.NET', 'C#'],
-  authors: [{ name: 'OPAL Team' }],
+  keywords: ['Calor', 'programming language', 'AI', 'coding agents', 'compiler', '.NET', 'C#'],
+  authors: [{ name: 'Calor Team' }],
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: 'https://juanmicrosoft.github.io/opal',
-    siteName: 'OPAL',
-    title: 'OPAL - Coding Agent Language for Optimized Reasoning',
+    url: 'https://juanmicrosoft.github.io/calor',
+    siteName: 'Calor',
+    title: 'Calor - Coding Agent Language for Optimized Reasoning',
     description:
       'A programming language designed specifically for AI coding agents, compiling to .NET via C# emission.',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'OPAL - Coding Agent Language for Optimized Reasoning',
+    title: 'Calor - Coding Agent Language for Optimized Reasoning',
     description:
       'A programming language designed specifically for AI coding agents, compiling to .NET via C# emission.',
   },

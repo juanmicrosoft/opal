@@ -17,7 +17,7 @@ This guide will help you install Calor, write your first program, and understand
 Calor is a programming language that compiles to C# via source-to-source transformation. The workflow is:
 
 ```
-your_code.calor → Calor Compiler → your_code.g.cs → .NET Build → executable
+your_code.calr → Calor Compiler → your_code.g.cs → .NET Build → executable
 ```
 
 ---
@@ -43,13 +43,13 @@ your_code.calor → Calor Compiler → your_code.g.cs → .NET Build → executa
 Install the Calor compiler as a global .NET tool:
 
 ```bash
-dotnet tool install -g calorc --version 0.1.2
+dotnet tool install -g calor --version 0.1.2
 ```
 
 Or update an existing installation:
 
 ```bash
-dotnet tool update -g calorc
+dotnet tool update -g calor
 ```
 
 ---
@@ -69,21 +69,21 @@ cd MyApp
 ### Step 2: Enable Calor
 
 ```bash
-calorc init
+calor init
 ```
 
-This adds MSBuild integration so `.calor` files compile automatically during `dotnet build`.
+This adds MSBuild integration so `.calr` files compile automatically during `dotnet build`.
 
 ### Step 3: (Optional) Enable AI Agent Integration
 
 For Claude Code (with enforced Calor-first via hooks):
 ```bash
-calorc init --ai claude
+calor init --ai claude
 ```
 
 For OpenAI Codex CLI (guidance-based):
 ```bash
-calorc init --ai codex
+calor init --ai codex
 ```
 
 This adds Calor skills and project documentation that instruct the AI to:
@@ -94,7 +94,7 @@ This adds Calor skills and project documentation that instruct the AI to:
 
 ### Step 4: Write Calor Code
 
-After init, create `.calor` files and they compile automatically. Create `Program.calor`:
+After init, create `.calr` files and they compile automatically. Create `Program.calr`:
 
 ```
 §M{m001:MyApp}
@@ -119,13 +119,13 @@ See [Hello World](/calor/getting-started/hello-world/) for a detailed explanatio
 For existing C# codebases, analyze which files are good candidates for migration:
 
 ```bash
-calorc analyze ./src --top 10
+calor analyze ./src --top 10
 ```
 
 Then convert high-scoring files:
 
 ```bash
-calorc convert HighScoreFile.cs
+calor convert HighScoreFile.cs
 ```
 
 See the [Adding Calor to Existing Projects](/calor/guides/adding-calor-to-existing-projects/) guide for the complete walkthrough.
@@ -134,14 +134,14 @@ See the [Adding Calor to Existing Projects](/calor/guides/adding-calor-to-existi
 
 ## What You Get
 
-### Basic Init (`calorc init`)
+### Basic Init (`calor init`)
 
 | Component | Description |
 |:----------|:------------|
-| MSBuild integration | `.calor` files compile automatically during `dotnet build` |
+| MSBuild integration | `.calr` files compile automatically during `dotnet build` |
 | Generated output | C# files go to `obj/` directory, keeping source tree clean |
 
-### With Claude (`calorc init --ai claude`)
+### With Claude (`calor init --ai claude`)
 
 | Component | Description |
 |:----------|:------------|
@@ -149,7 +149,7 @@ See the [Adding Calor to Existing Projects](/calor/guides/adding-calor-to-existi
 | Hook configuration | **Enforces Calor-first** - blocks `.cs` file creation |
 | CLAUDE.md | Project guidelines instructing Claude to prefer Calor for new code |
 
-### With Codex (`calorc init --ai codex`)
+### With Codex (`calor init --ai codex`)
 
 | Component | Description |
 |:----------|:------------|
@@ -172,4 +172,4 @@ For alternative installation methods (global tool only, manual Claude skills set
 - [Hello World](/calor/getting-started/hello-world/) - Understand the hello world program
 - [Adding Calor to Existing Projects](/calor/guides/adding-calor-to-existing-projects/) - Complete migration guide
 - [Syntax Reference](/calor/syntax-reference/) - Complete language reference
-- [CLI Reference](/calor/cli/) - All `calorc` commands including migration analysis
+- [CLI Reference](/calor/cli/) - All `calor` commands including migration analysis

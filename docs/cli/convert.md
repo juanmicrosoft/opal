@@ -6,12 +6,12 @@ nav_order: 3
 permalink: /cli/convert/
 ---
 
-# calorc convert
+# calor convert
 
 Convert a single file between C# and Calor.
 
 ```bash
-calorc convert <input> [options]
+calor convert <input> [options]
 ```
 
 ---
@@ -21,7 +21,7 @@ calorc convert <input> [options]
 The `convert` command performs bidirectional conversion between C# and Calor:
 
 - **C# → Calor**: Convert `.cs` files to Calor syntax
-- **Calor → C#**: Convert `.calor` files to generated C#
+- **Calor → C#**: Convert `.calr` files to generated C#
 
 The conversion direction is automatically detected from the input file extension.
 
@@ -31,16 +31,16 @@ The conversion direction is automatically detected from the input file extension
 
 ```bash
 # Convert C# to Calor
-calorc convert MyService.cs
+calor convert MyService.cs
 
 # Convert Calor to C#
-calorc convert MyService.calor
+calor convert MyService.calr
 
 # Specify output path
-calorc convert MyService.cs --output src/MyService.calor
+calor convert MyService.cs --output src/MyService.calr
 
 # Include benchmark comparison
-calorc convert MyService.cs --benchmark
+calor convert MyService.cs --benchmark
 ```
 
 ---
@@ -49,7 +49,7 @@ calorc convert MyService.cs --benchmark
 
 | Argument | Required | Description |
 |:---------|:---------|:------------|
-| `input` | Yes | The source file to convert (`.cs` or `.calor`) |
+| `input` | Yes | The source file to convert (`.cs` or `.calr`) |
 
 ---
 
@@ -69,8 +69,8 @@ If `--output` is not specified:
 
 | Input | Output |
 |:------|:-------|
-| `MyFile.cs` | `MyFile.calor` |
-| `MyFile.calor` | `MyFile.g.cs` |
+| `MyFile.cs` | `MyFile.calr` |
+| `MyFile.calr` | `MyFile.g.cs` |
 
 ---
 
@@ -105,7 +105,7 @@ When converting C# to Calor, the converter:
 The converter reports patterns it can't perfectly translate:
 
 ```
-Converting MyService.cs → MyService.calor
+Converting MyService.cs → MyService.calr
   Warning: Complex LINQ query at line 42 - manual review recommended
   Warning: Async method at line 78 - converted to sync equivalent
 
@@ -119,7 +119,7 @@ Conversion complete with 2 warnings
 When converting Calor to C#, the converter generates idiomatic C# code:
 
 ```bash
-calorc convert Calculator.calor
+calor convert Calculator.calr
 ```
 
 Output includes:
@@ -135,12 +135,12 @@ Output includes:
 Use `--benchmark` to see how the Calor version compares to C#:
 
 ```bash
-calorc convert PaymentService.cs --benchmark
+calor convert PaymentService.cs --benchmark
 ```
 
 Output:
 ```
-Converting PaymentService.cs → PaymentService.calor
+Converting PaymentService.cs → PaymentService.calr
 
 Benchmark Comparison:
 ┌─────────────────┬────────┬────────┬──────────┐
@@ -151,7 +151,7 @@ Benchmark Comparison:
 │ Characters      │ 4,521  │ 2,891  │ 36.1%    │
 └─────────────────┴────────┴────────┴──────────┘
 
-Conversion complete: PaymentService.calor
+Conversion complete: PaymentService.calr
 ```
 
 ---
@@ -161,12 +161,12 @@ Conversion complete: PaymentService.calor
 Use `--verbose` to see detailed conversion progress:
 
 ```bash
-calorc convert MyService.cs --verbose
+calor convert MyService.cs --verbose
 ```
 
 Output:
 ```
-Converting MyService.cs → MyService.calor
+Converting MyService.cs → MyService.calr
 
 Parsing C# source...
   Found: 1 namespace, 2 classes, 8 methods, 3 properties
@@ -187,7 +187,7 @@ Detecting effects:
 Generating contracts:
   f002: Added §Q (!= input null) from null check at line 24
 
-Writing output: MyService.calor
+Writing output: MyService.calr
 Conversion complete with 1 warning
 ```
 
@@ -199,10 +199,10 @@ Conversion complete with 1 warning
 
 ```bash
 # Convert a service class
-calorc convert src/Services/UserService.cs
+calor convert src/Services/UserService.cs
 
 # Convert back to C#
-calorc convert src/Services/UserService.calor
+calor convert src/Services/UserService.calr
 ```
 
 ### Batch Conversion with Shell
@@ -210,11 +210,11 @@ calorc convert src/Services/UserService.calor
 ```bash
 # Convert all C# files in a directory
 for f in src/Services/*.cs; do
-  calorc convert "$f"
+  calor convert "$f"
 done
 ```
 
-For project-wide conversion, use [`calorc migrate`](/calor/cli/migrate/) instead.
+For project-wide conversion, use [`calor migrate`](/calor/cli/migrate/) instead.
 
 ### Integration with Claude Code
 
@@ -223,7 +223,7 @@ After conversion, use Claude to refine the Calor:
 ```
 /calor
 
-Review the converted file src/Services/UserService.calor and:
+Review the converted file src/Services/UserService.calr and:
 1. Add appropriate contracts based on the business logic
 2. Verify effect declarations are complete
 3. Improve naming of generated IDs if needed
@@ -257,7 +257,7 @@ Review the warnings and manually adjust as needed.
 
 ## See Also
 
-- [calorc migrate](/calor/cli/migrate/) - Convert entire projects
-- [calorc analyze](/calor/cli/analyze/) - Find best conversion candidates
-- [calorc benchmark](/calor/cli/benchmark/) - Detailed metrics comparison
+- [calor migrate](/calor/cli/migrate/) - Convert entire projects
+- [calor analyze](/calor/cli/analyze/) - Find best conversion candidates
+- [calor benchmark](/calor/cli/benchmark/) - Detailed metrics comparison
 - [Adding Calor to Existing Projects](/calor/guides/adding-calor-to-existing-projects/) - Complete migration guide

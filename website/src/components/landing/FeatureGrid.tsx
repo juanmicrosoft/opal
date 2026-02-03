@@ -50,17 +50,17 @@ export function FeatureGrid() {
             return (
               <div
                 key={feature.name}
-                className="relative rounded-lg border bg-background p-6 hover:shadow-md transition-shadow"
+                className="relative rounded-lg border bg-background p-6 hover:border-calor-pink hover:shadow-md transition-all"
               >
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                  <Icon className="h-5 w-5 text-primary" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-calor-navy/10 to-calor-cyan/10">
+                  <Icon className="h-5 w-5 text-calor-navy" />
                 </div>
                 <h3 className="mt-4 font-semibold">{feature.name}</h3>
                 <p className="mt-2 text-sm text-muted-foreground">
                   {feature.description}
                 </p>
-                <div className="mt-4 rounded bg-zinc-950 p-3">
-                  <code className="text-xs text-zinc-300 whitespace-pre">
+                <div className="mt-4 rounded bg-calor-navy p-3">
+                  <code className="text-xs text-calor-cyan whitespace-pre">
                     {feature.code}
                   </code>
                 </div>

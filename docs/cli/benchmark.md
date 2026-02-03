@@ -6,12 +6,12 @@ nav_order: 5
 permalink: /cli/benchmark/
 ---
 
-# calorc benchmark
+# calor benchmark
 
 Compare Calor vs C# across evaluation metrics.
 
 ```bash
-calorc benchmark [project] [options]
+calor benchmark [project] [options]
 ```
 
 ---
@@ -36,16 +36,16 @@ Use this to quantify Calor's advantages for AI-assisted development.
 
 ```bash
 # Compare two files
-calorc benchmark --calor Calculator.calor --csharp Calculator.cs
+calor benchmark --calor Calculator.calr --csharp Calculator.cs
 
 # Benchmark entire project
-calorc benchmark ./src
+calor benchmark ./src
 
 # Quick token-only comparison
-calorc benchmark --calor file.calor --csharp file.cs --quick
+calor benchmark --calor file.calr --csharp file.cs --quick
 
 # Generate markdown report
-calorc benchmark ./src --format markdown --output report.md
+calor benchmark ./src --format markdown --output report.md
 ```
 
 ---
@@ -87,7 +87,7 @@ calorc benchmark ./src --format markdown --output report.md
 Compare a specific Calor file against its C# equivalent:
 
 ```bash
-calorc benchmark --calor PaymentService.calor --csharp PaymentService.cs
+calor benchmark --calor PaymentService.calr --csharp PaymentService.cs
 ```
 
 Output:
@@ -95,7 +95,7 @@ Output:
 === Calor vs C# Benchmark ===
 
 Files:
-  Calor: PaymentService.calor
+  Calor: PaymentService.calr
   C#:   PaymentService.cs
 
 Results:
@@ -123,10 +123,10 @@ Calor shows 1.27x overall advantage for AI agent tasks.
 Benchmark all paired files in a project:
 
 ```bash
-calorc benchmark ./src
+calor benchmark ./src
 ```
 
-The command finds files with matching base names (e.g., `UserService.calor` and `UserService.cs`) and benchmarks each pair.
+The command finds files with matching base names (e.g., `UserService.calr` and `UserService.cs`) and benchmarks each pair.
 
 Output:
 ```
@@ -157,7 +157,7 @@ Per-File Breakdown:
 For fast token/line comparison without the full 7-metric evaluation:
 
 ```bash
-calorc benchmark --calor file.calor --csharp file.cs --quick
+calor benchmark --calor file.calr --csharp file.cs --quick
 ```
 
 Output:
@@ -180,7 +180,7 @@ Output:
 Use `--verbose` for detailed metric breakdown:
 
 ```bash
-calorc benchmark --calor file.calor --csharp file.cs --verbose
+calor benchmark --calor file.calr --csharp file.cs --verbose
 ```
 
 Shows individual metrics within each category:
@@ -210,7 +210,7 @@ Human-readable tables and summaries in the terminal.
 ### Markdown
 
 ```bash
-calorc benchmark ./src --format markdown --output benchmark.md
+calor benchmark ./src --format markdown --output benchmark.md
 ```
 
 Creates a markdown report suitable for documentation or GitHub.
@@ -218,7 +218,7 @@ Creates a markdown report suitable for documentation or GitHub.
 ### JSON
 
 ```bash
-calorc benchmark ./src --format json --output benchmark.json
+calor benchmark ./src --format json --output benchmark.json
 ```
 
 Creates machine-readable output:
@@ -246,7 +246,7 @@ Creates machine-readable output:
     "files": [
       {
         "name": "PaymentService",
-        "calorPath": "src/PaymentService.calor",
+        "calorPath": "src/PaymentService.calr",
         "csharpPath": "src/PaymentService.cs",
         "advantage": 1.42
       }
@@ -262,7 +262,7 @@ Creates machine-readable output:
 Focus on a specific evaluation category:
 
 ```bash
-calorc benchmark --calor file.calor --csharp file.cs --category TokenEconomics
+calor benchmark --calor file.calr --csharp file.cs --category TokenEconomics
 ```
 
 ---
@@ -332,7 +332,7 @@ Measures end-to-end success:
 
 ## See Also
 
-- [calorc analyze](/calor/cli/analyze/) - Score files for migration potential
-- [calorc convert](/calor/cli/convert/) - Convert files with benchmark option
+- [calor analyze](/calor/cli/analyze/) - Score files for migration potential
+- [calor convert](/calor/cli/convert/) - Convert files with benchmark option
 - [Benchmarking](/calor/benchmarking/) - Detailed methodology documentation
 - [Results](/calor/benchmarking/results/) - Published benchmark results

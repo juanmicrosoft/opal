@@ -4,12 +4,12 @@ section: "cli"
 order: 6
 ---
 
-# calorc format
+# calor format
 
 Format Calor source files to canonical style.
 
 ```bash
-calorc format <files...> [options]
+calor format <files...> [options]
 ```
 
 ---
@@ -24,16 +24,16 @@ The `format` command formats Calor source files according to the canonical Calor
 
 ```bash
 # Format a single file (output to stdout)
-calorc format MyModule.calor
+calor format MyModule.calr
 
 # Format and overwrite the file
-calorc format MyModule.calor --write
+calor format MyModule.calr --write
 
 # Check if files are formatted (for CI)
-calorc format src/*.calor --check
+calor format src/*.calr --check
 
 # Show diff of changes
-calorc format MyModule.calor --diff
+calor format MyModule.calr --diff
 ```
 
 ---
@@ -67,7 +67,7 @@ The Calor formatter applies these rules:
 Use `--check` in CI/CD to verify formatting:
 
 ```bash
-calorc format src/*.calor --check
+calor format src/*.calr --check
 ```
 
 Exit codes:
@@ -88,5 +88,5 @@ Exit codes:
 
 ## See Also
 
-- [calorc diagnose](/cli/diagnose/) - Check for errors and warnings
-- [calorc compile](/cli/compile/) - Compile Calor to C#
+- [calor diagnose](/cli/diagnose/) - Check for errors and warnings
+- [calor compile](/cli/compile/) - Compile Calor to C#

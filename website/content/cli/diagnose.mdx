@@ -4,12 +4,12 @@ section: "cli"
 order: 7
 ---
 
-# calorc diagnose
+# calor diagnose
 
 Output machine-readable diagnostics for Calor files.
 
 ```bash
-calorc diagnose <files...> [options]
+calor diagnose <files...> [options]
 ```
 
 ---
@@ -28,16 +28,16 @@ The `diagnose` command analyzes Calor files and outputs diagnostics in formats s
 
 ```bash
 # Diagnose a single file (text output)
-calorc diagnose MyModule.calor
+calor diagnose MyModule.calr
 
 # JSON output for processing
-calorc diagnose MyModule.calor --format json
+calor diagnose MyModule.calr --format json
 
 # SARIF output for IDE integration
-calorc diagnose src/*.calor --format sarif --output diagnostics.sarif
+calor diagnose src/*.calr --format sarif --output diagnostics.sarif
 
 # Enable strict checking
-calorc diagnose MyModule.calor --strict-api --require-docs
+calor diagnose MyModule.calr --strict-api --require-docs
 ```
 
 ---
@@ -58,7 +58,7 @@ calorc diagnose MyModule.calor --strict-api --require-docs
 ### Text (Default)
 
 ```
-Calculator.calor:12:5: error: Undefined variable 'x'
+Calculator.calr:12:5: error: Undefined variable 'x'
   §R (+ x 1)
        ^
 
@@ -90,7 +90,7 @@ Integrates with VS Code, GitHub Code Scanning, Azure DevOps, and other SARIF-com
 ```yaml
 # GitHub Actions
 - name: Check Calor diagnostics
-  run: calorc diagnose src/**/*.calor --format sarif --output calor.sarif
+  run: calor diagnose src/**/*.calr --format sarif --output calor.sarif
 
 - name: Upload SARIF
   uses: github/codeql-action/upload-sarif@v2
@@ -102,5 +102,5 @@ Integrates with VS Code, GitHub Code Scanning, Azure DevOps, and other SARIF-com
 
 ## See Also
 
-- [calorc format](/cli/format/) - Format Calor source files
-- [calorc compile](/cli/compile/) - Compile with error reporting
+- [calor format](/cli/format/) - Format Calor source files
+- [calor compile](/cli/compile/) - Compile with error reporting

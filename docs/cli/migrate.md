@@ -6,12 +6,12 @@ nav_order: 4
 permalink: /cli/migrate/
 ---
 
-# calorc migrate
+# calor migrate
 
 Migrate an entire project between C# and Calor.
 
 ```bash
-calorc migrate <path> [options]
+calor migrate <path> [options]
 ```
 
 ---
@@ -34,16 +34,16 @@ Use this for bulk conversion of entire codebases.
 
 ```bash
 # Preview migration (dry run)
-calorc migrate ./src --dry-run
+calor migrate ./src --dry-run
 
 # Migrate C# to Calor
-calorc migrate ./src
+calor migrate ./src
 
 # Migrate with report
-calorc migrate ./src --report migration-report.md
+calor migrate ./src --report migration-report.md
 
 # Migrate Calor back to C#
-calorc migrate ./src --direction calor-to-cs
+calor migrate ./src --direction calor-to-cs
 ```
 
 ---
@@ -81,7 +81,7 @@ calorc migrate ./src --direction calor-to-cs
 Before converting, the command analyzes your codebase and creates a plan:
 
 ```bash
-calorc migrate ./src --dry-run
+calor migrate ./src --dry-run
 ```
 
 Output:
@@ -144,7 +144,7 @@ With `--verbose`, each file is logged individually:
 Use `--benchmark` to see aggregate metrics:
 
 ```bash
-calorc migrate ./src --benchmark
+calor migrate ./src --benchmark
 ```
 
 Output includes:
@@ -172,7 +172,7 @@ Generate detailed reports for documentation:
 ### Markdown Report
 
 ```bash
-calorc migrate ./src --report migration-report.md
+calor migrate ./src --report migration-report.md
 ```
 
 Creates a human-readable report with:
@@ -184,7 +184,7 @@ Creates a human-readable report with:
 ### JSON Report
 
 ```bash
-calorc migrate ./src --report migration-report.json
+calor migrate ./src --report migration-report.json
 ```
 
 Creates a machine-readable report for processing:
@@ -205,7 +205,7 @@ Creates a machine-readable report for processing:
   "files": [
     {
       "source": "src/Services/UserService.cs",
-      "output": "src/Services/UserService.calor",
+      "output": "src/Services/UserService.calr",
       "status": "success",
       "warnings": [],
       "benchmark": {
@@ -233,7 +233,7 @@ By default, files are converted in parallel for speed. Disable for debugging:
 
 ```bash
 # Sequential processing
-calorc migrate ./src --parallel false --verbose
+calor migrate ./src --parallel false --verbose
 ```
 
 ---
@@ -244,7 +244,7 @@ The migrate command automatically skips:
 
 - **Generated files**: `*.g.cs`, `*.generated.cs`, `*.Designer.cs`
 - **Build artifacts**: `obj/`, `bin/`
-- **Already converted**: Files that already have a corresponding `.calor` or `.g.cs`
+- **Already converted**: Files that already have a corresponding `.calr` or `.g.cs`
 
 ---
 
@@ -264,38 +264,38 @@ The migrate command automatically skips:
 
 ```bash
 # See what would be converted
-calorc migrate ./src --dry-run
+calor migrate ./src --dry-run
 
 # See detailed plan
-calorc migrate ./src --dry-run --verbose
+calor migrate ./src --dry-run --verbose
 ```
 
 ### Migrate with Full Reporting
 
 ```bash
 # Complete migration with benchmark and report
-calorc migrate ./src --benchmark --report migration.md --verbose
+calor migrate ./src --benchmark --report migration.md --verbose
 ```
 
 ### Migrate Specific Project
 
 ```bash
 # Migrate a specific .csproj
-calorc migrate ./src/MyProject/MyProject.csproj
+calor migrate ./src/MyProject/MyProject.csproj
 ```
 
 ### Reverse Migration
 
 ```bash
 # Convert Calor back to C# (e.g., for debugging)
-calorc migrate ./src --direction calor-to-cs
+calor migrate ./src --direction calor-to-cs
 ```
 
 ### CI/CD Integration
 
 ```bash
 # In CI: verify all files can be converted
-calorc migrate ./src --dry-run
+calor migrate ./src --dry-run
 if [ $? -ne 0 ]; then
   echo "Migration issues detected"
   exit 1
@@ -316,7 +316,7 @@ fi
 
 ## See Also
 
-- [calorc convert](/calor/cli/convert/) - Convert single files
-- [calorc analyze](/calor/cli/analyze/) - Find migration candidates
-- [calorc benchmark](/calor/cli/benchmark/) - Detailed metrics comparison
+- [calor convert](/calor/cli/convert/) - Convert single files
+- [calor analyze](/calor/cli/analyze/) - Find migration candidates
+- [calor benchmark](/calor/cli/benchmark/) - Detailed metrics comparison
 - [Adding Calor to Existing Projects](/calor/guides/adding-calor-to-existing-projects/) - Complete migration guide

@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 interface BenchmarkResult {
   category: string;
   ratio: number;
-  winner: 'opal' | 'csharp';
+  winner: 'calor' | 'csharp';
   interpretation: string;
 }
 
@@ -13,19 +13,19 @@ const results: BenchmarkResult[] = [
   {
     category: 'Comprehension',
     ratio: 1.33,
-    winner: 'opal',
+    winner: 'calor',
     interpretation: 'Explicit structure aids understanding',
   },
   {
     category: 'Error Detection',
     ratio: 1.19,
-    winner: 'opal',
+    winner: 'calor',
     interpretation: 'Contracts surface invariant violations',
   },
   {
     category: 'Edit Precision',
     ratio: 1.15,
-    winner: 'opal',
+    winner: 'calor',
     interpretation: 'Unique IDs enable targeted changes',
   },
   {
@@ -44,7 +44,7 @@ const results: BenchmarkResult[] = [
     category: 'Token Economics',
     ratio: 0.67,
     winner: 'csharp',
-    interpretation: "OPAL's explicit syntax uses more tokens",
+    interpretation: "Calor's explicit syntax uses more tokens",
   },
 ];
 
@@ -72,7 +72,7 @@ export function BenchmarkChart() {
             Benchmark Results
           </h2>
           <p className="mt-4 text-lg text-muted-foreground">
-            Evaluated across 20 paired OPAL/C# programs using V2 compact syntax
+            Evaluated across 20 paired Calor/C# programs using V2 compact syntax
           </p>
         </div>
 
@@ -86,12 +86,12 @@ export function BenchmarkChart() {
                     <span
                       className={cn(
                         'text-xs px-2 py-0.5 rounded-full',
-                        result.winner === 'opal'
-                          ? 'bg-green-500/10 text-green-600'
-                          : 'bg-blue-500/10 text-blue-600'
+                        result.winner === 'calor'
+                          ? 'bg-calor-cyan/20 text-calor-cerulean'
+                          : 'bg-calor-salmon/20 text-calor-salmon'
                       )}
                     >
-                      {result.winner === 'opal' ? 'OPAL' : 'C#'} wins
+                      {result.winner === 'calor' ? 'Calor' : 'C#'} wins
                     </span>
                   </div>
                   <span className="font-mono font-bold">
@@ -103,9 +103,9 @@ export function BenchmarkChart() {
                   <div
                     className={cn(
                       'absolute inset-y-0 left-0 rounded-full transition-all duration-500',
-                      result.winner === 'opal'
-                        ? 'bg-gradient-to-r from-green-500 to-green-400'
-                        : 'bg-gradient-to-r from-blue-500 to-blue-400'
+                      result.winner === 'calor'
+                        ? 'bg-gradient-to-r from-calor-cyan to-calor-cyan/80'
+                        : 'bg-gradient-to-r from-calor-salmon to-calor-salmon/80'
                     )}
                     style={{ width: `${getBarWidth(result.ratio)}%` }}
                   />
@@ -123,11 +123,11 @@ export function BenchmarkChart() {
           {/* Legend */}
           <div className="mt-8 flex items-center justify-center gap-8 text-sm text-muted-foreground">
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-green-500" />
-              <span>OPAL better</span>
+              <div className="w-3 h-3 rounded-full bg-calor-cyan" />
+              <span>Calor better</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-blue-500" />
+              <div className="w-3 h-3 rounded-full bg-calor-salmon" />
               <span>C# better</span>
             </div>
             <span className="text-xs">|</span>
@@ -138,7 +138,7 @@ export function BenchmarkChart() {
           <div className="mt-12 p-6 rounded-lg border bg-muted/50">
             <h3 className="font-semibold mb-2">Key Finding</h3>
             <p className="text-muted-foreground">
-              OPAL excels where explicitness matters - comprehension, error detection,
+              Calor excels where explicitness matters - comprehension, error detection,
               and edit precision. C# wins on token efficiency, reflecting a fundamental
               tradeoff: explicit semantics require more tokens but enable better agent reasoning.
             </p>

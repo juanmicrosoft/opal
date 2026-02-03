@@ -3,19 +3,19 @@ title: hook
 description: Claude Code hook commands for Calor-first enforcement
 ---
 
-# calorc hook
+# calor hook
 
 Internal commands for Claude Code hook integration. These commands are called automatically by Claude Code hooks and are not typically invoked directly.
 
 ```bash
-calorc hook <subcommand> [args]
+calor hook <subcommand> [args]
 ```
 
 ---
 
 ## Overview
 
-The `hook` command provides subcommands that integrate with Claude Code's hook system to enforce Calor-first development. When you run `calorc init --ai claude`, it configures these hooks automatically.
+The `hook` command provides subcommands that integrate with Claude Code's hook system to enforce Calor-first development. When you run `calor init --ai claude`, it configures these hooks automatically.
 
 ---
 
@@ -26,14 +26,14 @@ The `hook` command provides subcommands that integrate with Claude Code's hook s
 Validates Write tool calls to enforce Calor-first development.
 
 ```bash
-calorc hook validate-write <tool-input-json>
+calor hook validate-write <tool-input-json>
 ```
 
 **Behavior:**
 
 | File Type | Action |
 |:----------|:-------|
-| `.calor` files | Allowed (exit 0) |
+| `.calr` files | Allowed (exit 0) |
 | `.g.cs` generated files | Allowed (exit 0) |
 | Files in `obj/` directory | Allowed (exit 0) |
 | Other `.cs` files | **Blocked** (exit 1) |
@@ -42,25 +42,25 @@ calorc hook validate-write <tool-input-json>
 
 ```bash
 # This will be blocked (exit 1)
-calorc hook validate-write '{"file_path": "MyClass.cs"}'
+calor hook validate-write '{"file_path": "MyClass.cs"}'
 
 # Output:
 # BLOCKED: Cannot create C# file 'MyClass.cs'
 #
-# This is an Calor-first project. Create an .calor file instead:
-#   MyClass.calor
+# This is an Calor-first project. Create an .calr file instead:
+#   MyClass.calr
 #
 # Use /calor skill for Calor syntax help.
 
 # This will be allowed (exit 0)
-calorc hook validate-write '{"file_path": "MyClass.calor"}'
+calor hook validate-write '{"file_path": "MyClass.calr"}'
 ```
 
 ---
 
 ## How Hooks Work
 
-When you initialize a project with `calorc init --ai claude`, it creates `.claude/settings.json` with hook configuration:
+When you initialize a project with `calor init --ai claude`, it creates `.claude/settings.json` with hook configuration:
 
 ```json
 {
@@ -71,7 +71,7 @@ When you initialize a project with `calorc init --ai claude`, it creates `.claud
         "hooks": [
           {
             "type": "command",
-            "command": "calorc hook validate-write $TOOL_INPUT"
+            "command": "calor hook validate-write $TOOL_INPUT"
           }
         ]
       }
@@ -80,7 +80,7 @@ When you initialize a project with `calorc init --ai claude`, it creates `.claud
 }
 ```
 
-This hook runs **before** every Write tool call. If the hook returns exit code 1, Claude Code blocks the operation and shows the error message to Claude, who will then retry with an `.calor` file.
+This hook runs **before** every Write tool call. If the hook returns exit code 1, Claude Code blocks the operation and shows the error message to Claude, who will then retry with an `.calr` file.
 
 ---
 
@@ -92,7 +92,7 @@ When Claude tries to create a `.cs` file in an Calor-initialized project:
 2. The hook intercepts the call and validates the path
 3. Hook returns exit 1 with guidance message
 4. Claude Code blocks the write operation
-5. Claude sees the error and creates an `.calor` file instead
+5. Claude sees the error and creates an `.calr` file instead
 
 This enforcement happens automatically - no user intervention required.
 
@@ -108,10 +108,10 @@ This enforcement happens automatically - no user intervention required.
    ```
    Should contain `PreToolUse` hook for `Write`
 
-2. **Verify calorc is in PATH:**
+2. **Verify calor is in PATH:**
    ```bash
-   which calorc
-   calorc hook validate-write '{"file_path": "test.cs"}'
+   which calor
+   calor hook validate-write '{"file_path": "test.cs"}'
    echo $?  # Should be 1
    ```
 
@@ -120,12 +120,12 @@ This enforcement happens automatically - no user intervention required.
 ### Re-enable Hooks After Manual Removal
 
 ```bash
-calorc init --ai claude --force
+calor init --ai claude --force
 ```
 
 ---
 
 ## See Also
 
-- [calorc init](/cli/init/) - Initialize Calor with hook configuration
+- [calor init](/cli/init/) - Initialize Calor with hook configuration
 - [Claude Integration](/getting-started/claude-integration/) - Using Calor with Claude

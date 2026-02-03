@@ -72,12 +72,12 @@ calor/
 ```bash
 # Compile an Calor file
 dotnet run --project src/Calor.Compiler -- \
-  --input path/to/file.calor \
+  --input path/to/file.calr \
   --output path/to/output.g.cs
 
 # With verbose output
 dotnet run --project src/Calor.Compiler -- \
-  --input file.calor \
+  --input file.calr \
   --output file.g.cs \
   --verbose
 ```
@@ -201,7 +201,7 @@ Add to `.vscode/launch.json`:
       "type": "coreclr",
       "request": "launch",
       "program": "${workspaceFolder}/src/Calor.Compiler/bin/Debug/net8.0/Calor.Compiler.dll",
-      "args": ["--input", "test.calor", "--output", "test.g.cs"],
+      "args": ["--input", "test.calr", "--output", "test.g.cs"],
       "cwd": "${workspaceFolder}",
       "console": "internalConsole"
     }
@@ -213,7 +213,7 @@ Add to `.vscode/launch.json`:
 
 Set `Calor.Compiler` as startup project with command line arguments:
 ```
---input samples/HelloWorld/hello.calor --output output.g.cs
+--input samples/HelloWorld/hello.calr --output output.g.cs
 ```
 
 ---

@@ -50,6 +50,13 @@ const config: Config = {
           black: '#0a0a0a',
           dark: '#121212',
         },
+        calor: {
+          navy: '#002257',
+          pink: '#FA3D6F',
+          salmon: '#FF8E77',
+          cerulean: '#006D87',
+          cyan: '#3DDFE7',
+        },
       },
       borderRadius: {
         lg: 'var(--radius)',

@@ -36,7 +36,7 @@ export function CodeBlock({
     ps1: 'powershell',
     javascript: 'js',
     typescript: 'ts',
-    opal: 'text', // OPAL doesn't have built-in highlighting yet
+    calor: 'text', // Calor doesn't have built-in highlighting yet
   };
 
   const normalizedLanguage = languageMap[language.toLowerCase()] || language;
@@ -52,7 +52,7 @@ export function CodeBlock({
     json: 'JSON',
     yaml: 'YAML',
     text: 'Plain Text',
-    opal: 'OPAL',
+    calor: 'Calor',
   };
 
   const displayLanguage = languageLabels[normalizedLanguage] || language;

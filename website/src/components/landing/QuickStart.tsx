@@ -5,8 +5,8 @@ import { Check, Copy, Terminal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const commands = [
-  { label: 'Install the compiler', command: 'dotnet tool install -g opalc' },
-  { label: 'Compile OPAL to C#', command: 'opalc --input program.opal --output program.g.cs' },
+  { label: 'Install the compiler', command: 'dotnet tool install -g calor' },
+  { label: 'Compile Calor to C#', command: 'calor --input program.calr --output program.g.cs' },
   { label: 'Run with .NET', command: 'dotnet run' },
 ];
 

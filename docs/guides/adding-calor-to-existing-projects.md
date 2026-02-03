@@ -27,7 +27,7 @@ You don't need to convert everything at once. Calor and C# coexist seamlessly.
 ## Prerequisites
 
 - .NET 8.0 SDK or later
-- `calorc` global tool installed: `dotnet tool install -g calorc`
+- `calor` global tool installed: `dotnet tool install -g calor`
 - An existing C# project
 
 ---
@@ -38,36 +38,36 @@ Enable Calor with MSBuild integration:
 
 ```bash
 # Initialize Calor in your project
-calorc init
+calor init
 
 # Or specify a specific project file
-calorc init --project MyApp.csproj
+calor init --project MyApp.csproj
 ```
 
 ### What Happens
 
 Your `.csproj` is updated with MSBuild targets that:
 
-- Compile `.calor` files automatically before C# compilation
+- Compile `.calr` files automatically before C# compilation
 - Include generated `.g.cs` files in the build
 - Clean generated files on `dotnet clean`
 
 Generated files go to `obj/<Configuration>/<TargetFramework>/calor/`, keeping your source tree clean.
 
-After this step, you can immediately start writing `.calor` files and they'll compile during `dotnet build`.
+After this step, you can immediately start writing `.calr` files and they'll compile during `dotnet build`.
 
 ---
 
 ## Step 2: Analyze Your Codebase
 
-Use `calorc analyze` to find C# files that would benefit most from Calor:
+Use `calor analyze` to find C# files that would benefit most from Calor:
 
 ```bash
 # Analyze your source directory
-calorc analyze ./src
+calor analyze ./src
 
 # Show top 10 candidates with detailed scores
-calorc analyze ./src --top 10 --verbose
+calor analyze ./src --top 10 --verbose
 ```
 
 ### Understanding the Output
@@ -109,11 +109,11 @@ Files are scored based on patterns that map to Calor features:
 
 ## Step 3: Add Your First Calor File
 
-Create a new `.calor` file alongside your existing code:
+Create a new `.calr` file alongside your existing code:
 
 ```bash
 # Create a simple Calor module
-cat > src/Services/Calculator.calor << 'EOF'
+cat > src/Services/Calculator.calr << 'EOF'
 §M[m001:Calculator]
 
 §F[f001:Add:pub]
@@ -146,7 +146,7 @@ dotnet build
 
 The build process:
 
-1. Finds all `.calor` files in your project
+1. Finds all `.calr` files in your project
 2. Compiles each to `.g.cs` in the `obj/calor/` directory
 3. Includes generated C# in the normal compilation
 4. Produces your final assembly
@@ -167,25 +167,25 @@ Based on your analysis results, convert files that score High or Critical:
 
 ```bash
 # Convert a single file
-calorc convert src/Services/PaymentProcessor.cs
+calor convert src/Services/PaymentProcessor.cs
 
-# Output: src/Services/PaymentProcessor.calor
+# Output: src/Services/PaymentProcessor.calr
 
 # With benchmark comparison to see token savings
-calorc convert src/Services/PaymentProcessor.cs --benchmark
+calor convert src/Services/PaymentProcessor.cs --benchmark
 ```
 
 For bulk conversion:
 
 ```bash
 # Preview what would be converted
-calorc migrate ./src --dry-run
+calor migrate ./src --dry-run
 
 # Convert all files
-calorc migrate ./src --direction cs-to-calor
+calor migrate ./src --direction cs-to-calor
 
 # Generate a migration report
-calorc migrate ./src --report migration-report.md
+calor migrate ./src --report migration-report.md
 ```
 
 ---
@@ -210,7 +210,7 @@ Or keep both if you want to compare them during a transition period.
 For AI-assisted Calor development, add Claude Code support:
 
 ```bash
-calorc init --ai claude
+calor init --ai claude
 ```
 
 ### What Gets Added
@@ -282,8 +282,8 @@ MyProject/
 │   │   └── User.cs           # Keep simple DTOs in C#
 │   └── Services/
 │       ├── AuthService.cs    # Legacy C# (not yet converted)
-│       ├── PaymentService.calor    # Converted to Calor
-│       └── OrderService.calor      # Converted to Calor
+│       ├── PaymentService.calr    # Converted to Calor
+│       └── OrderService.calr      # Converted to Calor
 └── obj/
     └── Debug/net8.0/calor/
         ├── PaymentService.g.cs    # Generated C#
@@ -296,7 +296,7 @@ MyProject/
 
 ### What to Convert First
 
-1. **High-scoring files** from `calorc analyze`
+1. **High-scoring files** from `calor analyze`
 2. **Files with complex validation** - benefit from contracts
 3. **Files with error handling** - benefit from `Result<T,E>`
 4. **Files with side effects** - benefit from effect declarations
@@ -319,7 +319,7 @@ MyProject/
 
 ## Troubleshooting
 
-### Build Fails: "calorc not found"
+### Build Fails: "calor not found"
 
 Add the .NET tools directory to your PATH:
 
@@ -360,5 +360,5 @@ Review these manually and adjust the Calor code as needed.
 - [Syntax Reference](/calor/syntax-reference/) - Complete Calor language reference
 - [Contracts](/calor/syntax-reference/contracts/) - Writing preconditions and postconditions
 - [Effects](/calor/syntax-reference/effects/) - Declaring side effects
-- [calorc analyze](/calor/cli/analyze/) - Understanding migration scores
-- [calorc benchmark](/calor/cli/benchmark/) - Comparing Calor vs C# metrics
+- [calor analyze](/calor/cli/analyze/) - Understanding migration scores
+- [calor benchmark](/calor/cli/benchmark/) - Comparing Calor vs C# metrics

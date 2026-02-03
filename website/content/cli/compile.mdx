@@ -4,19 +4,19 @@ section: "cli"
 order: 0
 ---
 
-# calorc (compile)
+# calor (compile)
 
 Compile Calor source files to C#.
 
 ```bash
-calorc --input <file.calor> --output <file.cs>
+calor --input <file.calr> --output <file.cs>
 ```
 
 ---
 
 ## Overview
 
-The default `calorc` command (when no subcommand is specified) compiles Calor source files to C#. This is the core functionality of the Calor compiler.
+The default `calor` command (when no subcommand is specified) compiles Calor source files to C#. This is the core functionality of the Calor compiler.
 
 ---
 
@@ -24,13 +24,13 @@ The default `calorc` command (when no subcommand is specified) compiles Calor so
 
 ```bash
 # Compile a single file
-calorc --input MyModule.calor --output MyModule.g.cs
+calor --input MyModule.calr --output MyModule.g.cs
 
 # Short form
-calorc -i MyModule.calor -o MyModule.g.cs
+calor -i MyModule.calr -o MyModule.g.cs
 
 # With verbose output
-calorc -v -i MyModule.calor -o MyModule.g.cs
+calor -v -i MyModule.calr -o MyModule.g.cs
 ```
 
 ---
@@ -50,7 +50,7 @@ calorc -v -i MyModule.calor -o MyModule.g.cs
 The recommended convention for generated C# files is the `.g.cs` extension:
 
 ```
-MyModule.calor → MyModule.g.cs
+MyModule.calr → MyModule.g.cs
 ```
 
 This indicates "generated C#" and helps distinguish Calor-generated code from hand-written C#.
@@ -62,7 +62,7 @@ This indicates "generated C#" and helps distinguish Calor-generated code from ha
 When compilation fails, errors are reported with file location:
 
 ```
-Error in Calculator.calor:12:5
+Error in Calculator.calr:12:5
   Undefined variable 'x' in expression
 
   §R (+ x 1)
@@ -71,13 +71,13 @@ Error in Calculator.calor:12:5
 Compilation failed with 1 error
 ```
 
-For machine-readable error output, use [`calorc diagnose`](/cli/diagnose/).
+For machine-readable error output, use [`calor diagnose`](/cli/diagnose/).
 
 ---
 
 ## Integration with MSBuild
 
-For automatic compilation during `dotnet build`, use [`calorc init`](/cli/init/) to set up MSBuild integration.
+For automatic compilation during `dotnet build`, use [`calor init`](/cli/init/) to set up MSBuild integration.
 
 ---
 
@@ -93,6 +93,6 @@ For automatic compilation during `dotnet build`, use [`calorc init`](/cli/init/)
 
 ## See Also
 
-- [calorc init](/cli/init/) - Set up automatic compilation with MSBuild
-- [calorc diagnose](/cli/diagnose/) - Machine-readable diagnostics
-- [calorc format](/cli/format/) - Format Calor source files
+- [calor init](/cli/init/) - Set up automatic compilation with MSBuild
+- [calor diagnose](/cli/diagnose/) - Machine-readable diagnostics
+- [calor format](/cli/format/) - Format Calor source files

@@ -17,7 +17,7 @@ const chapters = [
     number: 3,
     title: 'The Solution',
     message:
-      'OPAL: the first programming language built from the ground up for AI agent workflows. Contracts are syntax, not comments. Effects are declared, not guessed. Every element has a unique ID. And it compiles to standard .NET—no runtime penalty, full ecosystem access.',
+      'Calor: the first programming language built from the ground up for AI agent workflows. Contracts are syntax, not comments. Effects are declared, not guessed. Every element has a unique ID. And it compiles to standard .NET—no runtime penalty, full ecosystem access.',
     highlights: ['first-class contracts', 'declared effects', 'unique identifiers'],
   },
   {
