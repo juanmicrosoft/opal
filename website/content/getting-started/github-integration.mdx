@@ -1,0 +1,123 @@
+---
+title: "GitHub Copilot Integration"
+section: "getting-started"
+order: 6
+---
+
+# Using Calor with GitHub Copilot
+
+This guide explains how to use Calor with GitHub Copilot. For other AI integrations, see [Claude Integration](/getting-started/claude-integration/), [Gemini Integration](/getting-started/gemini-integration/), or [Codex Integration](/getting-started/codex-integration/).
+
+---
+
+## Quick Setup
+
+Initialize your project for GitHub Copilot with a single command:
+
+```bash
+calor init --ai github
+```
+
+This creates:
+
+| File | Purpose |
+|:-----|:--------|
+| `.github/copilot/skills/calor/SKILL.md` | Teaches Copilot Calor v2+ syntax |
+| `.github/copilot/skills/calor-convert/SKILL.md` | Teaches Copilot C# to Calor conversion |
+| `.github/copilot-instructions.md` | Project documentation with Calor-first guidelines |
+
+---
+
+## Important: Guidance-Based Enforcement
+
+Unlike Claude Code and Gemini CLI which use hooks to enforce Calor-first development, **GitHub Copilot does not support hooks**. This means:
+
+- Calor-first development is **guidance-based only**
+- Copilot *should* follow the instructions and create `.calr` files
+- Enforcement is not automatic - review file extensions after generation
+- Use `calor analyze` to find any unconverted `.cs` files
+
+---
+
+## Available Skills
+
+### The `calor` Skill
+
+Reference the `calor` skill to activate Calor-aware code generation:
+
+```
+Using the calor skill, write a function that calculates factorial with:
+- Precondition: n >= 0
+- Postcondition: result >= 1
+```
+
+### The `calor-convert` Skill
+
+Reference the `calor-convert` skill to convert existing C# code to Calor:
+
+```
+Using the calor-convert skill, convert this C# class to Calor:
+
+public class Calculator
+{
+    public int Add(int a, int b) => a + b;
+}
+```
+
+---
+
+## GitHub Copilot vs Other AI Integrations
+
+| Feature | Claude Code | Gemini CLI | Codex CLI | GitHub Copilot |
+|:--------|:------------|:-----------|:----------|:---------------|
+| Skills directory | `.claude/skills/` | `.gemini/skills/` | `.codex/skills/` | `.github/copilot/skills/` |
+| Project instructions | `CLAUDE.md` | `GEMINI.md` | `AGENTS.md` | `copilot-instructions.md` |
+| Skill invocation | `/calor` | `@calor` | `$calor` | Reference skill name |
+| Enforcement | **Hooks (enforced)** | **Hooks (enforced)** | Guidance only | Guidance only |
+| Hook mechanism | `PreToolUse` | `BeforeTool` | N/A | N/A |
+
+---
+
+## Best Practices
+
+1. **Review generated files** - Check that Copilot created `.calr` files, not `.cs`
+2. **Use explicit instructions** - Be specific about wanting Calor output
+3. **Reference skills clearly** - Mention "using the calor skill" in your prompts
+4. **Run analysis regularly** - Use `calor analyze` to find migration candidates
+5. **Include context** - Copilot works best with clear, detailed prompts about contracts and effects
+
+---
+
+## Workflow Tips
+
+### Starting a New Feature
+
+```
+Using the calor skill, I need to implement [feature description].
+Please create the Calor code with appropriate contracts and effects.
+```
+
+### Converting Existing Code
+
+```
+Using the calor-convert skill, convert src/Services/PaymentService.cs to Calor
+```
+
+### Verifying Compliance
+
+After Copilot generates code, verify Calor compliance:
+
+```bash
+# Find any .cs files that shouldn't exist
+calor analyze ./src --top 10
+```
+
+---
+
+## See Also
+
+- [Syntax Reference](/syntax-reference/) - Complete language reference
+- [calor init](/cli/init/) - Full init command documentation
+- [Claude Integration](/getting-started/claude-integration/) - Alternative with enforced Calor-first
+- [Gemini Integration](/getting-started/gemini-integration/) - Alternative with enforced Calor-first
+- [Codex Integration](/getting-started/codex-integration/) - Alternative with OpenAI Codex CLI

@@ -6,8 +6,8 @@ import { cn } from '@/lib/utils';
 
 const commands = [
   { label: 'Install the compiler', command: 'dotnet tool install -g calor' },
-  { label: 'Compile Calor to C#', command: 'calor --input program.calr --output program.g.cs' },
-  { label: 'Run with .NET', command: 'dotnet run' },
+  { label: 'Initialize with Claude Code', command: 'calor init --ai claude' },
+  { label: 'Build your project', command: 'dotnet build' },
 ];
 
 export function QuickStart() {
