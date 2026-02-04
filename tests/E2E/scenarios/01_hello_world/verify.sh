@@ -11,6 +11,6 @@ OUTPUT_FILE="$SCENARIO_DIR/output.g.cs"
 grep -q "namespace Hello" "$OUTPUT_FILE" || { echo "Missing namespace"; exit 1; }
 grep -q "public static void Main" "$OUTPUT_FILE" || { echo "Missing Main method"; exit 1; }
 grep -q "Console.WriteLine" "$OUTPUT_FILE" || { echo "Missing Console.WriteLine"; exit 1; }
-grep -q "Hello from OPAL E2E Test!" "$OUTPUT_FILE" || { echo "Missing message"; exit 1; }
+grep -q "Hello from Calor E2E Test!" "$OUTPUT_FILE" || { echo "Missing message"; exit 1; }
 
 exit 0
