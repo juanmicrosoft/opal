@@ -27,6 +27,8 @@ your_code.calr → Calor Compiler → your_code.g.cs → .NET Build → executab
 2. **[Hello World](/getting-started/hello-world/)** - Write and run your first Calor program
 3. **[Claude Integration](/getting-started/claude-integration/)** - Use Calor with Claude Code (enforced Calor-first)
 4. **[Codex Integration](/getting-started/codex-integration/)** - Use Calor with OpenAI Codex CLI
+5. **[Gemini Integration](/getting-started/gemini-integration/)** - Use Calor with Google Gemini CLI (enforced Calor-first)
+6. **[GitHub Copilot Integration](/getting-started/github-integration/)** - Use Calor with GitHub Copilot
 
 ---
 
@@ -85,11 +87,21 @@ For OpenAI Codex CLI (guidance-based):
 calor init --ai codex
 ```
 
+For Google Gemini CLI (with enforced Calor-first via hooks):
+```bash
+calor init --ai gemini
+```
+
+For GitHub Copilot (guidance-based):
+```bash
+calor init --ai github
+```
+
 This adds Calor skills and project documentation that instruct the AI to:
 - Write all new code in Calor (not C#)
 - Analyze existing C# files before modifying them
 
-**Note:** Claude Code enforces Calor-first via hooks (blocks `.cs` creation). Codex CLI is guidance-based only.
+**Note:** Claude Code and Gemini CLI enforce Calor-first via hooks (blocks `.cs` creation). Codex CLI and GitHub Copilot are guidance-based only.
 
 ### Step 4: Write Calor Code
 
@@ -156,6 +168,35 @@ See the [Adding Calor to Existing Projects](/guides/adding-calor-to-existing-pro
 | AGENTS.md | Project guidelines (guidance-based, not enforced) |
 
 **Note:** Codex CLI does not support hooks, so Calor-first is guidance-based only.
+
+### With Gemini (`calor init --ai gemini`)
+
+| Component | Description |
+|:----------|:------------|
+| Gemini CLI skills | `@calor` to write Calor code, `@calor-convert` to convert C# |
+| Hook configuration | **Enforces Calor-first** - blocks `.cs` file creation via `BeforeTool` hook |
+| GEMINI.md | Project guidelines instructing Gemini to prefer Calor for new code |
+
+### With GitHub Copilot (`calor init --ai github`)
+
+| Component | Description |
+|:----------|:------------|
+| Copilot skills | `calor` and `calor-convert` skills (referenced by name) |
+| copilot-instructions.md | Project guidelines (guidance-based, not enforced) |
+
+**Note:** GitHub Copilot does not support hooks, so Calor-first is guidance-based only.
+
+---
+
+## AI Integration Comparison
+
+| Feature | Claude Code | Gemini CLI | Codex CLI | GitHub Copilot |
+|:--------|:------------|:-----------|:----------|:---------------|
+| Skills directory | `.claude/skills/` | `.gemini/skills/` | `.codex/skills/` | `.github/copilot/skills/` |
+| Project instructions | `CLAUDE.md` | `GEMINI.md` | `AGENTS.md` | `copilot-instructions.md` |
+| Skill invocation | `/calor` | `@calor` | `$calor` | Reference skill name |
+| Enforcement | **Hooks (enforced)** | **Hooks (enforced)** | Guidance only | Guidance only |
+| Hook mechanism | `PreToolUse` | `BeforeTool` | N/A | N/A |
 
 ---
 
