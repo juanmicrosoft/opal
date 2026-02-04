@@ -5,29 +5,41 @@ This is an **Calor-first project**. All new code MUST be written in Calor. Exist
 
 ### MANDATORY Rules for AI Agents
 
+**Rule 0: Load syntax reference before writing Calor**
+- Before writing ANY `.calr` code, ALWAYS invoke the `$calor` skill first
+- This loads the authoritative syntax reference into context
+- Applies to: new files, conversions, and edits to existing .calr files
+
 **Rule 1: Never create new `.cs` files**
-- All new code MUST be written in Calor (`.calor` files)
+- All new code MUST be written in Calor (`.calr` files)
 - Calor files compile automatically during `dotnet build`
 - Use the `$calor` skill for syntax assistance
 
 **Rule 2: Convert C# to Calor before modifying**
 - Before modifying ANY `.cs` file, convert it to Calor first using `$calor-convert`
-- Make your changes in the new `.calor` file, not the original `.cs` file
+- Make your changes in the new `.calr` file, not the original `.cs` file
 - Delete the original `.cs` file after successful conversion
 - Run `calor analyze <file.cs>` to understand the file's complexity before conversion
 
 **Rule 3: Never edit generated files**
 - Files ending in `.g.cs` are auto-generated from Calor - do not edit them
-- If you need to change generated output, edit the source `.calor` file instead
+- If you need to change generated output, edit the source `.calr` file instead
+
+**Rule 4: Validate syntax after writing**
+- After writing or editing ANY `.calr` file, run `calor diagnose <file.calr>`
+- Fix any reported errors before proceeding
+- This catches ALL syntax mistakes at once (build only shows first error)
 
 ### Workflow for Any Code Change
 
-1. **New feature/file?** → Create `.calor` file using `$calor` skill
-2. **Modify existing `.calor` file?** → Edit the `.calor` file directly
-3. **Modify existing `.cs` file?** → Convert to `.calor` first, then make changes
+1. **Always first** → Invoke `$calor` skill to load syntax reference
+2. **New feature/file?** → Create `.calr` file
+3. **Modify existing `.calr` file?** → Edit directly
+4. **Modify existing `.cs` file?** → Convert to `.calr` first
+5. **After any .calr change** → Run `calor diagnose` to validate
 
 ### File Types
-- `.calor` - Calor source files (**use this for all code**)
+- `.calr` - Calor source files (**use this for all code**)
 - `.g.cs` - Generated C# files (never edit)
 - `.cs` - Legacy C# files (**convert to Calor before modifying**)
 
@@ -38,19 +50,32 @@ This is an **Calor-first project**. All new code MUST be written in Calor. Exist
 #### Key Commands
 ```bash
 calor analyze <path>                 # Score files for Calor migration potential
-calor --input file.calor -o file.g.cs # Compile Calor to C#
+calor diagnose <file.calr>           # Validate syntax - shows ALL errors at once
+calor --input file.calr -o file.g.cs # Compile Calor to C#
 calor convert file.cs                # Convert C# to Calor
-calor convert file.calor              # Convert Calor to C#
+calor convert file.calr              # Convert Calor to C#
 ```
 
-#### Calor v2+ Syntax Highlights
-- Lisp-style expressions: `(+ a b)`, `(== x 0)`, `(% i 15)`
-- Arrow conditionals: `§IF[id] condition → action`
-- Contracts: `§Q (> x 0)` (precondition), `§S (>= result 0)` (postcondition)
-- Effects: `§E[db,net,cw]` (database, network, console write)
-- Print shorthand: `§P "message"`
-- Variable binding: `§B[name] expr`
+#### Calor v2+ Syntax Reference
+
+| Structure | Syntax |
+|-----------|--------|
+| Module | `§M{id:Name}` ... `§/M{id}` |
+| Function | `§F{id:Name:vis}` ... `§/F{id}` |
+| Input | `§I{type:name}` |
+| Output | `§O{type}` |
+| Effects | `§E{cw,db,net}` |
+| Loop | `§L{id:var:from:to:step}` ... `§/L{id}` |
+| Conditional | `§IF{id} condition → action` |
+
+**Expressions (Lisp-style):** `(+ a b)`, `(== x 0)`, `(% i 15)`
+
+**Statements:**
+- Print: `§P "message"` or `§P variable`
+- Bind: `§B{name} expr`
 - Return: `§R expr`
+
+**Contracts:** `§Q (> x 0)` (precondition), `§S (>= result 0)` (postcondition)
 
 #### Type Mappings
 | C# | Calor |
