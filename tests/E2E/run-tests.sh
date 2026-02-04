@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# OPAL E2E Test Runner
+# Calor E2E Test Runner
 # Runs all scenarios in tests/E2E/scenarios/
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-COMPILER="$REPO_ROOT/src/Opal.Compiler/bin/Debug/net8.0/opalc"
+COMPILER="$REPO_ROOT/src/Calor.Compiler/bin/Debug/net8.0/calor"
 SCENARIOS_DIR="$SCRIPT_DIR/scenarios"
 
 # Colors
@@ -30,8 +30,8 @@ fail() { echo -e "${RED}[FAIL]${NC} $1"; ((FAILED++)) || true; }
 skip() { echo -e "${YELLOW}[SKIP]${NC} $1"; ((SKIPPED++)) || true; }
 
 build_compiler() {
-    info "Building OPAL compiler..."
-    dotnet build "$REPO_ROOT/src/Opal.Compiler/Opal.Compiler.csproj" -c Debug --nologo -v q || {
+    info "Building Calor compiler..."
+    dotnet build "$REPO_ROOT/src/Calor.Compiler/Calor.Compiler.csproj" -c Debug --nologo -v q || {
         echo "Failed to build compiler"
         exit 1
     }
@@ -56,7 +56,7 @@ run_scenario() {
 
     echo -e "${BLUE}Running: $scenario_name${NC}"
 
-    # Compile OPAL to C#
+    # Compile Calor to C#
     if ! "$COMPILER" --input "$input_file" --output "$output_file"; then
         fail "$scenario_name - compilation failed"
         return 0
@@ -99,8 +99,8 @@ print_summary() {
 
 main() {
     echo ""
-    echo "OPAL E2E Test Suite"
-    echo "==================="
+    echo "Calor E2E Test Suite"
+    echo "===================="
     echo ""
 
     # Parse arguments

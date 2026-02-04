@@ -1,11 +1,11 @@
-# OPAL E2E Test Runner for Windows
+# Calor E2E Test Runner for Windows
 # Runs all scenarios in tests/E2E/scenarios/
 
 $ErrorActionPreference = "Stop"
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = Split-Path -Parent (Split-Path -Parent $ScriptDir)
-$Compiler = Join-Path $RepoRoot "src\Opal.Compiler\bin\Debug\net8.0\opalc.exe"
+$Compiler = Join-Path $RepoRoot "src\Calor.Compiler\bin\Debug\net8.0\calor.exe"
 $ScenariosDir = Join-Path $ScriptDir "scenarios"
 
 $Script:Passed = 0
@@ -18,10 +18,10 @@ function Write-Fail { param($Message) Write-Host "[FAIL] $Message" -ForegroundCo
 function Write-Skip { param($Message) Write-Host "[SKIP] $Message" -ForegroundColor Yellow; $Script:Skipped++ }
 
 function Build-Compiler {
-    Write-Info "Building OPAL compiler..."
+    Write-Info "Building Calor compiler..."
     Push-Location $RepoRoot
     try {
-        dotnet build src/Opal.Compiler/Opal.Compiler.csproj -c Debug --nologo -v q
+        dotnet build src/Calor.Compiler/Calor.Compiler.csproj -c Debug --nologo -v q
         if (-not $?) { throw "Build failed" }
     }
     finally {
@@ -47,7 +47,7 @@ function Invoke-Scenario {
 
     Write-Host "Running: $scenarioName" -ForegroundColor Blue
 
-    # Compile OPAL to C#
+    # Compile Calor to C#
     try {
         & $Compiler --input $inputFile --output $outputFile 2>$null
         if (-not $?) { throw "Compilation failed" }
@@ -98,8 +98,8 @@ function Main {
     param($Args)
 
     Write-Host ""
-    Write-Host "OPAL E2E Test Suite"
-    Write-Host "==================="
+    Write-Host "Calor E2E Test Suite"
+    Write-Host "===================="
     Write-Host ""
 
     # Parse arguments

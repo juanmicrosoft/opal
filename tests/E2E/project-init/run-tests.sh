@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# OPAL Project Init E2E Test Runner
-# Tests `opalc init` against real GitHub projects using analyze-driven file selection
+# Calor Project Init E2E Test Runner
+# Tests `calor init` against real GitHub projects using analyze-driven file selection
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-WORK_DIR="${OPAL_TEST_WORKDIR:-/tmp/opal-e2e-project-init}"
-COMPILER="$REPO_ROOT/src/Opal.Compiler/bin/Debug/net8.0/opalc"
-RUNTIME_PROJ="$REPO_ROOT/src/Opal.Runtime/Opal.Runtime.csproj"
+WORK_DIR="${CALOR_TEST_WORKDIR:-/tmp/calor-e2e-project-init}"
+COMPILER="$REPO_ROOT/src/Calor.Compiler/bin/Debug/net8.0/calor"
+RUNTIME_PROJ="$REPO_ROOT/src/Calor.Runtime/Calor.Runtime.csproj"
 
 # Configuration
-MIN_SCORE="${OPAL_MIN_SCORE:-30}"           # Minimum analyze score for conversion
-MAX_FILES="${OPAL_MAX_FILES:-5}"             # Maximum files to convert per project
-CLONE_TIMEOUT="${OPAL_CLONE_TIMEOUT:-120}"   # Seconds to wait for clone
+MIN_SCORE="${CALOR_MIN_SCORE:-30}"           # Minimum analyze score for conversion
+MAX_FILES="${CALOR_MAX_FILES:-5}"             # Maximum files to convert per project
+CLONE_TIMEOUT="${CALOR_CLONE_TIMEOUT:-120}"   # Seconds to wait for clone
 
 # Colors
 if [[ -t 1 ]]; then
@@ -41,8 +41,8 @@ detail() { echo -e "    $1"; }
 
 # Build the compiler and runtime
 build_compiler() {
-    info "Building OPAL compiler and runtime..."
-    dotnet build "$REPO_ROOT/src/Opal.Compiler/Opal.Compiler.csproj" -c Debug --nologo -v q || {
+    info "Building Calor compiler and runtime..."
+    dotnet build "$REPO_ROOT/src/Calor.Compiler/Calor.Compiler.csproj" -c Debug --nologo -v q || {
         echo "Failed to build compiler"
         exit 1
     }
@@ -93,17 +93,17 @@ clone_project() {
     fi
 }
 
-# Add Opal.Runtime reference to a project (using local project reference)
-add_opal_runtime() {
+# Add Calor.Runtime reference to a project (using local project reference)
+add_calor_runtime() {
     local csproj="$1"
     dotnet add "$csproj" reference "$RUNTIME_PROJ" > /dev/null 2>&1 || true
 }
 
-# Update .csproj to use the local compiler path instead of global opalc
+# Update .csproj to use the local compiler path instead of global calor
 use_local_compiler() {
     local csproj="$1"
     if command -v sed > /dev/null; then
-        sed -i.bak "s|>opalc<|>$COMPILER<|g" "$csproj"
+        sed -i.bak "s|>calor<|>$COMPILER<|g" "$csproj"
         rm -f "${csproj}.bak"
     fi
 }
@@ -139,7 +139,7 @@ count_analyzed_files() {
     fi
 }
 
-# Convert a single C# file to OPAL
+# Convert a single C# file to Calor
 convert_file() {
     local cs_file="$1"
     local opal_file="${cs_file%.cs}.opal"
@@ -210,13 +210,13 @@ test_github_project() {
     find "$project_dir" -name "*.csproj.bak" -delete 2>/dev/null || true
 
     # Step 2: Analyze to find conversion candidates
-    step "Analyzing project for OPAL conversion candidates (threshold: $MIN_SCORE)..."
+    step "Analyzing project for Calor conversion candidates (threshold: $MIN_SCORE)..."
     local candidate_count
     candidate_count=$(count_analyzed_files "$src_dir" "$MIN_SCORE")
 
     if [[ "$candidate_count" -eq 0 ]]; then
         fail "$test_name - no files found with score >= $MIN_SCORE"
-        detail "Try lowering OPAL_MIN_SCORE or check if project has suitable files"
+        detail "Try lowering CALOR_MIN_SCORE or check if project has suitable files"
         return 0
     fi
 
@@ -248,11 +248,11 @@ test_github_project() {
     local csproj_dir
     csproj_dir=$(dirname "$csproj_file")
 
-    # Step 4: Run opalc init
-    step "Running opalc init --ai claude..."
+    # Step 4: Run calor init
+    step "Running calor init --ai claude..."
     cd "$csproj_dir"
     if ! "$COMPILER" init --ai claude --project "$(basename "$csproj_file")" > /dev/null 2>&1; then
-        fail "$test_name - opalc init failed"
+        fail "$test_name - calor init failed"
         return 0
     fi
 
@@ -260,10 +260,10 @@ test_github_project() {
     use_local_compiler "$(basename "$csproj_file")"
 
     # Add runtime reference
-    add_opal_runtime "$(basename "$csproj_file")"
+    add_calor_runtime "$(basename "$csproj_file")"
 
     # Step 5: Convert files
-    step "Converting $convert_count C# files to OPAL..."
+    step "Converting $convert_count C# files to Calor..."
     local converted=0
     local failed_conversions=0
     local converted_files=()
@@ -305,7 +305,7 @@ test_github_project() {
     done
 
     # Step 7: Build the project
-    step "Building project with OPAL files..."
+    step "Building project with Calor files..."
     cd "$csproj_dir"
     if ! dotnet build --nologo -v q -p:EnableSourceLink=false -p:EnableSourceControlManagerQueries=false 2>&1; then
         fail "$test_name - dotnet build failed after conversion"
@@ -334,7 +334,7 @@ test_github_project() {
         cd "$(dirname "$test_csproj")"
 
         # Add runtime reference to test project too
-        add_opal_runtime "$(basename "$test_csproj")"
+        add_calor_runtime "$(basename "$test_csproj")"
 
         if dotnet test --nologo -v q --no-build 2>&1; then
             detail "Tests passed"
@@ -376,11 +376,11 @@ test_basic_console_app() {
 
     step "Creating console project..."
     dotnet new console --name TestApp --output . -f net8.0 > /dev/null 2>&1
-    add_opal_runtime "TestApp.csproj"
+    add_calor_runtime "TestApp.csproj"
 
-    step "Running opalc init --ai claude..."
+    step "Running calor init --ai claude..."
     if ! "$COMPILER" init --ai claude 2>&1 | grep -q "Initialized"; then
-        fail "$test_name - opalc init failed"
+        fail "$test_name - calor init failed"
         return 0
     fi
     use_local_compiler "TestApp.csproj"
@@ -392,7 +392,7 @@ test_basic_console_app() {
     fi
 
     step "Creating test.opal file..."
-    cat > test.opal << 'OPAL_EOF'
+    cat > test.opal << 'CALOR_EOF'
 §M{m001:TestModule}
 §F{f001:Add:pub}
   §I{i32:a}
@@ -401,7 +401,7 @@ test_basic_console_app() {
   §R (+ a b)
 §/F{f001}
 §/M{m001}
-OPAL_EOF
+CALOR_EOF
 
     cat > Program.cs << 'CS_EOF'
 var result = TestModule.TestModuleModule.Add(21, 21);
@@ -465,7 +465,7 @@ EOF
 </Project>
 EOF
 
-    step "Running opalc init without --project (should fail)..."
+    step "Running calor init without --project (should fail)..."
     local output
     output=$("$COMPILER" init --ai claude 2>&1) || true
     if [[ "$output" != *"Multiple"* ]]; then
@@ -474,9 +474,9 @@ EOF
     fi
     detail "Correctly detected multiple projects"
 
-    step "Running opalc init with --project..."
+    step "Running calor init with --project..."
     if ! "$COMPILER" init --ai claude --project Project1.csproj > /dev/null 2>&1; then
-        fail "$test_name - opalc init with --project failed"
+        fail "$test_name - calor init with --project failed"
         return 0
     fi
 
@@ -505,11 +505,11 @@ test_full_pipeline() {
 
     step "Creating project with convertible C# files..."
     dotnet new console --name PipelineTest --output . -f net8.0 > /dev/null 2>&1
-    add_opal_runtime "PipelineTest.csproj"
+    add_calor_runtime "PipelineTest.csproj"
 
     # Create a C# file that should score well for conversion
     # Uses only constructs supported by the converter (no switch expressions)
-    # Uses a flat namespace (no dots) since OPAL converts dots to underscores
+    # Uses a flat namespace (no dots) since Calor converts dots to underscores
     cat > Calculator.cs << 'CSEOF'
 using System;
 
@@ -544,7 +544,7 @@ CSEOF
 
     # Step 1: Analyze
     step "Analyzing project..."
-    local analyze_tmp="/tmp/opal-analyze-$$.txt"
+    local analyze_tmp="/tmp/calor-analyze-$$.txt"
     # Note: analyze may return non-zero even on success, so ignore exit code
     "$COMPILER" analyze . --top 5 > "$analyze_tmp" 2>&1 || true
     if ! grep -q "Calculator.cs" "$analyze_tmp"; then
@@ -558,21 +558,21 @@ CSEOF
     detail "Analysis found Calculator.cs"
 
     # Step 2: Init
-    step "Running opalc init..."
+    step "Running calor init..."
     if ! "$COMPILER" init --ai claude > /dev/null 2>&1; then
-        fail "$test_name - opalc init failed"
+        fail "$test_name - calor init failed"
         return 0
     fi
     use_local_compiler "PipelineTest.csproj"
 
     # Step 3: Convert
-    step "Converting Calculator.cs to OPAL..."
+    step "Converting Calculator.cs to Calor..."
     if ! "$COMPILER" convert Calculator.cs > /dev/null 2>&1; then
         fail "$test_name - conversion failed"
         return 0
     fi
     if [[ ! -f "Calculator.opal" ]]; then
-        fail "$test_name - OPAL file not created"
+        fail "$test_name - Calor file not created"
         return 0
     fi
     detail "Conversion succeeded"
@@ -581,7 +581,7 @@ CSEOF
     step "Removing original .cs and building..."
     rm Calculator.cs
 
-    # Use the OPAL-generated namespace (Calculator) and class (Calc - preserved from original)
+    # Use the Calor-generated namespace (Calculator) and class (Calc - preserved from original)
     cat > Program.cs << 'CSEOF'
 using Calculator;
 
@@ -644,7 +644,7 @@ test_legacy_project_rejection() {
 </Project>
 EOF
 
-    step "Running opalc init (should reject)..."
+    step "Running calor init (should reject)..."
     local output
     output=$("$COMPILER" init --ai claude 2>&1) || true
     if [[ "$output" != *"Legacy"* ]] && [[ "$output" != *"SDK-style"* ]]; then
@@ -667,8 +667,8 @@ print_summary() {
     echo "================================"
     echo ""
     echo "Configuration:"
-    echo "  MIN_SCORE=$MIN_SCORE (set OPAL_MIN_SCORE to change)"
-    echo "  MAX_FILES=$MAX_FILES (set OPAL_MAX_FILES to change)"
+    echo "  MIN_SCORE=$MIN_SCORE (set CALOR_MIN_SCORE to change)"
+    echo "  MAX_FILES=$MAX_FILES (set CALOR_MAX_FILES to change)"
     echo "================================"
 
     if [[ $FAILED -gt 0 ]]; then
@@ -679,9 +679,9 @@ print_summary() {
 main() {
     echo ""
     echo "========================================"
-    echo "OPAL Project Init E2E Tests"
+    echo "Calor Project Init E2E Tests"
     echo "========================================"
-    echo "Tests opalc init + analyze-driven conversion"
+    echo "Tests calor init + analyze-driven conversion"
     echo "against real GitHub projects"
     echo ""
 
@@ -720,10 +720,10 @@ main() {
                 echo "  Tier 3: Large libraries (Newtonsoft.Json, Dapper, Serilog, etc.)"
                 echo ""
                 echo "Environment variables:"
-                echo "  OPAL_MIN_SCORE     Minimum analyze score for conversion (default: 30)"
-                echo "  OPAL_MAX_FILES     Maximum files to convert per project (default: 5)"
-                echo "  OPAL_CLONE_TIMEOUT Timeout for git clone in seconds (default: 120)"
-                echo "  OPAL_TEST_WORKDIR  Work directory (default: /tmp/opal-e2e-project-init)"
+                echo "  CALOR_MIN_SCORE     Minimum analyze score for conversion (default: 30)"
+                echo "  CALOR_MAX_FILES     Maximum files to convert per project (default: 5)"
+                echo "  CALOR_CLONE_TIMEOUT Timeout for git clone in seconds (default: 120)"
+                echo "  CALOR_TEST_WORKDIR  Work directory (default: /tmp/calor-e2e-project-init)"
                 exit 0
                 ;;
         esac
