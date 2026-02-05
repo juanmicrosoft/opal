@@ -73,8 +73,9 @@ public class GitHubCopilotInitializer : IAiInitializer
             {
                 messages.Add($"Initialized Calor project for GitHub Copilot (calor v{version})");
                 messages.Add("");
-                messages.Add("Note: GitHub Copilot does not support hooks. Calor-first enforcement is");
-                messages.Add("guidance-based only. Review file extensions after generation.");
+                messages.Add("WARNING: GitHub Copilot cannot enforce Calor-first development.");
+                messages.Add("This agent lacks hooks to prevent writing .cs files directly.");
+                messages.Add("For best results, use Claude Code: calor init --ai claude");
             }
             else
             {

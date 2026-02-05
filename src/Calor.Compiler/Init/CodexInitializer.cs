@@ -73,8 +73,9 @@ public class CodexInitializer : IAiInitializer
             {
                 messages.Add($"Initialized Calor project for OpenAI Codex (calor v{version})");
                 messages.Add("");
-                messages.Add("Note: Codex CLI does not support hooks. Calor-first enforcement is");
-                messages.Add("guidance-based only. Review file extensions after generation.");
+                messages.Add("WARNING: OpenAI Codex cannot enforce Calor-first development.");
+                messages.Add("This agent lacks hooks to prevent writing .cs files directly.");
+                messages.Add("For best results, use Claude Code: calor init --ai claude");
             }
             else
             {
