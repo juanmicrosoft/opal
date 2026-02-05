@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.7] - 2026-02-05
+
+### Added
+- `calor lint` command for formatting and linting Calor files
+- Comprehensive linter regression test suite
+
 ### Changed
 - **Project renamed from OPAL to Calor**
   - Language name: Calor (was OPAL)
@@ -12,6 +18,10 @@ All notable changes to this project will be documented in this file.
   - NuGet packages: `calor`, `Calor.Tasks`, `Calor.Sdk`
 - New tagline: "Coding Agent Language for Optimized Reasoning"
 - Added project logo
+- Enhanced warning messages for non-Claude AI agents (Codex, GitHub Copilot) to clearly indicate they cannot enforce Calor-first development
+
+### Fixed
+- Claude skills directory structure now uses correct `SKILL.md` format
 
 ## [0.1.4] - 2025-02-03
 
