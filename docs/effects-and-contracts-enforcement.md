@@ -1,6 +1,18 @@
+---
+layout: default
+title: Effects and Contracts Enforcement
+nav_order: 7
+---
+
 # Effects and Contracts Enforcement
 
 This document specifies how Calor enforces effects (§E) and contracts (§Q/§S) both at compile-time and runtime.
+
+**Enforcement is enabled by default** because Calor is designed for coding agents, not humans. Agents generate annotations for free and maintain them consistently - there's no annotation burden to avoid.
+
+For the motivation behind this design, see [The Verification Opportunity](/calor/philosophy/the-verification-opportunity/).
+
+---
 
 ## Effect Code Mapping Table (Source of Truth)
 
@@ -194,42 +206,51 @@ Add these properties to your project file or `Directory.Build.props`:
 
 ### Function with Effects
 
-```calor
-§FUNC[id=writeGreeting][name=WriteGreeting]
-  §IN[name=name][type=STRING]
+```
+§M{m1:Greeting}
+§F{f001:WriteGreeting:pub}
+  §I{str:name}
+  §O{void}
   §E{cw}
-  §BODY
-    §P{"Hello, ${name}!"}
-  §/BODY
-§/FUNC[id=writeGreeting]
+  §P name
+§/F{f001}
+§/M{m1}
 ```
 
 ### Pure Function with Contracts
 
-```calor
-§FUNC[id=divide][name=Divide][visibility=public]
-  §IN[name=a][type=INT]
-  §IN[name=b][type=INT]
-  §OUT[type=INT]
-  §Q{b != 0}["Divisor must not be zero"]
-  §S{result * b == a}["Result must multiply back to dividend"]
-  §BODY
-    §RET{a / b}
-  §/BODY
-§/FUNC[id=divide]
+```
+§M{m1:Math}
+§F{f001:Divide:pub}
+  §I{i32:a}
+  §I{i32:b}
+  §O{i32}
+  §Q (!= b 0)
+  §S (== (* result b) a)
+  §R (/ a b)
+§/F{f001}
+§/M{m1}
 ```
 
 ### Function Calling Another with Effects
 
-```calor
-§FUNC[id=greetUser][name=GreetUser]
-  §IN[name=userId][type=INT]
-  §E{cw,fr}
-  §BODY
-    §BIND[name=name][type=STRING]{LoadUserName(userId)}
-    §C[target=WriteGreeting]{name}
-  §/BODY
-§/FUNC[id=greetUser]
+```
+§M{m1:App}
+§F{f001:LoadUserName:pri}
+  §I{i32:userId}
+  §O{str}
+  §E{fr}
+  // ... file read implementation
+§/F{f001}
+
+§F{f002:GreetUser:pub}
+  §I{i32:userId}
+  §O{void}
+  §E{cw,fr}                    // Must declare both effects
+  §B{name} §C{f001:LoadUserName} userId §/C
+  §P name
+§/F{f002}
+§/M{m1}
 ```
 
 ## Error Examples
