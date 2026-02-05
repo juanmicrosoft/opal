@@ -1,4 +1,4 @@
-# /release - Create a New Calor Release
+# /create-release - Create a New Calor Release
 
 This skill automates the release process: bump versions across all components, create a PR, merge it, and create a GitHub release with proper tagging.
 
