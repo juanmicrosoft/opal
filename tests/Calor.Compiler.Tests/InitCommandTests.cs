@@ -394,8 +394,8 @@ Run `dotnet build` to compile.
         // Verify copilot-instructions.md is created
         Assert.True(File.Exists(Path.Combine(_testDirectory, ".github", "copilot-instructions.md")));
 
-        // Verify guidance-based enforcement note is present
-        Assert.Contains("guidance-based only", string.Join("\n", result.Messages));
+        // Verify warning about no enforcement is present
+        Assert.Contains("cannot enforce Calor-first development", string.Join("\n", result.Messages));
     }
 
     [Fact]

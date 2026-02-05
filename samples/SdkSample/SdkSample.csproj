@@ -13,6 +13,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Calor.Runtime\Calor.Runtime.csproj" />
+    <!-- Build-order dependency: Calor.Tasks must be built before SdkSample
+         because Sdk.targets uses Calor.Tasks.dll for compilation -->
+    <ProjectReference Include="..\..\src\Calor.Tasks\Calor.Tasks.csproj"
+                      ReferenceOutputAssembly="false"
+                      Private="false" />
   </ItemGroup>
 
   <!-- Include Calor files -->
