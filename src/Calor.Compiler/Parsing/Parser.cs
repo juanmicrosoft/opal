@@ -449,7 +449,8 @@ public sealed class Parser
     {
         var startToken = Expect(TokenKind.Requires);
         var attrs = ParseAttributes();
-        var message = attrs["message"];
+        // v2 syntax: message is first positional §Q{"message"} (condition)
+        var message = attrs["_pos0"];
 
         var condition = ParseExpression();
 
@@ -461,7 +462,8 @@ public sealed class Parser
     {
         var startToken = Expect(TokenKind.Ensures);
         var attrs = ParseAttributes();
-        var message = attrs["message"];
+        // v2 syntax: message is first positional §S{"message"} (condition)
+        var message = attrs["_pos0"];
 
         var condition = ParseExpression();
 
