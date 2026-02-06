@@ -32,17 +32,25 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: 'https://juanmicrosoft.github.io/calor',
+    url: 'https://calor.dev',
     siteName: 'Calor',
-    title: 'Calor - Coding Agent Language for Optimized Reasoning',
-    description:
-      'A programming language designed specifically for AI coding agents, compiling to .NET via C# emission.',
+    title: 'Calor',
+    description: 'Coding Agent Language for Optimized Reasoning',
+    images: [
+      {
+        url: 'https://calor.dev/og-image.png',
+        width: 789,
+        height: 403,
+        alt: 'Calor - Coding Agent Language for Optimized Reasoning',
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Calor - Coding Agent Language for Optimized Reasoning',
     description:
       'A programming language designed specifically for AI coding agents, compiling to .NET via C# emission.',
+    images: ['https://calor.dev/og-image.png'],
   },
 };
 
