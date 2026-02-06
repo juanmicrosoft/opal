@@ -24,20 +24,18 @@ public class PatternCheckerTests
     public void Check_OptionExhaustive_NoWarning()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Test}{visibility=public}
-  §IN{name=x}{type=INT}
-  §OUT{type=INT}
-  §BODY
-    §MATCH{id=m1} x
-      §CASE §SOME _
-        §RETURN INT:1
-      §CASE §NONE
-        §RETURN INT:0
-    §END_MATCH{id=m1}
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Test:pub}
+  §I{i32:x}
+  §O{i32}
+    §W{m1} x
+      §K §SM _
+        §R 1
+      §K §NN
+        §R 0
+    §/W{m1}
+§/F{f001}
+§/M{m001}
 ";
         var module = Parse(source, out var parseDiagnostics);
         Assert.False(parseDiagnostics.HasErrors, string.Join("\n", parseDiagnostics.Select(d => d.Message)));
@@ -55,18 +53,16 @@ public class PatternCheckerTests
     public void Check_OptionMissingSome_ReportsNonExhaustive()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Test}{visibility=public}
-  §IN{name=x}{type=INT}
-  §OUT{type=INT}
-  §BODY
-    §MATCH{id=m1} x
-      §CASE §NONE
-        §RETURN INT:0
-    §END_MATCH{id=m1}
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Test:pub}
+  §I{i32:x}
+  §O{i32}
+    §W{m1} x
+      §K §NN
+        §R 0
+    §/W{m1}
+§/F{f001}
+§/M{m001}
 ";
         var module = Parse(source, out var parseDiagnostics);
         Assert.False(parseDiagnostics.HasErrors, string.Join("\n", parseDiagnostics.Select(d => d.Message)));
@@ -85,18 +81,16 @@ public class PatternCheckerTests
     public void Check_OptionMissingNone_ReportsNonExhaustive()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Test}{visibility=public}
-  §IN{name=x}{type=INT}
-  §OUT{type=INT}
-  §BODY
-    §MATCH{id=m1} x
-      §CASE §SOME _
-        §RETURN INT:1
-    §END_MATCH{id=m1}
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Test:pub}
+  §I{i32:x}
+  §O{i32}
+    §W{m1} x
+      §K §SM _
+        §R 1
+    §/W{m1}
+§/F{f001}
+§/M{m001}
 ";
         var module = Parse(source, out var parseDiagnostics);
         Assert.False(parseDiagnostics.HasErrors, string.Join("\n", parseDiagnostics.Select(d => d.Message)));
@@ -119,20 +113,18 @@ public class PatternCheckerTests
     public void Check_ResultExhaustive_NoWarning()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Test}{visibility=public}
-  §IN{name=x}{type=INT}
-  §OUT{type=INT}
-  §BODY
-    §MATCH{id=m1} x
-      §CASE §OK _
-        §RETURN INT:1
-      §CASE §ERR _
-        §RETURN INT:0
-    §END_MATCH{id=m1}
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Test:pub}
+  §I{i32:x}
+  §O{i32}
+    §W{m1} x
+      §K §OK _
+        §R 1
+      §K §ERR _
+        §R 0
+    §/W{m1}
+§/F{f001}
+§/M{m001}
 ";
         var module = Parse(source, out var parseDiagnostics);
         Assert.False(parseDiagnostics.HasErrors, string.Join("\n", parseDiagnostics.Select(d => d.Message)));
@@ -150,18 +142,16 @@ public class PatternCheckerTests
     public void Check_ResultMissingOk_ReportsNonExhaustive()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Test}{visibility=public}
-  §IN{name=x}{type=INT}
-  §OUT{type=INT}
-  §BODY
-    §MATCH{id=m1} x
-      §CASE §ERR _
-        §RETURN INT:0
-    §END_MATCH{id=m1}
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Test:pub}
+  §I{i32:x}
+  §O{i32}
+    §W{m1} x
+      §K §ERR _
+        §R 0
+    §/W{m1}
+§/F{f001}
+§/M{m001}
 ";
         var module = Parse(source, out var parseDiagnostics);
         Assert.False(parseDiagnostics.HasErrors, string.Join("\n", parseDiagnostics.Select(d => d.Message)));
@@ -180,18 +170,16 @@ public class PatternCheckerTests
     public void Check_ResultMissingErr_ReportsNonExhaustive()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Test}{visibility=public}
-  §IN{name=x}{type=INT}
-  §OUT{type=INT}
-  §BODY
-    §MATCH{id=m1} x
-      §CASE §OK _
-        §RETURN INT:1
-    §END_MATCH{id=m1}
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Test:pub}
+  §I{i32:x}
+  §O{i32}
+    §W{m1} x
+      §K §OK _
+        §R 1
+    §/W{m1}
+§/F{f001}
+§/M{m001}
 ";
         var module = Parse(source, out var parseDiagnostics);
         Assert.False(parseDiagnostics.HasErrors, string.Join("\n", parseDiagnostics.Select(d => d.Message)));
@@ -214,20 +202,18 @@ public class PatternCheckerTests
     public void Check_BoolExhaustive_NoWarning()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Test}{visibility=public}
-  §IN{name=x}{type=BOOL}
-  §OUT{type=INT}
-  §BODY
-    §MATCH{id=m1} x
-      §CASE BOOL:true
-        §RETURN INT:1
-      §CASE BOOL:false
-        §RETURN INT:0
-    §END_MATCH{id=m1}
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Test:pub}
+  §I{bool:x}
+  §O{i32}
+    §W{m1} x
+      §K BOOL:true
+        §R 1
+      §K BOOL:false
+        §R 0
+    §/W{m1}
+§/F{f001}
+§/M{m001}
 ";
         var module = Parse(source, out var parseDiagnostics);
         Assert.False(parseDiagnostics.HasErrors, string.Join("\n", parseDiagnostics.Select(d => d.Message)));
@@ -245,18 +231,16 @@ public class PatternCheckerTests
     public void Check_BoolMissingTrue_ReportsNonExhaustive()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Test}{visibility=public}
-  §IN{name=x}{type=BOOL}
-  §OUT{type=INT}
-  §BODY
-    §MATCH{id=m1} x
-      §CASE BOOL:false
-        §RETURN INT:0
-    §END_MATCH{id=m1}
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Test:pub}
+  §I{bool:x}
+  §O{i32}
+    §W{m1} x
+      §K BOOL:false
+        §R 0
+    §/W{m1}
+§/F{f001}
+§/M{m001}
 ";
         var module = Parse(source, out var parseDiagnostics);
         Assert.False(parseDiagnostics.HasErrors, string.Join("\n", parseDiagnostics.Select(d => d.Message)));
@@ -275,18 +259,16 @@ public class PatternCheckerTests
     public void Check_BoolMissingFalse_ReportsNonExhaustive()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Test}{visibility=public}
-  §IN{name=x}{type=BOOL}
-  §OUT{type=INT}
-  §BODY
-    §MATCH{id=m1} x
-      §CASE BOOL:true
-        §RETURN INT:1
-    §END_MATCH{id=m1}
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Test:pub}
+  §I{bool:x}
+  §O{i32}
+    §W{m1} x
+      §K BOOL:true
+        §R 1
+    §/W{m1}
+§/F{f001}
+§/M{m001}
 ";
         var module = Parse(source, out var parseDiagnostics);
         Assert.False(parseDiagnostics.HasErrors, string.Join("\n", parseDiagnostics.Select(d => d.Message)));
@@ -309,18 +291,16 @@ public class PatternCheckerTests
     public void Check_WildcardMakesExhaustive()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Test}{visibility=public}
-  §IN{name=x}{type=INT}
-  §OUT{type=INT}
-  §BODY
-    §MATCH{id=m1} x
-      §CASE _
-        §RETURN INT:0
-    §END_MATCH{id=m1}
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Test:pub}
+  §I{i32:x}
+  §O{i32}
+    §W{m1} x
+      §K _
+        §R 0
+    §/W{m1}
+§/F{f001}
+§/M{m001}
 ";
         var module = Parse(source, out var parseDiagnostics);
         Assert.False(parseDiagnostics.HasErrors, string.Join("\n", parseDiagnostics.Select(d => d.Message)));
@@ -338,18 +318,16 @@ public class PatternCheckerTests
     public void Check_VariablePatternMakesExhaustive()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Test}{visibility=public}
-  §IN{name=x}{type=INT}
-  §OUT{type=INT}
-  §BODY
-    §MATCH{id=m1} x
-      §CASE y
-        §RETURN INT:0
-    §END_MATCH{id=m1}
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Test:pub}
+  §I{i32:x}
+  §O{i32}
+    §W{m1} x
+      §K y
+        §R 0
+    §/W{m1}
+§/F{f001}
+§/M{m001}
 ";
         var module = Parse(source, out var parseDiagnostics);
         Assert.False(parseDiagnostics.HasErrors, string.Join("\n", parseDiagnostics.Select(d => d.Message)));
@@ -371,20 +349,18 @@ public class PatternCheckerTests
     public void Check_PatternAfterWildcard_ReportsUnreachable()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Test}{visibility=public}
-  §IN{name=x}{type=INT}
-  §OUT{type=INT}
-  §BODY
-    §MATCH{id=m1} x
-      §CASE _
-        §RETURN INT:0
-      §CASE §SOME _
-        §RETURN INT:1
-    §END_MATCH{id=m1}
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Test:pub}
+  §I{i32:x}
+  §O{i32}
+    §W{m1} x
+      §K _
+        §R 0
+      §K §SM _
+        §R 1
+    §/W{m1}
+§/F{f001}
+§/M{m001}
 ";
         var module = Parse(source, out var parseDiagnostics);
         Assert.False(parseDiagnostics.HasErrors, string.Join("\n", parseDiagnostics.Select(d => d.Message)));
@@ -400,22 +376,20 @@ public class PatternCheckerTests
     public void Check_DuplicateLiteralPattern_ReportsDuplicate()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Test}{visibility=public}
-  §IN{name=x}{type=INT}
-  §OUT{type=INT}
-  §BODY
-    §MATCH{id=m1} x
-      §CASE INT:1
-        §RETURN INT:1
-      §CASE INT:1
-        §RETURN INT:2
-      §CASE _
-        §RETURN INT:0
-    §END_MATCH{id=m1}
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Test:pub}
+  §I{i32:x}
+  §O{i32}
+    §W{m1} x
+      §K INT:1
+        §R 1
+      §K INT:1
+        §R 2
+      §K _
+        §R 0
+    §/W{m1}
+§/F{f001}
+§/M{m001}
 ";
         var module = Parse(source, out var parseDiagnostics);
         Assert.False(parseDiagnostics.HasErrors, string.Join("\n", parseDiagnostics.Select(d => d.Message)));

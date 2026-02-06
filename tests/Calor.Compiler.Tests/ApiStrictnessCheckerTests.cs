@@ -23,13 +23,11 @@ public class ApiStrictnessCheckerTests
     public void Check_DefaultMode_NoWarningsOnPublicFunction()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Test}{visibility=public}
-  §OUT{type=VOID}
-  §BODY
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Test:pub}
+  §O{void}
+§/F{f001}
+§/M{m001}
 ";
         var module = Parse(source, out var parseDiagnostics);
         Assert.False(parseDiagnostics.HasErrors, string.Join("\n", parseDiagnostics.Select(d => d.Message)));
@@ -45,13 +43,11 @@ public class ApiStrictnessCheckerTests
     public void Check_DefaultMode_NoWarningsOnPrivateFunction()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Test}{visibility=private}
-  §OUT{type=VOID}
-  §BODY
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Test:pri}
+  §O{void}
+§/F{f001}
+§/M{m001}
 ";
         var module = Parse(source, out var parseDiagnostics);
         Assert.False(parseDiagnostics.HasErrors, string.Join("\n", parseDiagnostics.Select(d => d.Message)));
@@ -71,13 +67,11 @@ public class ApiStrictnessCheckerTests
     public void Check_RequireDocs_WarnsOnUndocumentedPublicFunction()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Test}{visibility=public}
-  §OUT{type=VOID}
-  §BODY
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Test:pub}
+  §O{void}
+§/F{f001}
+§/M{m001}
 ";
         var module = Parse(source, out var parseDiagnostics);
         Assert.False(parseDiagnostics.HasErrors, string.Join("\n", parseDiagnostics.Select(d => d.Message)));
@@ -94,13 +88,11 @@ public class ApiStrictnessCheckerTests
     public void Check_RequireDocs_NoWarningOnPrivateFunction()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=PrivateHelper}{visibility=private}
-  §OUT{type=VOID}
-  §BODY
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:PrivateHelper:pri}
+  §O{void}
+§/F{f001}
+§/M{m001}
 ";
         var module = Parse(source, out var parseDiagnostics);
         Assert.False(parseDiagnostics.HasErrors, string.Join("\n", parseDiagnostics.Select(d => d.Message)));
@@ -120,8 +112,8 @@ public class ApiStrictnessCheckerTests
     public void Check_RequireDocs_WarnsOnUndocumentedModule()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§/M{m001}
 ";
         var module = Parse(source, out var parseDiagnostics);
         Assert.False(parseDiagnostics.HasErrors, string.Join("\n", parseDiagnostics.Select(d => d.Message)));
@@ -144,13 +136,11 @@ public class ApiStrictnessCheckerTests
     public void Check_StrictApi_WarnsOnPublicFunctionWithoutContractsOrDocs()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Test}{visibility=public}
-  §OUT{type=VOID}
-  §BODY
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Test:pub}
+  §O{void}
+§/F{f001}
+§/M{m001}
 ";
         var module = Parse(source, out var parseDiagnostics);
         Assert.False(parseDiagnostics.HasErrors, string.Join("\n", parseDiagnostics.Select(d => d.Message)));
@@ -169,17 +159,15 @@ public class ApiStrictnessCheckerTests
     public void Check_StrictApi_NoWarningOnFunctionWithContracts()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Divide}{visibility=public}
-  §IN{name=a}{type=INT}
-  §IN{name=b}{type=INT}
-  §OUT{type=INT}
-  §REQUIRES (!= b INT:0)
-  §BODY
-    §RETURN (/ a b)
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Divide:pub}
+  §I{i32:a}
+  §I{i32:b}
+  §O{i32}
+  §Q (!= b 0)
+  §R (/ a b)
+§/F{f001}
+§/M{m001}
 ";
         var module = Parse(source, out var parseDiagnostics);
         Assert.False(parseDiagnostics.HasErrors, string.Join("\n", parseDiagnostics.Select(d => d.Message)));
@@ -204,13 +192,11 @@ public class ApiStrictnessCheckerTests
     public void Check_RequireStabilityMarkers_InfoOnFunctionWithoutSince()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Test}{visibility=public}
-  §OUT{type=VOID}
-  §BODY
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Test:pub}
+  §O{void}
+§/F{f001}
+§/M{m001}
 ";
         var module = Parse(source, out var parseDiagnostics);
         Assert.False(parseDiagnostics.HasErrors, string.Join("\n", parseDiagnostics.Select(d => d.Message)));
@@ -233,13 +219,11 @@ public class ApiStrictnessCheckerTests
     public void Check_StrictPreset_ChecksAllRules()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Test}{visibility=public}
-  §OUT{type=VOID}
-  §BODY
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Test:pub}
+  §O{void}
+§/F{f001}
+§/M{m001}
 ";
         var module = Parse(source, out var parseDiagnostics);
         Assert.False(parseDiagnostics.HasErrors, string.Join("\n", parseDiagnostics.Select(d => d.Message)));
@@ -261,15 +245,13 @@ public class ApiStrictnessCheckerTests
     public void Compare_NoChanges_NoBrokenChanges()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Test}{visibility=public}
-  §IN{name=x}{type=INT}
-  §OUT{type=INT}
-  §BODY
-    §RETURN x
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Test:pub}
+  §I{i32:x}
+  §O{i32}
+  §R x
+§/F{f001}
+§/M{m001}
 ";
         var oldModule = Parse(source, out var oldDiagnostics);
         var newModule = Parse(source, out var newDiagnostics);
@@ -288,26 +270,22 @@ public class ApiStrictnessCheckerTests
     public void Compare_ParameterTypeChange_ReportsBreakingChange()
     {
         var oldSource = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Test}{visibility=public}
-  §IN{name=x}{type=INT}
-  §OUT{type=INT}
-  §BODY
-    §RETURN x
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Test:pub}
+  §I{i32:x}
+  §O{i32}
+  §R x
+§/F{f001}
+§/M{m001}
 ";
         var newSource = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Test}{visibility=public}
-  §IN{name=x}{type=STRING}
-  §OUT{type=INT}
-  §BODY
-    §RETURN INT:0
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Test:pub}
+  §I{str:x}
+  §O{i32}
+  §R 0
+§/F{f001}
+§/M{m001}
 ";
         var oldModule = Parse(oldSource, out var oldDiagnostics);
         var newModule = Parse(newSource, out var newDiagnostics);
@@ -326,27 +304,23 @@ public class ApiStrictnessCheckerTests
     public void Compare_ParameterCountChange_ReportsBreakingChange()
     {
         var oldSource = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Test}{visibility=public}
-  §IN{name=x}{type=INT}
-  §OUT{type=INT}
-  §BODY
-    §RETURN x
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Test:pub}
+  §I{i32:x}
+  §O{i32}
+  §R x
+§/F{f001}
+§/M{m001}
 ";
         var newSource = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Test}{visibility=public}
-  §IN{name=x}{type=INT}
-  §IN{name=y}{type=INT}
-  §OUT{type=INT}
-  §BODY
-    §RETURN (+ x y)
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Test:pub}
+  §I{i32:x}
+  §I{i32:y}
+  §O{i32}
+  §R (+ x y)
+§/F{f001}
+§/M{m001}
 ";
         var oldModule = Parse(oldSource, out var oldDiagnostics);
         var newModule = Parse(newSource, out var newDiagnostics);
@@ -365,27 +339,21 @@ public class ApiStrictnessCheckerTests
     public void Compare_FunctionRemoved_ReportsBreakingChange()
     {
         var oldSource = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Test}{visibility=public}
-  §OUT{type=VOID}
-  §BODY
-  §END_BODY
-§END_FUNC{id=f001}
-§FUNC{id=f002}{name=Helper}{visibility=public}
-  §OUT{type=VOID}
-  §BODY
-  §END_BODY
-§END_FUNC{id=f002}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Test:pub}
+  §O{void}
+§/F{f001}
+§F{f002:Helper:pub}
+  §O{void}
+§/F{f002}
+§/M{m001}
 ";
         var newSource = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Test}{visibility=public}
-  §OUT{type=VOID}
-  §BODY
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Test:pub}
+  §O{void}
+§/F{f001}
+§/M{m001}
 ";
         var oldModule = Parse(oldSource, out var oldDiagnostics);
         var newModule = Parse(newSource, out var newDiagnostics);
@@ -404,27 +372,21 @@ public class ApiStrictnessCheckerTests
     public void Compare_FunctionAdded_NotBreakingChange()
     {
         var oldSource = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Test}{visibility=public}
-  §OUT{type=VOID}
-  §BODY
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Test:pub}
+  §O{void}
+§/F{f001}
+§/M{m001}
 ";
         var newSource = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Test}{visibility=public}
-  §OUT{type=VOID}
-  §BODY
-  §END_BODY
-§END_FUNC{id=f001}
-§FUNC{id=f002}{name=NewFunction}{visibility=public}
-  §OUT{type=VOID}
-  §BODY
-  §END_BODY
-§END_FUNC{id=f002}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Test:pub}
+  §O{void}
+§/F{f001}
+§F{f002:NewFunction:pub}
+  §O{void}
+§/F{f002}
+§/M{m001}
 ";
         var oldModule = Parse(oldSource, out var oldDiagnostics);
         var newModule = Parse(newSource, out var newDiagnostics);
@@ -443,24 +405,20 @@ public class ApiStrictnessCheckerTests
     public void Compare_ReturnTypeChange_ReportsBreakingChange()
     {
         var oldSource = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Test}{visibility=public}
-  §OUT{type=INT}
-  §BODY
-    §RETURN INT:0
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Test:pub}
+  §O{i32}
+  §R 0
+§/F{f001}
+§/M{m001}
 ";
         var newSource = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Test}{visibility=public}
-  §OUT{type=STRING}
-  §BODY
-    §RETURN STR:""hello""
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Test:pub}
+  §O{str}
+  §R ""hello""
+§/F{f001}
+§/M{m001}
 ";
         var oldModule = Parse(oldSource, out var oldDiagnostics);
         var newModule = Parse(newSource, out var newDiagnostics);

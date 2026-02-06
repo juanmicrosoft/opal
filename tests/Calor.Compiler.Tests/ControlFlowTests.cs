@@ -20,18 +20,16 @@ public class ControlFlowTests
     public void Parse_ForLoop_ReturnsForStatementNode()
     {
         var source = """
-            §MODULE{id=m001}{name=Test}
-            §FUNC{id=f001}{name=Main}{visibility=public}
-              §OUT{type=VOID}
-              §BODY
-                §FOR{id=for1}{var=i}{from=0}{to=10}{step=1}
-                  §CALL{target=Console.WriteLine}{fallible=false}
-                    §ARG i
-                  §END_CALL
-                §END_FOR{id=for1}
-              §END_BODY
-            §END_FUNC{id=f001}
-            §END_MODULE{id=m001}
+            §M{m001:Test}
+            §F{f001:Main:pub}
+              §O{void}
+              §L{for1:i:0:10:1}
+                §C{Console.WriteLine}
+                  §A i
+                §/C
+              §/L{for1}
+            §/F{f001}
+            §/M{m001}
             """;
 
         var module = Parse(source, out var diagnostics);
@@ -50,14 +48,12 @@ public class ControlFlowTests
     public void Parse_ForLoop_MismatchedId_ReportsError()
     {
         var source = """
-            §MODULE{id=m001}{name=Test}
-            §FUNC{id=f001}{name=Main}{visibility=public}
-              §BODY
-                §FOR{id=for1}{var=i}{from=0}{to=10}
-                §END_FOR{id=for999}
-              §END_BODY
-            §END_FUNC{id=f001}
-            §END_MODULE{id=m001}
+            §M{m001:Test}
+            §F{f001:Main:pub}
+              §L{for1:i:0:10}
+              §/L{for999}
+            §/F{f001}
+            §/M{m001}
             """;
 
         var module = Parse(source, out var diagnostics);
@@ -73,18 +69,16 @@ public class ControlFlowTests
     public void Parse_IfStatement_ReturnsIfStatementNode()
     {
         var source = """
-            §MODULE{id=m001}{name=Test}
-            §FUNC{id=f001}{name=Main}{visibility=public}
-              §OUT{type=VOID}
-              §BODY
-                §IF{id=if1} (== x INT:0)
-                  §CALL{target=Console.WriteLine}{fallible=false}
-                    §ARG STR:"Zero"
-                  §END_CALL
-                §END_IF{id=if1}
-              §END_BODY
-            §END_FUNC{id=f001}
-            §END_MODULE{id=m001}
+            §M{m001:Test}
+            §F{f001:Main:pub}
+              §O{void}
+              §IF{if1} (== x INT:0)
+                §C{Console.WriteLine}
+                  §A "Zero"
+                §/C
+              §/I{if1}
+            §/F{f001}
+            §/M{m001}
             """;
 
         var module = Parse(source, out var diagnostics);
@@ -104,22 +98,20 @@ public class ControlFlowTests
     public void Parse_IfElseStatement_ReturnsIfStatementNodeWithElse()
     {
         var source = """
-            §MODULE{id=m001}{name=Test}
-            §FUNC{id=f001}{name=Main}{visibility=public}
-              §OUT{type=VOID}
-              §BODY
-                §IF{id=if1} BOOL:true
-                  §CALL{target=Console.WriteLine}{fallible=false}
-                    §ARG STR:"Then"
-                  §END_CALL
-                §EL
-                  §CALL{target=Console.WriteLine}{fallible=false}
-                    §ARG STR:"Else"
-                  §END_CALL
-                §END_IF{id=if1}
-              §END_BODY
-            §END_FUNC{id=f001}
-            §END_MODULE{id=m001}
+            §M{m001:Test}
+            §F{f001:Main:pub}
+              §O{void}
+              §IF{if1} BOOL:true
+                §C{Console.WriteLine}
+                  §A "Then"
+                §/C
+              §EL
+                §C{Console.WriteLine}
+                  §A "Else"
+                §/C
+              §/I{if1}
+            §/F{f001}
+            §/M{m001}
             """;
 
         var module = Parse(source, out var diagnostics);
@@ -136,26 +128,24 @@ public class ControlFlowTests
     public void Parse_IfElseIfElse_ReturnsCorrectStructure()
     {
         var source = """
-            §MODULE{id=m001}{name=Test}
-            §FUNC{id=f001}{name=Main}{visibility=public}
-              §OUT{type=VOID}
-              §BODY
-                §IF{id=if1} (== x INT:1)
-                  §CALL{target=Console.WriteLine}{fallible=false}
-                    §ARG STR:"One"
-                  §END_CALL
-                §EI (== x INT:2)
-                  §CALL{target=Console.WriteLine}{fallible=false}
-                    §ARG STR:"Two"
-                  §END_CALL
-                §EL
-                  §CALL{target=Console.WriteLine}{fallible=false}
-                    §ARG STR:"Other"
-                  §END_CALL
-                §END_IF{id=if1}
-              §END_BODY
-            §END_FUNC{id=f001}
-            §END_MODULE{id=m001}
+            §M{m001:Test}
+            §F{f001:Main:pub}
+              §O{void}
+              §IF{if1} (== x INT:1)
+                §C{Console.WriteLine}
+                  §A "One"
+                §/C
+              §EI (== x INT:2)
+                §C{Console.WriteLine}
+                  §A "Two"
+                §/C
+              §EL
+                §C{Console.WriteLine}
+                  §A "Other"
+                §/C
+              §/I{if1}
+            §/F{f001}
+            §/M{m001}
             """;
 
         var module = Parse(source, out var diagnostics);
@@ -172,18 +162,16 @@ public class ControlFlowTests
     public void Parse_WhileLoop_ReturnsWhileStatementNode()
     {
         var source = """
-            §MODULE{id=m001}{name=Test}
-            §FUNC{id=f001}{name=Main}{visibility=public}
-              §OUT{type=VOID}
-              §BODY
-                §WHILE{id=w1} (< x INT:10)
-                  §CALL{target=Console.WriteLine}{fallible=false}
-                    §ARG x
-                  §END_CALL
-                §END_WHILE{id=w1}
-              §END_BODY
-            §END_FUNC{id=f001}
-            §END_MODULE{id=m001}
+            §M{m001:Test}
+            §F{f001:Main:pub}
+              §O{void}
+              §WH{w1} (< x INT:10)
+                §C{Console.WriteLine}
+                  §A x
+                §/C
+              §/WH{w1}
+            §/F{f001}
+            §/M{m001}
             """;
 
         var module = Parse(source, out var diagnostics);
@@ -198,23 +186,21 @@ public class ControlFlowTests
     public void Parse_BindStatement_ReturnsBindStatementNode()
     {
         var source = """
-            §MODULE{id=m001}{name=Test}
-            §FUNC{id=f001}{name=Main}{visibility=public}
-              §OUT{type=VOID}
-              §BODY
-                §BIND{name=x}{type=INT} INT:42
-              §END_BODY
-            §END_FUNC{id=f001}
-            §END_MODULE{id=m001}
+            §M{m001:Test}
+            §F{f001:Main:pub}
+            §O{void}
+            §B{x:i32} 42
+            §/F{f001}
+            §/M{m001}
             """;
 
         var module = Parse(source, out var diagnostics);
 
-        Assert.False(diagnostics.HasErrors);
+        Assert.False(diagnostics.HasErrors, string.Join("\n", diagnostics.Select(d => d.Message)));
         var bindStmt = module.Functions[0].Body[0] as BindStatementNode;
         Assert.NotNull(bindStmt);
         Assert.Equal("x", bindStmt.Name);
-        Assert.Equal("INT", bindStmt.TypeName);
+        Assert.Equal("INT", bindStmt.TypeName);  // i32 expands to INT internally
         Assert.NotNull(bindStmt.Initializer);
     }
 
@@ -222,16 +208,14 @@ public class ControlFlowTests
     public void Parse_BinaryOperation_ReturnsBinaryOperationNode()
     {
         var source = """
-            §MODULE{id=m001}{name=Test}
-            §FUNC{id=f001}{name=Add}{visibility=public}
-              §IN{name=a}{type=INT}
-              §IN{name=b}{type=INT}
-              §OUT{type=INT}
-              §BODY
-                §RETURN (+ a b)
-              §END_BODY
-            §END_FUNC{id=f001}
-            §END_MODULE{id=m001}
+            §M{m001:Test}
+            §F{f001:Add:pub}
+              §I{i32:a}
+              §I{i32:b}
+              §O{i32}
+              §R (+ a b)
+            §/F{f001}
+            §/M{m001}
             """;
 
         var module = Parse(source, out var diagnostics);
@@ -324,16 +308,14 @@ public class ControlFlowTests
     public void Compile_BinaryOperation_GeneratesValidCSharp()
     {
         var source = """
-            §MODULE{id=m001}{name=Test}
-            §FUNC{id=f001}{name=Add}{visibility=public}
-              §IN{name=a}{type=INT}
-              §IN{name=b}{type=INT}
-              §OUT{type=INT}
-              §BODY
-                §RETURN (+ a b)
-              §END_BODY
-            §END_FUNC{id=f001}
-            §END_MODULE{id=m001}
+            §M{m001:Test}
+            §F{f001:Add:pub}
+              §I{i32:a}
+              §I{i32:b}
+              §O{i32}
+              §R (+ a b)
+            §/F{f001}
+            §/M{m001}
             """;
 
         var result = Program.Compile(source);
@@ -346,15 +328,13 @@ public class ControlFlowTests
     public void Compile_Modulo_GeneratesValidCSharp()
     {
         var source = """
-            §MODULE{id=m001}{name=Test}
-            §FUNC{id=f001}{name=IsEven}{visibility=public}
-              §IN{name=n}{type=INT}
-              §OUT{type=BOOL}
-              §BODY
-                §RETURN (== (% n INT:2) INT:0)
-              §END_BODY
-            §END_FUNC{id=f001}
-            §END_MODULE{id=m001}
+            §M{m001:Test}
+            §F{f001:IsEven:pub}
+              §I{i32:n}
+              §O{bool}
+              §R (== (% n INT:2) INT:0)
+            §/F{f001}
+            §/M{m001}
             """;
 
         var result = Program.Compile(source);
@@ -367,18 +347,16 @@ public class ControlFlowTests
     public void Parse_DoWhileLoop_ReturnsDoWhileStatementNode()
     {
         var source = """
-            §MODULE{id=m001}{name=Test}
-            §FUNC{id=f001}{name=Main}{visibility=public}
-              §OUT{type=VOID}
-              §BODY
-                §DO{id=do1}
-                  §CALL{target=Console.WriteLine}{fallible=false}
-                    §ARG x
-                  §END_CALL
-                §END_DO{id=do1} (< x INT:10)
-              §END_BODY
-            §END_FUNC{id=f001}
-            §END_MODULE{id=m001}
+            §M{m001:Test}
+            §F{f001:Main:pub}
+              §O{void}
+              §DO{do1}
+                §C{Console.WriteLine}
+                  §A x
+                §/C
+              §/DO{do1} (< x INT:10)
+            §/F{f001}
+            §/M{m001}
             """;
 
         var module = Parse(source, out var diagnostics);
@@ -395,14 +373,12 @@ public class ControlFlowTests
     public void Parse_DoWhileLoop_MismatchedId_ReportsError()
     {
         var source = """
-            §MODULE{id=m001}{name=Test}
-            §FUNC{id=f001}{name=Main}{visibility=public}
-              §BODY
-                §DO{id=do1}
-                §END_DO{id=do999} (< x INT:10)
-              §END_BODY
-            §END_FUNC{id=f001}
-            §END_MODULE{id=m001}
+            §M{m001:Test}
+            §F{f001:Main:pub}
+              §DO{do1}
+              §/DO{do999} (< x INT:10)
+            §/F{f001}
+            §/M{m001}
             """;
 
         var module = Parse(source, out var diagnostics);

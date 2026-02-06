@@ -29,7 +29,7 @@ public class TypeSystemTests
     [Fact]
     public void Lexer_RecognizesSomeKeyword()
     {
-        var tokens = Tokenize("§SOME", out var diagnostics);
+        var tokens = Tokenize("§SM", out var diagnostics);
 
         Assert.False(diagnostics.HasErrors);
         Assert.Equal(2, tokens.Count);
@@ -40,7 +40,7 @@ public class TypeSystemTests
     [Fact]
     public void Lexer_RecognizesNoneKeyword()
     {
-        var tokens = Tokenize("§NONE", out var diagnostics);
+        var tokens = Tokenize("§NN", out var diagnostics);
 
         Assert.False(diagnostics.HasErrors);
         Assert.Equal(2, tokens.Count);
@@ -73,7 +73,7 @@ public class TypeSystemTests
     [Fact]
     public void Lexer_RecognizesMatchKeyword()
     {
-        var tokens = Tokenize("§MATCH", out var diagnostics);
+        var tokens = Tokenize("§W", out var diagnostics);
 
         Assert.False(diagnostics.HasErrors);
         Assert.Equal(2, tokens.Count);
@@ -84,7 +84,7 @@ public class TypeSystemTests
     [Fact]
     public void Lexer_RecognizesEndMatchKeyword()
     {
-        var tokens = Tokenize("§END_MATCH", out var diagnostics);
+        var tokens = Tokenize("§/W", out var diagnostics);
 
         Assert.False(diagnostics.HasErrors);
         Assert.Equal(2, tokens.Count);
@@ -95,7 +95,7 @@ public class TypeSystemTests
     [Fact]
     public void Lexer_RecognizesCaseKeyword()
     {
-        var tokens = Tokenize("§CASE", out var diagnostics);
+        var tokens = Tokenize("§K", out var diagnostics);
 
         Assert.False(diagnostics.HasErrors);
         Assert.Equal(2, tokens.Count);
@@ -106,7 +106,7 @@ public class TypeSystemTests
     [Fact]
     public void Lexer_RecognizesRecordKeyword()
     {
-        var tokens = Tokenize("§RECORD", out var diagnostics);
+        var tokens = Tokenize("§D", out var diagnostics);
 
         Assert.False(diagnostics.HasErrors);
         Assert.Equal(2, tokens.Count);
@@ -117,7 +117,7 @@ public class TypeSystemTests
     [Fact]
     public void Lexer_RecognizesFieldKeyword()
     {
-        var tokens = Tokenize("§FIELD", out var diagnostics);
+        var tokens = Tokenize("§FL", out var diagnostics);
 
         Assert.False(diagnostics.HasErrors);
         Assert.Equal(2, tokens.Count);
@@ -128,7 +128,7 @@ public class TypeSystemTests
     [Fact]
     public void Lexer_RecognizesTypeKeyword()
     {
-        var tokens = Tokenize("§TYPE", out var diagnostics);
+        var tokens = Tokenize("§T", out var diagnostics);
 
         Assert.False(diagnostics.HasErrors);
         Assert.Equal(2, tokens.Count);
@@ -139,7 +139,7 @@ public class TypeSystemTests
     [Fact]
     public void Lexer_RecognizesVariantKeyword()
     {
-        var tokens = Tokenize("§VARIANT", out var diagnostics);
+        var tokens = Tokenize("§V", out var diagnostics);
 
         Assert.False(diagnostics.HasErrors);
         Assert.Equal(2, tokens.Count);
@@ -156,14 +156,12 @@ public class TypeSystemTests
     {
         // Note: Using simple return type since generic syntax Option[INT] is not yet supported in attributes
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=GetValue}{visibility=public}
-  §OUT{type=INT}
-  §BODY
-    §RETURN §SOME INT:42
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:GetValue:pub}
+  §O{i32}
+  §R §SM INT:42
+§/F{f001}
+§/M{m001}
 ";
 
         var module = Parse(source, out var diagnostics);
@@ -185,14 +183,12 @@ public class TypeSystemTests
     {
         // Note: Using simple return type since generic syntax Option[INT] is not yet supported in attributes
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=GetNothing}{visibility=public}
-  §OUT{type=INT}
-  §BODY
-    §RETURN §NONE{type=INT}
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:GetNothing:pub}
+  §O{i32}
+  §R §NN{i32}
+§/F{f001}
+§/M{m001}
 ";
 
         var module = Parse(source, out var diagnostics);
@@ -215,14 +211,12 @@ public class TypeSystemTests
     {
         // Note: Using simple return type since generic syntax Result[INT,STRING] is not yet supported in attributes
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=GetResult}{visibility=public}
-  §OUT{type=INT}
-  §BODY
-    §RETURN §OK INT:100
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:GetResult:pub}
+  §O{i32}
+  §R §OK INT:100
+§/F{f001}
+§/M{m001}
 ";
 
         var module = Parse(source, out var diagnostics);
@@ -241,14 +235,12 @@ public class TypeSystemTests
     {
         // Note: Using simple return type since generic syntax Result[INT,STRING] is not yet supported in attributes
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=GetError}{visibility=public}
-  §OUT{type=STRING}
-  §BODY
-    §RETURN §ERR STR:""Something went wrong""
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:GetError:pub}
+  §O{str}
+  §R §ERR STR:""Something went wrong""
+§/F{f001}
+§/M{m001}
 ";
 
         var module = Parse(source, out var diagnostics);

@@ -23,8 +23,8 @@ public class CalorFormatterTests
     public void Format_MinimalModule_ProducesCorrectOutput()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§/M{m001}
 ";
         var module = Parse(source, out var diagnostics);
         Assert.False(diagnostics.HasErrors, string.Join("\n", diagnostics.Select(d => d.Message)));
@@ -42,13 +42,11 @@ public class CalorFormatterTests
     {
         // Simplified test without using directives which have complex parsing
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Main}{visibility=public}
-  §OUT{type=VOID}
-  §BODY
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Main:pub}
+§O{void}
+§/F{f001}
+§/M{m001}
 ";
         var module = Parse(source, out var diagnostics);
         Assert.False(diagnostics.HasErrors, string.Join("\n", diagnostics.Select(d => d.Message)));
@@ -68,16 +66,14 @@ public class CalorFormatterTests
     public void Format_FunctionWithParameters_IncludesTypeAndName()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Add}{visibility=public}
-  §IN{name=a}{type=INT}
-  §IN{name=b}{type=INT}
-  §OUT{type=INT}
-  §BODY
-    §RETURN (+ a b)
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Add:pub}
+§I{i32:a}
+§I{i32:b}
+§O{i32}
+§R (+ a b)
+§/F{f001}
+§/M{m001}
 ";
         var module = Parse(source, out var diagnostics);
         Assert.False(diagnostics.HasErrors, string.Join("\n", diagnostics.Select(d => d.Message)));
@@ -93,17 +89,13 @@ public class CalorFormatterTests
     public void Format_FunctionWithEffects_IncludesEffectsDeclaration()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Print}{visibility=public}
-  §IN{name=message}{type=STRING}
-  §EFFECTS{io=console_write}
-  §BODY
-    §CALL{target=Console.WriteLine}{fallible=false}
-      §ARG message
-    §END_CALL
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Print:pub}
+§I{str:message}
+§E{cw}
+§C{Console.WriteLine} message
+§/F{f001}
+§/M{m001}
 ";
         var module = Parse(source, out var diagnostics);
         Assert.False(diagnostics.HasErrors, string.Join("\n", diagnostics.Select(d => d.Message)));
@@ -120,18 +112,16 @@ public class CalorFormatterTests
     public void Format_FunctionWithContracts_IncludesPreconditionsAndPostconditions()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Divide}{visibility=public}
-  §IN{name=a}{type=INT}
-  §IN{name=b}{type=INT}
-  §OUT{type=INT}
-  §REQUIRES (!= b INT:0)
-  §ENSURES (>= result INT:0)
-  §BODY
-    §RETURN (/ a b)
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Divide:pub}
+§I{i32:a}
+§I{i32:b}
+§O{i32}
+§Q (!= b 0)
+§S (>= result 0)
+§R (/ a b)
+§/F{f001}
+§/M{m001}
 ";
         var module = Parse(source, out var diagnostics);
         Assert.False(diagnostics.HasErrors, string.Join("\n", diagnostics.Select(d => d.Message)));
@@ -151,15 +141,13 @@ public class CalorFormatterTests
     public void Format_BindStatement_FormatsCorrectly()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Test}{visibility=public}
-  §OUT{type=INT}
-  §BODY
-    §BIND{name=x}{type=INT} INT:42
-    §RETURN x
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Test:pub}
+§O{i32}
+§B{x} 42
+§R x
+§/F{f001}
+§/M{m001}
 ";
         var module = Parse(source, out var diagnostics);
         Assert.False(diagnostics.HasErrors, string.Join("\n", diagnostics.Select(d => d.Message)));
@@ -174,19 +162,17 @@ public class CalorFormatterTests
     public void Format_IfStatement_FormatsWithIndentation()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Test}{visibility=public}
-  §IN{name=cond}{type=BOOL}
-  §OUT{type=INT}
-  §BODY
-    §IF{id=if1} cond
-      §RETURN INT:1
-    §EL
-      §RETURN INT:0
-    §END_IF{id=if1}
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Test:pub}
+§I{bool:cond}
+§O{i32}
+§IF{if1} cond
+§R 1
+§EL
+§R 0
+§/I{if1}
+§/F{f001}
+§/M{m001}
 ";
         var module = Parse(source, out var diagnostics);
         Assert.False(diagnostics.HasErrors, string.Join("\n", diagnostics.Select(d => d.Message)));
@@ -201,18 +187,15 @@ public class CalorFormatterTests
     public void Format_ForLoop_FormatsCorrectly()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Test}{visibility=public}
-  §OUT{type=VOID}
-  §BODY
-    §FOR{id=for1}{var=i} INT:0 INT:10
-      §CALL{target=Console.WriteLine}{fallible=false}
-        §ARG i
-      §END_CALL
-    §END_FOR{id=for1}
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Test:pub}
+§O{void}
+§E{cw}
+§L{l1:i:0:10:1}
+§C{Console.WriteLine} i
+§/L{l1}
+§/F{f001}
+§/M{m001}
 ";
         var module = Parse(source, out var diagnostics);
         Assert.False(diagnostics.HasErrors, string.Join("\n", diagnostics.Select(d => d.Message)));
@@ -228,18 +211,16 @@ public class CalorFormatterTests
     public void Format_WhileLoop_FormatsCorrectly()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Test}{visibility=public}
-  §IN{name=running}{type=BOOL}
-  §OUT{type=VOID}
-  §BODY
-    §WHILE{id=w1} running
-      §CALL{target=DoWork}{fallible=false}
-      §END_CALL
-    §END_WHILE{id=w1}
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Test:pub}
+§I{bool:running}
+§O{void}
+§E{cw}
+§WH{w1} running
+§P ""working""
+§/WH{w1}
+§/F{f001}
+§/M{m001}
 ";
         var module = Parse(source, out var diagnostics);
         Assert.False(diagnostics.HasErrors, string.Join("\n", diagnostics.Select(d => d.Message)));
@@ -255,20 +236,18 @@ public class CalorFormatterTests
     public void Format_MatchStatement_FormatsWithCases()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Test}{visibility=public}
-  §IN{name=x}{type=INT}
-  §OUT{type=INT}
-  §BODY
-    §MATCH{id=m1} x
-      §CASE §SOME _
-        §RETURN INT:1
-      §CASE §NONE
-        §RETURN INT:0
-    §END_MATCH{id=m1}
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Test:pub}
+§I{i32:x}
+§O{i32}
+§W{m1} x
+§K §SM _
+§R 1
+§K §NN
+§R 0
+§/W{m1}
+§/F{f001}
+§/M{m001}
 ";
         var module = Parse(source, out var diagnostics);
         Assert.False(diagnostics.HasErrors, string.Join("\n", diagnostics.Select(d => d.Message)));
@@ -276,8 +255,8 @@ public class CalorFormatterTests
         var formatter = new CalorFormatter();
         var result = formatter.Format(module);
 
-        Assert.Contains("MATCH", result);
-        Assert.Contains("CASE", result);
+        Assert.Contains("§W{", result);
+        Assert.Contains("§K", result);
     }
 
     #endregion
@@ -288,17 +267,15 @@ public class CalorFormatterTests
     public void Format_Literals_FormatsCorrectly()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Test}{visibility=public}
-  §OUT{type=VOID}
-  §BODY
-    §BIND{name=a}{type=INT} INT:42
-    §BIND{name=b}{type=FLOAT} FLOAT:3.14
-    §BIND{name=c}{type=BOOL} BOOL:true
-    §BIND{name=d}{type=STRING} STR:""hello""
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Test:pub}
+§O{void}
+§B{a} 42
+§B{b} 3.14
+§B{c} true
+§B{d} ""hello""
+§/F{f001}
+§/M{m001}
 ";
         var module = Parse(source, out var diagnostics);
         Assert.False(diagnostics.HasErrors, string.Join("\n", diagnostics.Select(d => d.Message)));
@@ -315,16 +292,14 @@ public class CalorFormatterTests
     public void Format_BinaryOperations_FormatsWithParentheses()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Test}{visibility=public}
-  §IN{name=a}{type=INT}
-  §IN{name=b}{type=INT}
-  §OUT{type=INT}
-  §BODY
-    §RETURN (+ a b)
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Test:pub}
+§I{i32:a}
+§I{i32:b}
+§O{i32}
+§R (+ a b)
+§/F{f001}
+§/M{m001}
 ";
         var module = Parse(source, out var diagnostics);
         Assert.False(diagnostics.HasErrors, string.Join("\n", diagnostics.Select(d => d.Message)));
@@ -339,20 +314,16 @@ public class CalorFormatterTests
     public void Format_OptionExpressions_FormatsCorrectly()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Test}{visibility=public}
-  §OUT{type=INT}
-  §BODY
-    §RETURN §SOME INT:42
-  §END_BODY
-§END_FUNC{id=f001}
-§FUNC{id=f002}{name=Test2}{visibility=public}
-  §OUT{type=INT}
-  §BODY
-    §RETURN §NONE{type=INT}
-  §END_BODY
-§END_FUNC{id=f002}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Test:pub}
+§O{i32}
+§R §SM 42
+§/F{f001}
+§F{f002:Test2:pub}
+§O{i32}
+§R §NN{i32}
+§/F{f002}
+§/M{m001}
 ";
         var module = Parse(source, out var diagnostics);
         Assert.False(diagnostics.HasErrors, string.Join("\n", diagnostics.Select(d => d.Message)));
@@ -360,28 +331,24 @@ public class CalorFormatterTests
         var formatter = new CalorFormatter();
         var result = formatter.Format(module);
 
-        Assert.Contains("SOME", result);
-        Assert.Contains("NONE", result);
+        Assert.Contains("§SM", result);
+        Assert.Contains("§NN", result);
     }
 
     [Fact]
     public void Format_ResultExpressions_FormatsCorrectly()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Test}{visibility=public}
-  §OUT{type=INT}
-  §BODY
-    §RETURN §OK INT:42
-  §END_BODY
-§END_FUNC{id=f001}
-§FUNC{id=f002}{name=Test2}{visibility=public}
-  §OUT{type=STRING}
-  §BODY
-    §RETURN §ERR STR:""error""
-  §END_BODY
-§END_FUNC{id=f002}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Test:pub}
+§O{i32}
+§R §OK 42
+§/F{f001}
+§F{f002:Test2:pub}
+§O{str}
+§R §ERR ""error""
+§/F{f002}
+§/M{m001}
 ";
         var module = Parse(source, out var diagnostics);
         Assert.False(diagnostics.HasErrors, string.Join("\n", diagnostics.Select(d => d.Message)));
@@ -401,24 +368,22 @@ public class CalorFormatterTests
     public void Format_NestedStatements_IndentsCorrectly()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Test}{visibility=public}
-  §IN{name=a}{type=BOOL}
-  §IN{name=b}{type=BOOL}
-  §OUT{type=INT}
-  §BODY
-    §IF{id=if1} a
-      §IF{id=if2} b
-        §RETURN INT:2
-      §EL
-        §RETURN INT:1
-      §END_IF{id=if2}
-    §EL
-      §RETURN INT:0
-    §END_IF{id=if1}
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Test:pub}
+§I{bool:a}
+§I{bool:b}
+§O{i32}
+§IF{if1} a
+§IF{if2} b
+§R 2
+§EL
+§R 1
+§/I{if2}
+§EL
+§R 0
+§/I{if1}
+§/F{f001}
+§/M{m001}
 ";
         var module = Parse(source, out var diagnostics);
         Assert.False(diagnostics.HasErrors, string.Join("\n", diagnostics.Select(d => d.Message)));
@@ -441,16 +406,14 @@ public class CalorFormatterTests
     {
         // Test that basic formatting works and produces parseable output
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Add}{visibility=public}
-  §IN{name=a}{type=INT}
-  §IN{name=b}{type=INT}
-  §OUT{type=INT}
-  §BODY
-    §RETURN (+ a b)
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Add:pub}
+§I{i32:a}
+§I{i32:b}
+§O{i32}
+§R (+ a b)
+§/F{f001}
+§/M{m001}
 ";
         var module = Parse(source, out var diagnostics);
         Assert.False(diagnostics.HasErrors, string.Join("\n", diagnostics.Select(d => d.Message)));
