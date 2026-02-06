@@ -64,6 +64,19 @@ public static class DiagnosticCode
     public const string BreakingChangeWithoutMarker = "Calor0600";
     public const string MissingDocComment = "Calor0601";
     public const string PublicApiChanged = "Calor0602";
+
+    // Semantics version (Calor0700-0799)
+    /// <summary>
+    /// Warning: Module declares a newer semantics version than the compiler supports.
+    /// The code may use features not available in this compiler version.
+    /// </summary>
+    public const string SemanticsVersionMismatch = "Calor0700";
+
+    /// <summary>
+    /// Error: Module declares an incompatible semantics version (major version mismatch).
+    /// The code cannot be compiled with this compiler version.
+    /// </summary>
+    public const string SemanticsVersionIncompatible = "Calor0701";
 }
 
 /// <summary>
