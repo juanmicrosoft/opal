@@ -20,7 +20,7 @@ public class BuildIntegrationTests
   §O{void}
   §E{cw}
   §C{Console.WriteLine}
-    §A STR:""Hello from test!""
+    §A ""Hello from test!""
   §/C
 §/F{f001}
 §/M{m001}
@@ -47,14 +47,12 @@ public class BuildIntegrationTests
     {
         // Arrange - Invalid Calor source
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Hello}{visibility=public}
-  §OUT{type=VOID}
-  §BODY
+§M{m001:Test}
+§F{f001:Hello:pub}
+  §O{void}
     §INVALID_SYNTAX
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§/F{f001}
+§/M{m001}
 ";
 
         // Act
@@ -69,16 +67,14 @@ public class BuildIntegrationTests
     {
         // Arrange
         var source = @"
-§MODULE{id=m001}{name=Calculator}
-§FUNC{id=f001}{name=Add}{visibility=public}
-  §IN{name=a}{type=INT}
-  §IN{name=b}{type=INT}
-  §OUT{type=INT}
-  §BODY
-    §RETURN (+ a b)
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Calculator}
+§F{f001:Add:pub}
+  §I{i32:a}
+  §I{i32:b}
+  §O{i32}
+  §R (+ a b)
+§/F{f001}
+§/M{m001}
 ";
 
         // Act
@@ -96,25 +92,21 @@ public class BuildIntegrationTests
     {
         // Arrange
         var source = @"
-§MODULE{id=m001}{name=Math}
-§FUNC{id=f001}{name=Add}{visibility=public}
-  §IN{name=a}{type=INT}
-  §IN{name=b}{type=INT}
-  §OUT{type=INT}
-  §BODY
-    §RETURN (+ a b)
-  §END_BODY
-§END_FUNC{id=f001}
+§M{m001:Math}
+§F{f001:Add:pub}
+  §I{i32:a}
+  §I{i32:b}
+  §O{i32}
+  §R (+ a b)
+§/F{f001}
 
-§FUNC{id=f002}{name=Subtract}{visibility=public}
-  §IN{name=a}{type=INT}
-  §IN{name=b}{type=INT}
-  §OUT{type=INT}
-  §BODY
-    §RETURN (- a b)
-  §END_BODY
-§END_FUNC{id=f002}
-§END_MODULE{id=m001}
+§F{f002:Subtract:pub}
+  §I{i32:a}
+  §I{i32:b}
+  §O{i32}
+  §R (- a b)
+§/F{f002}
+§/M{m001}
 ";
 
         // Act
@@ -131,17 +123,15 @@ public class BuildIntegrationTests
     {
         // Arrange
         var source = @"
-§MODULE{id=m001}{name=Safe}
-§FUNC{id=f001}{name=Divide}{visibility=public}
-  §IN{name=a}{type=INT}
-  §IN{name=b}{type=INT}
-  §OUT{type=INT}
-  §REQUIRES (!= b INT:0)
-  §BODY
-    §RETURN (/ a b)
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Safe}
+§F{f001:Divide:pub}
+  §I{i32:a}
+  §I{i32:b}
+  §O{i32}
+  §Q (!= b INT:0)
+  §R (/ a b)
+§/F{f001}
+§/M{m001}
 ";
 
         // Act

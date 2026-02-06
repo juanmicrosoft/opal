@@ -87,13 +87,11 @@ public class FormatCommandTests : IDisposable
     public void Format_SingleFile_ProducesFormattedOutput()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Main}{visibility=public}
-  §OUT{type=VOID}
-  §BODY
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Main:pub}
+  §O{void}
+§/F{f001}
+§/M{m001}
 ";
         var filePath = CreateTestFile("test.calr", source);
 
@@ -109,16 +107,14 @@ public class FormatCommandTests : IDisposable
     public void Format_SingleFile_OutputIsDeterministic()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Add}{visibility=public}
-  §IN{name=a}{type=INT}
-  §IN{name=b}{type=INT}
-  §OUT{type=INT}
-  §BODY
-    §RETURN (+ a b)
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Add:pub}
+  §I{i32:a}
+  §I{i32:b}
+  §O{i32}
+    §R (+ a b)
+§/F{f001}
+§/M{m001}
 ";
         var filePath = CreateTestFile("test.calr", source);
 
@@ -139,13 +135,11 @@ public class FormatCommandTests : IDisposable
     {
         // Format the same source twice
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Main}{visibility=public}
-  §OUT{type=VOID}
-  §BODY
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Main:pub}
+  §O{void}
+§/F{f001}
+§/M{m001}
 ";
         var filePath1 = CreateTestFile("test1.calr", source);
         var filePath2 = CreateTestFile("test2.calr", source);
@@ -164,13 +158,11 @@ public class FormatCommandTests : IDisposable
     public void Format_NotFormatted_OriginalDiffersFromFormatted()
     {
         // Source with inconsistent formatting (extra whitespace, etc.)
-        var source = @"§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Main}{visibility=public}
-§OUT{type=VOID}
-§BODY
-§END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}";
+        var source = @"§M{m001:Test}
+§F{f001:Main:pub}
+§O{void}
+§/F{f001}
+§/M{m001}";
         var filePath = CreateTestFile("test.calr", source);
 
         var result = FormatFile(filePath);
@@ -189,13 +181,11 @@ public class FormatCommandTests : IDisposable
     public void Format_WriteMode_ModifiesFile()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Main}{visibility=public}
-  §OUT{type=VOID}
-  §BODY
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Main:pub}
+  §O{void}
+§/F{f001}
+§/M{m001}
 ";
         var filePath = CreateTestFile("test.calr", source);
         var originalContent = File.ReadAllText(filePath);
@@ -214,16 +204,14 @@ public class FormatCommandTests : IDisposable
     public void Format_WriteMode_PreservesSemantics()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Add}{visibility=public}
-  §IN{name=x}{type=INT}
-  §IN{name=y}{type=INT}
-  §OUT{type=INT}
-  §BODY
-    §RETURN (+ x y)
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Add:pub}
+  §I{i32:x}
+  §I{i32:y}
+  §O{i32}
+    §R (+ x y)
+§/F{f001}
+§/M{m001}
 ";
         var filePath = CreateTestFile("test.calr", source);
 
@@ -259,14 +247,12 @@ public class FormatCommandTests : IDisposable
     public void Format_InvalidSyntax_ReportsParseErrors()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Main}{visibility=public}
-  §OUT{type=VOID}
-  §BODY
+§M{m001:Test}
+§F{f001:Main:pub}
+  §O{void}
     §INVALID_TOKEN
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§/F{f001}
+§/M{m001}
 ";
         var filePath = CreateTestFile("invalid.calr", source);
 
@@ -296,8 +282,8 @@ public class FormatCommandTests : IDisposable
     public void Format_CalorExtension_Processes()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§/M{m001}
 ";
         var filePath = CreateTestFile("test.calr", source);
 
@@ -322,8 +308,8 @@ public class FormatCommandTests : IDisposable
     public void Format_CaseInsensitiveExtension_Processes()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§/M{m001}
 ";
         // Test with uppercase extension
         var filePath = CreateTestFile("test.CALR", source);
@@ -344,16 +330,16 @@ public class FormatCommandTests : IDisposable
     public void Format_MultipleFiles_AllProcessed()
     {
         var source1 = @"
-§MODULE{id=m001}{name=Test1}
-§END_MODULE{id=m001}
+§M{m001:Test1}
+§/M{m001}
 ";
         var source2 = @"
-§MODULE{id=m002}{name=Test2}
-§END_MODULE{id=m002}
+§M{m002:Test2}
+§/M{m002}
 ";
         var source3 = @"
-§MODULE{id=m003}{name=Test3}
-§END_MODULE{id=m003}
+§M{m003:Test3}
+§/M{m003}
 ";
         var file1 = CreateTestFile("test1.calr", source1);
         var file2 = CreateTestFile("test2.calr", source2);

@@ -5,7 +5,7 @@ using Xunit;
 
 namespace Calor.Compiler.Tests;
 
-public class V2SyntaxTests
+public class SyntaxTests
 {
     private static List<Token> Tokenize(string source)
     {
@@ -221,36 +221,10 @@ public class V2SyntaxTests
 
     #endregion
 
-    #region Mixed V1 and V2
+    #region Full Program
 
     [Fact]
-    public void Lexer_HandlesMixedV1AndV2Keywords()
-    {
-        var tokens = Tokenize("§M §MODULE §F §FUNC");
-
-        Assert.Equal(5, tokens.Count);
-        Assert.Equal(TokenKind.Module, tokens[0].Kind);
-        Assert.Equal(TokenKind.Module, tokens[1].Kind);
-        Assert.Equal(TokenKind.Func, tokens[2].Kind);
-        Assert.Equal(TokenKind.Func, tokens[3].Kind);
-    }
-
-    [Fact]
-    public void Lexer_HandlesMixedClosingTags()
-    {
-        var tokens = Tokenize("§/F §END_FUNC");
-
-        Assert.Equal(3, tokens.Count);
-        Assert.Equal(TokenKind.EndFunc, tokens[0].Kind);
-        Assert.Equal(TokenKind.EndFunc, tokens[1].Kind);
-    }
-
-    #endregion
-
-    #region V2 Full Program
-
-    [Fact]
-    public void Lexer_TokenizesV2Program()
+    public void Lexer_TokenizesProgram()
     {
         var source = @"
 §M{m001:Hello}
@@ -279,7 +253,7 @@ public class V2SyntaxTests
 
     #endregion
 
-    #region V2 Tokens
+    #region Tokens
 
     [Fact]
     public void Lexer_RecognizesColon()
@@ -396,10 +370,10 @@ public class V2SyntaxTests
 
     #endregion
 
-    #region V2 Parser Integration
+    #region Parser Integration
 
     [Fact]
-    public void Parser_ParsesV2ModuleWithPositionalAttributes()
+    public void Parser_ParsesModuleWithPositionalAttributes()
     {
         var diagnostics = new DiagnosticBag();
         var source = "§M{m001:Hello} §/M{m001}";
@@ -415,7 +389,7 @@ public class V2SyntaxTests
     }
 
     [Fact]
-    public void Parser_ParsesV2FunctionWithVisibility()
+    public void Parser_ParsesFunctionWithVisibility()
     {
         var diagnostics = new DiagnosticBag();
         var source = @"
@@ -439,7 +413,7 @@ public class V2SyntaxTests
     }
 
     [Fact]
-    public void Parser_ParsesV2OutputType()
+    public void Parser_ParsesOutputType()
     {
         var diagnostics = new DiagnosticBag();
         var source = @"
@@ -447,7 +421,7 @@ public class V2SyntaxTests
 §F{f001:Add:pub}
   §O{i32}
   §BODY
-    §RETURN INT:0
+    §R 0
   §END_BODY
 §/F{f001}
 §/M{m001}";
@@ -462,7 +436,7 @@ public class V2SyntaxTests
     }
 
     [Fact]
-    public void Parser_ParsesV2InputParameters()
+    public void Parser_ParsesInputParameters()
     {
         var diagnostics = new DiagnosticBag();
         var source = @"
@@ -472,7 +446,7 @@ public class V2SyntaxTests
   §I{i32:b}
   §O{i32}
   §BODY
-    §RETURN INT:0
+    §R 0
   §END_BODY
 §/F{f001}
 §/M{m001}";
@@ -489,7 +463,7 @@ public class V2SyntaxTests
     }
 
     [Fact]
-    public void Parser_ParsesV2EffectShortcodes()
+    public void Parser_ParsesEffectShortcodes()
     {
         var diagnostics = new DiagnosticBag();
         var source = @"
@@ -513,7 +487,7 @@ public class V2SyntaxTests
     }
 
     [Fact]
-    public void Parser_ParsesV2ImplicitBody()
+    public void Parser_ParsesImplicitBody()
     {
         var diagnostics = new DiagnosticBag();
         // No §BODY/§END_BODY markers - implicit body
@@ -539,7 +513,7 @@ public class V2SyntaxTests
     }
 
     [Fact]
-    public void Parser_ParsesV2ImplicitBodyWithMultipleStatements()
+    public void Parser_ParsesImplicitBodyWithMultipleStatements()
     {
         var diagnostics = new DiagnosticBag();
         var source = @"
@@ -567,53 +541,53 @@ public class V2SyntaxTests
 
     #endregion
 
-    #region V2 Compact Types
+    #region Compact Types
 
     [Fact]
-    public void V2AttributeHelper_ExpandsI32ToInt()
+    public void AttributeHelper_ExpandsI32ToInt()
     {
-        var result = V2AttributeHelper.ExpandType("i32");
+        var result = AttributeHelper.ExpandType("i32");
         Assert.Equal("INT", result);
     }
 
     [Fact]
-    public void V2AttributeHelper_ExpandsStrToString()
+    public void AttributeHelper_ExpandsStrToString()
     {
-        var result = V2AttributeHelper.ExpandType("str");
+        var result = AttributeHelper.ExpandType("str");
         Assert.Equal("STRING", result);
     }
 
     [Fact]
-    public void V2AttributeHelper_ExpandsOptionType()
+    public void AttributeHelper_ExpandsOptionType()
     {
-        var result = V2AttributeHelper.ExpandType("?i32");
+        var result = AttributeHelper.ExpandType("?i32");
         Assert.Equal("OPTION[inner=INT]", result);
     }
 
     [Fact]
-    public void V2AttributeHelper_ExpandsResultType()
+    public void AttributeHelper_ExpandsResultType()
     {
-        var result = V2AttributeHelper.ExpandType("i32!str");
+        var result = AttributeHelper.ExpandType("i32!str");
         Assert.Equal("RESULT[ok=INT][err=STRING]", result);
     }
 
     [Fact]
-    public void V2AttributeHelper_ExpandsVoid()
+    public void AttributeHelper_ExpandsVoid()
     {
-        var result = V2AttributeHelper.ExpandType("void");
+        var result = AttributeHelper.ExpandType("void");
         Assert.Equal("VOID", result);
     }
 
     [Fact]
-    public void V2AttributeHelper_ExpandsBool()
+    public void AttributeHelper_ExpandsBool()
     {
-        var result = V2AttributeHelper.ExpandType("bool");
+        var result = AttributeHelper.ExpandType("bool");
         Assert.Equal("BOOL", result);
     }
 
     #endregion
 
-    #region V2 Bare Literals
+    #region Bare Literals
 
     [Fact]
     public void Lexer_RecognizesBareInteger()
@@ -677,43 +651,43 @@ public class V2SyntaxTests
 
     #endregion
 
-    #region V2 Effect Shortcodes
+    #region Effect Shortcodes
 
     [Fact]
-    public void V2AttributeHelper_ExpandsConsoleWriteEffect()
+    public void AttributeHelper_ExpandsConsoleWriteEffect()
     {
-        var (category, value) = V2AttributeHelper.ExpandEffectCode("cw");
+        var (category, value) = AttributeHelper.ExpandEffectCode("cw");
         Assert.Equal("io", category);
         Assert.Equal("console_write", value);
     }
 
     [Fact]
-    public void V2AttributeHelper_ExpandsFileReadEffect()
+    public void AttributeHelper_ExpandsFileReadEffect()
     {
-        var (category, value) = V2AttributeHelper.ExpandEffectCode("fr");
+        var (category, value) = AttributeHelper.ExpandEffectCode("fr");
         Assert.Equal("io", category);
         Assert.Equal("file_read", value);
     }
 
     [Fact]
-    public void V2AttributeHelper_ExpandsNetworkEffect()
+    public void AttributeHelper_ExpandsNetworkEffect()
     {
-        var (category, value) = V2AttributeHelper.ExpandEffectCode("net");
+        var (category, value) = AttributeHelper.ExpandEffectCode("net");
         Assert.Equal("io", category);
         Assert.Equal("network", value);
     }
 
     [Fact]
-    public void V2AttributeHelper_ExpandsRandomEffect()
+    public void AttributeHelper_ExpandsRandomEffect()
     {
-        var (category, value) = V2AttributeHelper.ExpandEffectCode("rand");
+        var (category, value) = AttributeHelper.ExpandEffectCode("rand");
         Assert.Equal("nondeterminism", category);
         Assert.Equal("random", value);
     }
 
     #endregion
 
-    #region v2 Lisp-Style Expressions
+    #region Lisp-Style Expressions
 
     [Fact]
     public void Lexer_RecognizesOpenParen()
@@ -921,7 +895,7 @@ public class V2SyntaxTests
 §F{f001:Add:pub}
   §O{i32}
   §BODY
-    §RETURN (+ 1 2)
+    §R (+ 1 2)
   §END_BODY
 §/F{f001}
 §/M{m001}";
@@ -949,7 +923,7 @@ public class V2SyntaxTests
 §F{f001:Calc:pub}
   §O{bool}
   §BODY
-    §RETURN (== (% i 15) 0)
+    §R (== (% i 15) 0)
   §END_BODY
 §/F{f001}
 §/M{m001}";
@@ -981,7 +955,7 @@ public class V2SyntaxTests
   §I{i32:x}
   §O{i32}
   §BODY
-    §RETURN (+ x 1)
+    §R (+ x 1)
   §END_BODY
 §/F{f001}
 §/M{m001}";
@@ -1009,7 +983,7 @@ public class V2SyntaxTests
   §I{BOOL:flag}
   §O{BOOL}
   §BODY
-    §RETURN (! flag)
+    §R (! flag)
   §END_BODY
 §/F{f001}
 §/M{m001}";
@@ -1028,7 +1002,7 @@ public class V2SyntaxTests
 
     #endregion
 
-    #region v2 Print Alias
+    #region Print Alias
 
     [Fact]
     public void Lexer_RecognizesPrintAlias()
@@ -1101,7 +1075,7 @@ public class V2SyntaxTests
 
     #endregion
 
-    #region v2 Arrow Syntax
+    #region Arrow Syntax
 
     [Fact]
     public void Parser_ParsesIfWithArrowSyntax()
@@ -1170,7 +1144,7 @@ public class V2SyntaxTests
 
     #endregion
 
-    #region v2 Implicit Closing
+    #region Implicit Closing
 
     [Fact]
     public void Parser_ParsesCallWithImplicitClosing()
@@ -1227,7 +1201,7 @@ public class V2SyntaxTests
 
     #endregion
 
-    #region v2 Backtick Identifiers
+    #region Backtick Identifiers
 
     [Fact]
     public void Lexer_RecognizesBacktickIdentifier()

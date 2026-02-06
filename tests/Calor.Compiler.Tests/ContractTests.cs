@@ -30,7 +30,7 @@ public class ContractTests
     [Fact]
     public void Lexer_RecognizesRequiresKeyword()
     {
-        var tokens = Tokenize("§REQUIRES", out var diagnostics);
+        var tokens = Tokenize("§Q", out var diagnostics);
 
         Assert.False(diagnostics.HasErrors);
         Assert.Equal(2, tokens.Count);
@@ -41,7 +41,7 @@ public class ContractTests
     [Fact]
     public void Lexer_RecognizesEnsuresKeyword()
     {
-        var tokens = Tokenize("§ENSURES", out var diagnostics);
+        var tokens = Tokenize("§S", out var diagnostics);
 
         Assert.False(diagnostics.HasErrors);
         Assert.Equal(2, tokens.Count);
@@ -52,7 +52,7 @@ public class ContractTests
     [Fact]
     public void Lexer_RecognizesInvariantKeyword()
     {
-        var tokens = Tokenize("§INVARIANT", out var diagnostics);
+        var tokens = Tokenize("§IV", out var diagnostics);
 
         Assert.False(diagnostics.HasErrors);
         Assert.Equal(2, tokens.Count);
@@ -68,16 +68,14 @@ public class ContractTests
     public void Parser_ParsesRequiresContract()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Square}{visibility=public}
-  §IN{name=x}{type=INT}
-  §OUT{type=INT}
-  §REQUIRES (>= x INT:0)
-  §BODY
-    §RETURN (* x x)
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Square:pub}
+  §I{i32:x}
+  §O{i32}
+  §Q (>= x INT:0)
+  §R (* x x)
+§/F{f001}
+§/M{m001}
 ";
 
         var module = Parse(source, out var diagnostics);
@@ -97,16 +95,14 @@ public class ContractTests
     public void Parser_ParsesEnsuresContract()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Square}{visibility=public}
-  §IN{name=x}{type=INT}
-  §OUT{type=INT}
-  §ENSURES (>= result INT:0)
-  §BODY
-    §RETURN (* x x)
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Square:pub}
+  §I{i32:x}
+  §O{i32}
+  §S (>= result INT:0)
+  §R (* x x)
+§/F{f001}
+§/M{m001}
 ";
 
         var module = Parse(source, out var diagnostics);
@@ -126,19 +122,17 @@ public class ContractTests
     public void Parser_ParsesMultipleContracts()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Divide}{visibility=public}
-  §IN{name=a}{type=INT}
-  §IN{name=b}{type=INT}
-  §OUT{type=INT}
-  §REQUIRES (!= b INT:0)
-  §REQUIRES (>= a INT:0)
-  §ENSURES (>= result INT:0)
-  §BODY
-    §RETURN (/ a b)
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Divide:pub}
+  §I{i32:a}
+  §I{i32:b}
+  §O{i32}
+  §Q (!= b INT:0)
+  §Q (>= a INT:0)
+  §S (>= result INT:0)
+  §R (/ a b)
+§/F{f001}
+§/M{m001}
 ";
 
         var module = Parse(source, out var diagnostics);
@@ -153,17 +147,16 @@ public class ContractTests
     [Fact]
     public void Parser_ParsesContractWithMessage()
     {
+        // v2 syntax: message is first positional §Q{"message"} (condition)
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Square}{visibility=public}
-  §IN{name=x}{type=INT}
-  §OUT{type=INT}
-  §REQUIRES{message=""x must be nonnegative""} (>= x INT:0)
-  §BODY
-    §RETURN (* x x)
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Square:pub}
+§I{i32:x}
+§O{i32}
+§Q{""x must be nonnegative""} (>= x 0)
+§R (* x x)
+§/F{f001}
+§/M{m001}
 ";
 
         var module = Parse(source, out var diagnostics);
@@ -173,6 +166,8 @@ public class ContractTests
         var func = module.Functions[0];
         var requires = func.Preconditions[0];
         Assert.Equal("x must be nonnegative", requires.Message);
+        Assert.NotNull(requires.Condition);
+        Assert.IsType<BinaryOperationNode>(requires.Condition);
     }
 
     #endregion
@@ -244,16 +239,14 @@ public class ContractTests
     public void Emitter_EmitsFunctionWithPrecondition()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Square}{visibility=public}
-  §IN{name=x}{type=INT}
-  §OUT{type=INT}
-  §REQUIRES (>= x INT:0)
-  §BODY
-    §RETURN (* x x)
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Square:pub}
+  §I{i32:x}
+  §O{i32}
+  §Q (>= x INT:0)
+  §R (* x x)
+§/F{f001}
+§/M{m001}
 ";
 
         var module = Parse(source, out var diagnostics);
@@ -271,16 +264,14 @@ public class ContractTests
     public void Emitter_EmitsFunctionWithPostcondition()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Square}{visibility=public}
-  §IN{name=x}{type=INT}
-  §OUT{type=INT}
-  §ENSURES (>= result INT:0)
-  §BODY
-    §RETURN (* x x)
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Square:pub}
+  §I{i32:x}
+  §O{i32}
+  §S (>= result INT:0)
+  §R (* x x)
+§/F{f001}
+§/M{m001}
 ";
 
         var module = Parse(source, out var diagnostics);
@@ -302,16 +293,14 @@ public class ContractTests
     public void ContractVerifier_AcceptsValidPrecondition()
     {
         var source = @"
-§MODULE{id=m001}{name=Test}
-§FUNC{id=f001}{name=Square}{visibility=public}
-  §IN{name=x}{type=INT}
-  §OUT{type=INT}
-  §REQUIRES (>= x INT:0)
-  §BODY
-    §RETURN (* x x)
-  §END_BODY
-§END_FUNC{id=f001}
-§END_MODULE{id=m001}
+§M{m001:Test}
+§F{f001:Square:pub}
+  §I{i32:x}
+  §O{i32}
+  §Q (>= x INT:0)
+  §R (* x x)
+§/F{f001}
+§/M{m001}
 ";
 
         var module = Parse(source, out var parseDiags);

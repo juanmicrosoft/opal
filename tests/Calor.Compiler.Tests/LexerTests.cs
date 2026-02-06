@@ -16,17 +16,17 @@ public class LexerTests
     [Fact]
     public void Tokenize_SectionMarker_ReturnsCorrectToken()
     {
-        var tokens = Tokenize("§MODULE", out var diagnostics);
+        var tokens = Tokenize("§M", out var diagnostics);
 
         Assert.False(diagnostics.HasErrors);
-        Assert.Equal(2, tokens.Count); // MODULE + EOF
+        Assert.Equal(2, tokens.Count); // M + EOF
         Assert.Equal(TokenKind.Module, tokens[0].Kind);
     }
 
     [Fact]
     public void Tokenize_AllKeywords_ReturnsCorrectTokens()
     {
-        var source = "§MODULE §END_MODULE §FUNC §END_FUNC §IN §OUT §EFFECTS §BODY §END_BODY §CALL §END_CALL §ARG §RETURN";
+        var source = "§M §/M §F §/F §I §O §E §C §/C §A §R";
         var tokens = Tokenize(source, out var diagnostics);
 
         Assert.False(diagnostics.HasErrors);
@@ -37,12 +37,10 @@ public class LexerTests
         Assert.Equal(TokenKind.In, tokens[4].Kind);
         Assert.Equal(TokenKind.Out, tokens[5].Kind);
         Assert.Equal(TokenKind.Effects, tokens[6].Kind);
-        Assert.Equal(TokenKind.Body, tokens[7].Kind);
-        Assert.Equal(TokenKind.EndBody, tokens[8].Kind);
-        Assert.Equal(TokenKind.Call, tokens[9].Kind);
-        Assert.Equal(TokenKind.EndCall, tokens[10].Kind);
-        Assert.Equal(TokenKind.Arg, tokens[11].Kind);
-        Assert.Equal(TokenKind.Return, tokens[12].Kind);
+        Assert.Equal(TokenKind.Call, tokens[7].Kind);
+        Assert.Equal(TokenKind.EndCall, tokens[8].Kind);
+        Assert.Equal(TokenKind.Arg, tokens[9].Kind);
+        Assert.Equal(TokenKind.Return, tokens[10].Kind);
     }
 
     [Fact]
@@ -164,17 +162,15 @@ public class LexerTests
     public void Tokenize_HelloWorldProgram_ReturnsCorrectTokens()
     {
         var source = """
-            §MODULE{id=m001}{name=Hello}
-            §FUNC{id=f001}{name=Main}{visibility=public}
-              §OUT{type=VOID}
-              §EFFECTS{io=console_write}
-              §BODY
-                §CALL{target=Console.WriteLine}{fallible=false}
-                  §ARG STR:"Hello from Calor!"
-                §END_CALL
-              §END_BODY
-            §END_FUNC{id=f001}
-            §END_MODULE{id=m001}
+            §M{m001:Hello}
+            §F{f001:Main:pub}
+              §O{void}
+              §E{cw}
+              §C{Console.WriteLine}
+                §A "Hello from Calor!"
+              §/C
+            §/F{f001}
+            §/M{m001}
             """;
 
         var tokens = Tokenize(source, out var diagnostics);
@@ -190,7 +186,7 @@ public class LexerTests
     [Fact]
     public void Tokenize_TracksLineNumbers()
     {
-        var source = "§MODULE\n§FUNC";
+        var source = "§M\n§F";
         var tokens = Tokenize(source, out _);
 
         Assert.Equal(1, tokens[0].Span.Line);
@@ -200,10 +196,10 @@ public class LexerTests
     [Fact]
     public void Tokenize_TracksColumnNumbers()
     {
-        var source = "§MODULE [id=m001]";
+        var source = "§M {m001:Test}";
         var tokens = Tokenize(source, out _);
 
         Assert.Equal(1, tokens[0].Span.Column);
-        Assert.Equal(9, tokens[1].Span.Column); // [
+        Assert.Equal(4, tokens[1].Span.Column); // {
     }
 }

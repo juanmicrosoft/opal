@@ -33,10 +33,10 @@
 §I{i32:y}
 §O{i32}
 §Q (!= y 0)
-§TRY{t1}
+§TR{t1}
 §R (/ x y)
-§CATCH{Exception:e}
+§CA{Exception:e}
 §R 0
-§/TRY{t1}
+§/TR{t1}
 §/F{f3}
 §/M{m1}
