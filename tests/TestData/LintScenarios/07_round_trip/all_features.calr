@@ -35,7 +35,7 @@
 §Q (!= y 0)
 §TRY{t1}
 §R (/ x y)
-§CATCH{Exception:e}
+§CA{Exception:e}
 §R 0
 §/TRY{t1}
 §/F{f3}

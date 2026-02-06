@@ -5,7 +5,7 @@
 §O{i32}
 §TRY{t1}
 §R (/ a b)
-§CATCH{Exception:ex}
+§CA{Exception:ex}
 §R 0
 §/TRY{t1}
 §/F{f1}
@@ -14,9 +14,9 @@
 §E{cw}
 §TRY{t2}
 §P "try"
-§CATCH{Exception:e}
+§CA{Exception:e}
 §P "catch"
-§FINALLY
+§FI
 §P "finally"
 §/TRY{t2}
 §/F{f2}

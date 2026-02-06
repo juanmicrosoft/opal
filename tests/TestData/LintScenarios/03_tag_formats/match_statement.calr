@@ -2,13 +2,13 @@
 §F{f1:Describe:pub}
 §I{i32:n}
 §O{str}
-§MATCH{m1} n
-§CASE 0
+§W{m1} n
+§K 0
 §R "zero"
-§CASE 1
+§K 1
 §R "one"
-§CASE _
+§K _
 §R "other"
-§/MATCH{m1}
+§/W{m1}
 §/F{f1}
 §/M{m1}

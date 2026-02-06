@@ -19,7 +19,7 @@
 §F{f002:TestSome:pri}
   §O{void}
   §E{cw}
-  §B{opt} §SOME 42
+  §B{opt} §SM 42
   §C{Console.WriteLine}
     §A "  Created Some(42)"
   §/C
@@ -28,7 +28,7 @@
 §F{f003:TestNone:pri}
   §O{void}
   §E{cw}
-  §B{opt} §NONE{type=INT}
+  §B{opt} §NN{type=INT}
   §C{Console.WriteLine}
     §A "  Created None"
   §/C
