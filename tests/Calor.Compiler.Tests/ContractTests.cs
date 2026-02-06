@@ -145,14 +145,15 @@ public class ContractTests
     }
 
     [Fact]
-    public void Parser_ParsesContractWithCondition()
+    public void Parser_ParsesContractWithMessage()
     {
+        // v2 syntax: message is first positional §Q{"message"} (condition)
         var source = @"
 §M{m001:Test}
 §F{f001:Square:pub}
 §I{i32:x}
 §O{i32}
-§Q (>= x 0)
+§Q{""x must be nonnegative""} (>= x 0)
 §R (* x x)
 §/F{f001}
 §/M{m001}
@@ -164,7 +165,7 @@ public class ContractTests
 
         var func = module.Functions[0];
         var requires = func.Preconditions[0];
-        // v2 syntax doesn't support messages - verify condition is parsed
+        Assert.Equal("x must be nonnegative", requires.Message);
         Assert.NotNull(requires.Condition);
         Assert.IsType<BinaryOperationNode>(requires.Condition);
     }
