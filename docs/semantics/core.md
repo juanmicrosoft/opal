@@ -8,7 +8,22 @@ This document defines the formal semantics of the Calor programming language. Th
 
 ## 1. Design Principles
 
-### 1.1 Backend Independence
+### 1.1 Why "Emits C#" Is Not Enough
+
+> **Problem:** An agent-friendly language needs a spec that is tighter than "it emits C#."
+
+Emitting C# can hide semantic gaps:
+
+| What You Write | What You Need to Know |
+|----------------|----------------------|
+| `f(a(), b())` | Is `a()` guaranteed to be called before `b()`? |
+| `x + y` | What happens if the result overflows? |
+| `inner.x = 1` | Does this shadow or mutate the outer `x`? |
+| `return` in `if` | Does this return from the function or just the block? |
+
+If these answers depend on C# implementation details, agents cannot reliably reason about their code. **If the semantics are not crisp, you get "works on this compiler version" behavior, and that kills trust.**
+
+### 1.2 Backend Independence
 
 > **Key Principle:** The semantics of Calor are defined independently of any backend. The C# emitter must conform to Calor semantics, not define them.
 
@@ -17,13 +32,25 @@ The backend must:
 - Never rely on unspecified backend behavior
 - Generate explicit temporaries when needed to preserve semantics
 
-### 1.2 Safety First
+This means agents can be trained on Calor semantics and trust that any conforming backend will produce correct behavior.
+
+### 1.3 Safety First
 
 Calor prioritizes safety and predictability:
-- Overflow traps by default
-- Explicit type conversions for narrowing
-- Contracts are first-class semantic constructs
-- Effects are tracked and enforced
+- Overflow traps by default (no silent wraparound bugs)
+- Explicit type conversions for narrowing (no accidental data loss)
+- Contracts are first-class semantic constructs (not just comments)
+- Effects are tracked and enforced (side effects are visible)
+
+### 1.4 Agent Trainability
+
+Every semantic rule in this document:
+- Has a precise, unambiguous definition
+- Has corresponding test cases in `tests/Calor.Semantics.Tests/`
+- Is version-controlled (see `versioning.md`)
+- Is independent of backend implementation details
+
+Agents trained on these rules can generate correct code across compiler versions.
 
 ---
 

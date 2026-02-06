@@ -8,14 +8,33 @@ This document specifies the Calor Normal Form (CNF), an intermediate representat
 
 ## 1. Overview
 
-### 1.1 Purpose
+### 1.1 The Problem: Backend-Dependent Semantics
+
+When compiling directly to a backend language (like C#), semantic decisions can become implicit:
+
+```calor
+result = f(a(), b()) + c()
+```
+
+Direct compilation to C# might produce:
+```csharp
+var result = f(a(), b()) + c();
+```
+
+This **delegates** evaluation order to C#. If C# changes its evaluation order (or if a different backend has different rules), the code's behavior changes silently.
+
+**CNF prevents this by making every semantic decision explicit in the IR.**
+
+### 1.2 Purpose
 
 CNF is an intermediate representation (IR) between the Calor AST and backend code generation. Its purpose is to:
 
-1. **Make evaluation order explicit** - No reliance on backend evaluation order
+1. **Make evaluation order explicit** - Temporaries enforce left-to-right evaluation
 2. **Introduce explicit temporaries** - All intermediate values have names
 3. **Linearize control flow** - Branch/label/goto instead of structured control
 4. **Remove implicit conversions** - All conversions are explicit nodes
+
+By lowering to CNF before emitting backend code, we guarantee that **Calor semantics are enforced regardless of backend**.
 
 ### 1.2 Pipeline Position
 

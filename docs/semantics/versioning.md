@@ -6,6 +6,24 @@ This document specifies how Calor semantics are versioned and how version compat
 
 ---
 
+## Why Versioning Matters for Agents
+
+> **Agents will be trained and prompted against specific rules.**
+
+When an agent generates Calor code, it relies on specific semantic behaviors:
+- "Overflow traps" (not wraps)
+- "Left-to-right evaluation" (not unspecified)
+- "`&&` short-circuits" (not eager)
+
+If these rules change between versions without clear versioning:
+1. Agents trained on v1 rules will generate incorrect code on v2 compilers
+2. Prompts that describe v1 behavior will mislead agents on v2
+3. Code that "worked before" will silently break
+
+**Stable versioning ensures that agents know exactly which rules apply.**
+
+---
+
 ## 1. Version Format
 
 Calor semantics versions follow [Semantic Versioning 2.0.0](https://semver.org/):
@@ -14,9 +32,9 @@ Calor semantics versions follow [Semantic Versioning 2.0.0](https://semver.org/)
 MAJOR.MINOR.PATCH
 ```
 
-- **MAJOR**: Breaking semantic changes
-- **MINOR**: Backward-compatible semantic additions
-- **PATCH**: Clarifications, bug fixes in semantics
+- **MAJOR**: Breaking semantic changes (agents must be retrained)
+- **MINOR**: Backward-compatible semantic additions (old code still works)
+- **PATCH**: Clarifications, bug fixes in semantics (no behavior change)
 
 ---
 

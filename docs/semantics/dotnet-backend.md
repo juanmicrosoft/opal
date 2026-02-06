@@ -6,11 +6,37 @@ This document specifies how the .NET backend must implement Calor semantics. The
 
 ---
 
+## Why This Document Exists
+
+> **"It emits C#" is not a semantics specification.**
+
+The .NET backend generates C# code, but C# is not the source of truth for Calor semantics. This document specifies:
+
+1. **Where C# behavior matches Calor** → Direct emission is safe
+2. **Where C# behavior differs or is unspecified** → Additional code is required
+3. **How to verify conformance** → Test cases and validation checklists
+
+Without this specification, subtle differences between C# and Calor could cause:
+- "Works on my machine" bugs
+- Version-specific behavior changes
+- Agent-generated code that fails on different .NET versions
+
+---
+
 ## 1. Core Principle
 
 > **The emitter must not rely on unspecified behavior in C#.**
 
 When C# evaluation order matches Calor semantics, direct emission is acceptable. When C# behavior is unspecified or differs, the emitter must generate code that enforces Calor semantics.
+
+### What "Unspecified" Means
+
+C# specifies many behaviors, but not all. For example:
+- Argument evaluation order **is** specified (left-to-right) ✓
+- `checked` overflow behavior **is** specified ✓
+- Some optimization behaviors **are not** specified ✗
+
+The emitter must never assume unspecified behavior matches Calor semantics.
 
 ---
 
