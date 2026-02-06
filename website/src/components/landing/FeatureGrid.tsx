@@ -1,4 +1,5 @@
-import { FileCode, Shield, Fingerprint, Layers } from 'lucide-react';
+import { FileCode, Shield, Fingerprint, Layers, ChevronRight } from 'lucide-react';
+import Link from 'next/link';
 
 const features = [
   {
@@ -7,6 +8,7 @@ const features = [
       'Preconditions and postconditions are syntax, not comments. Agents see requirements and guarantees directly.',
     icon: Shield,
     code: '§Q (>= x 0)\n§S (>= result 0)',
+    href: '/docs/philosophy/effects-contracts-enforcement/',
   },
   {
     name: 'Explicit Effects',
@@ -14,6 +16,7 @@ const features = [
       'Declare side effects upfront. No guessing whether a function touches the file system or network.',
     icon: FileCode,
     code: '§E[cw,fr,net]',
+    href: '/docs/philosophy/effects-contracts-enforcement/',
   },
   {
     name: 'Unique Identifiers',
@@ -64,6 +67,15 @@ export function FeatureGrid() {
                     {feature.code}
                   </code>
                 </div>
+                {'href' in feature && feature.href && (
+                  <Link
+                    href={feature.href}
+                    className="mt-4 inline-flex items-center text-sm text-calor-cyan hover:underline"
+                  >
+                    Learn more
+                    <ChevronRight className="ml-1 h-4 w-4" />
+                  </Link>
+                )}
               </div>
             );
           })}
