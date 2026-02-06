@@ -3,21 +3,21 @@
 §I{i32:a}
 §I{i32:b}
 §O{i32}
-§TRY{t1}
+§TR{t1}
 §R (/ a b)
 §CA{Exception:ex}
 §R 0
-§/TRY{t1}
+§/TR{t1}
 §/F{f1}
 §F{f2:WithFinally:pub}
 §O{void}
 §E{cw}
-§TRY{t2}
+§TR{t2}
 §P "try"
 §CA{Exception:e}
 §P "catch"
 §FI
 §P "finally"
-§/TRY{t2}
+§/TR{t2}
 §/F{f2}
 §/M{m1}

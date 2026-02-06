@@ -670,7 +670,7 @@ public sealed class CalorEmitter : IAstVisitor<string>
         AppendLine($"§B{{{typePart}{namePart}}} {resource}");
 
         // Wrap body in try/finally to ensure disposal
-        AppendLine($"§TRY{{{tryId}}}");
+        AppendLine($"§TR{{{tryId}}}");
         Indent();
 
         foreach (var stmt in node.Body)
@@ -688,7 +688,7 @@ public sealed class CalorEmitter : IAstVisitor<string>
         Dedent();
         AppendLine($"§/I{{{tryId}_dispose]");
         Dedent();
-        AppendLine($"§/TRY{{{tryId}}}");
+        AppendLine($"§/TR{{{tryId}}}");
         return "";
     }
     private int _usingCounter = 0;
@@ -813,7 +813,7 @@ public sealed class CalorEmitter : IAstVisitor<string>
 
     public string Visit(TryStatementNode node)
     {
-        AppendLine($"§TRY{{{node.Id}}}");
+        AppendLine($"§TR{{{node.Id}}}");
         Indent();
 
         foreach (var stmt in node.TryBody)
@@ -841,7 +841,7 @@ public sealed class CalorEmitter : IAstVisitor<string>
             Dedent();
         }
 
-        AppendLine($"§/TRY{{{node.Id}}}");
+        AppendLine($"§/TR{{{node.Id}}}");
         return "";
     }
 

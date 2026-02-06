@@ -220,7 +220,7 @@ public sealed class CalorFormatter
                 break;
 
             case TryStatementNode tryStmt:
-                AppendLine("§TRY");
+                AppendLine("§TR");
                 foreach (var s in tryStmt.TryBody) FormatStatement(s);
                 foreach (var catchClause in tryStmt.CatchClauses)
                 {
@@ -232,7 +232,7 @@ public sealed class CalorFormatter
                     AppendLine("§FI");
                     foreach (var s in tryStmt.FinallyBody) FormatStatement(s);
                 }
-                AppendLine("§/TRY");
+                AppendLine("§/TR");
                 break;
 
             case ThrowStatementNode throwStmt:
