@@ -34,23 +34,24 @@ export const metadata: Metadata = {
     locale: 'en_US',
     url: 'https://calor.dev',
     siteName: 'Calor',
-    title: 'Calor',
-    description: 'Coding Agent Language for Optimized Reasoning',
+    title: 'Calor - A Programming Language for AI Coding Agents',
+    description:
+      'Calor is a programming language designed for AI coding agents, compiling to .NET via C#. Build intelligent, optimized agents with ease.',
     images: [
       {
-        url: 'https://calor.dev/og-image.png',
-        width: 789,
-        height: 403,
-        alt: 'Calor - Coding Agent Language for Optimized Reasoning',
+        url: 'https://calor.dev/og-image.jpg',
+        width: 1200,
+        height: 630,
+        alt: 'Calor - A Programming Language for AI Coding Agents',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Calor - Coding Agent Language for Optimized Reasoning',
+    title: 'Calor - A Programming Language for AI Coding Agents',
     description:
-      'A programming language designed specifically for AI coding agents, compiling to .NET via C# emission.',
-    images: ['https://calor.dev/og-image.png'],
+      'Calor is a programming language designed for AI coding agents, compiling to .NET via C#. Build intelligent, optimized agents with ease.',
+    images: ['https://calor.dev/og-image.jpg'],
   },
 };
 
