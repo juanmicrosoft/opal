@@ -652,7 +652,7 @@ public class CSharpToCalorConversionTests
 
         Assert.True(result.Success, GetErrorMessage(result));
         Assert.NotNull(result.CalorSource);
-        Assert.Contains("§CONTINUE", result.CalorSource);
+        Assert.Contains("§CN", result.CalorSource);
         Assert.Contains("continue", result.Context.UsedFeatures);
     }
 
@@ -672,7 +672,7 @@ public class CSharpToCalorConversionTests
 
         Assert.True(result.Success, GetErrorMessage(result));
         Assert.NotNull(result.CalorSource);
-        Assert.Contains("§CONTINUE", result.CalorSource);
+        Assert.Contains("§CN", result.CalorSource);
     }
 
     [Fact]
@@ -693,7 +693,7 @@ public class CSharpToCalorConversionTests
 
         Assert.True(result.Success, GetErrorMessage(result));
         Assert.NotNull(result.CalorSource);
-        Assert.Contains("§CONTINUE", result.CalorSource);
+        Assert.Contains("§CN", result.CalorSource);
     }
 
     [Fact]
@@ -712,7 +712,7 @@ public class CSharpToCalorConversionTests
 
         Assert.True(result.Success, GetErrorMessage(result));
         Assert.NotNull(result.CalorSource);
-        Assert.Contains("§BREAK", result.CalorSource);
+        Assert.Contains("§BK", result.CalorSource);
         Assert.Contains("break", result.Context.UsedFeatures);
     }
 
@@ -959,7 +959,7 @@ public class CSharpToCalorConversionTests
         Assert.NotNull(result.CalorSource);
         // Using statements are converted to try/finally for disposal
         Assert.Contains("§TRY{", result.CalorSource);
-        Assert.Contains("§FINALLY", result.CalorSource);
+        Assert.Contains("§FI", result.CalorSource);
         Assert.Contains("Dispose", result.CalorSource);
         Assert.Contains("using-statement", result.Context.UsedFeatures);
     }

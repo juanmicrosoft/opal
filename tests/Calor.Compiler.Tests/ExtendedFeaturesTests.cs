@@ -351,11 +351,11 @@ public class ExtendedFeaturesTests
     [Fact]
     public void Parser_ParsesComplexityDeclaration()
     {
-        // Use quoted values for complex syntax
+        // v2 positional format: {timeComplexity:spaceComplexity}
         var source = @"
 §M{m001:Test}
 §F{f001:BinarySearch:pub}
-  §CX{time:O(logn):space:O(1)}
+  §CX{O(logn):O(1)}
   §O{i32}
   §R 42
 §/F{f001}
@@ -374,10 +374,11 @@ public class ExtendedFeaturesTests
     [Fact]
     public void Emitter_EmitsComplexityAsComment()
     {
+        // v2 positional format: {timeComplexity}
         var source = @"
 §M{m001:Test}
 §F{f001:BinarySearch:pub}
-  §CX{time:O(n)}
+  §CX{O(n)}
   §O{i32}
   §R 42
 §/F{f001}
@@ -439,11 +440,11 @@ public class ExtendedFeaturesTests
     [Fact]
     public void Parser_ParsesDeprecatedDeclaration()
     {
-        // Use quoted values for version
+        // v2 positional format: {version:replacement}
         var source = @"
 §M{m001:Test}
 §F{f001:OldMethod:pub}
-  §DP{since:""1.5.0"":use:NewMethod}
+  §DP{""1.5.0"":NewMethod}
   §O{i32}
   §R 42
 §/F{f001}
@@ -462,10 +463,11 @@ public class ExtendedFeaturesTests
     [Fact]
     public void Emitter_EmitsDeprecatedAsObsoleteAttribute()
     {
+        // v2 positional format: {version:replacement}
         var source = @"
 §M{m001:Test}
 §F{f001:OldMethod:pub}
-  §DP{since:""1.5.0"":use:NewMethod}
+  §DP{""1.5.0"":NewMethod}
   §O{i32}
   §R 42
 §/F{f001}
@@ -627,11 +629,11 @@ public class ExtendedFeaturesTests
     [Fact]
     public void Parser_ParsesLockDeclaration()
     {
-        // Use v1 format with = signs
+        // v2 positional format: {agentId}
         var source = @"
 §M{m001:Test}
 §F{f001:SharedFunc:pub}
-  §LK{agent:agent123}
+  §LK{agent123}
   §O{i32}
   §R 42
 §/F{f001}
@@ -649,11 +651,11 @@ public class ExtendedFeaturesTests
     [Fact]
     public void Parser_ParsesAuthorDeclaration()
     {
-        // Use v1 format with = signs
+        // v2 positional format: {agentId:taskId}
         var source = @"
 §M{m001:Test}
 §F{f001:SharedFunc:pub}
-  §AU{agent:agent456:task:PROJ789}
+  §AU{agent456:PROJ789}
   §O{i32}
   §R 42
 §/F{f001}
@@ -698,13 +700,14 @@ public class ExtendedFeaturesTests
     [Fact]
     public void Parser_ParsesComprehensiveExample()
     {
+        // Updated to v2 positional format
         var source = @"
 §M{m001:Demo}
 §TD{t001:docs:medium} ""Add examples""
 
 §F{f001:Add:pub}
   §SN{""1.0.0""}
-  §CX{time:O(1):space:O(1)}
+  §CX{O(1):O(1)}
   §US{ValidateInput}
   §AS{data} ""Inputs are within i32 range""
   §I{i32:a} §I{i32:b}
@@ -716,7 +719,7 @@ public class ExtendedFeaturesTests
 
 §F{f002:OldAdd:pub}
   §SN{""0.5.0""}
-  §DP{since:""1.0.0"":use:Add}
+  §DP{""1.0.0"":Add}
   §I{i32:x} §I{i32:y}
   §O{i32}
   §R (+ x y)
@@ -746,13 +749,14 @@ public class ExtendedFeaturesTests
     [Fact]
     public void Emitter_GeneratesValidCSharpWithExtendedFeatures()
     {
+        // Updated to v2 positional format
         var source = @"
 §M{m001:Demo}
 §TD{t001:docs:medium} ""Add examples""
 
 §F{f001:Add:pub}
   §SN{""1.0.0""}
-  §CX{time:O(1)}
+  §CX{O(1)}
   §I{i32:a} §I{i32:b}
   §O{i32}
   §EX (+ 2 3) → 5
@@ -760,7 +764,7 @@ public class ExtendedFeaturesTests
 §/F{f001}
 
 §F{f002:OldAdd:pub}
-  §DP{since:""1.0.0"":use:Add}
+  §DP{""1.0.0"":Add}
   §I{i32:x} §I{i32:y}
   §O{i32}
   §R (+ x y)

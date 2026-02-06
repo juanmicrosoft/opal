@@ -1876,13 +1876,12 @@ public sealed class Parser
         var startToken = Expect(TokenKind.Bind);
         var attrs = ParseAttributes();
 
-        // Interpret bind attributes
-        var (name, isMutable) = AttributeHelper.InterpretBindAttributes(attrs);
+        // Interpret bind attributes - now includes type as third return value
+        var (name, isMutable, typeName) = AttributeHelper.InterpretBindAttributes(attrs);
         if (string.IsNullOrEmpty(name))
         {
             _diagnostics.ReportMissingRequiredAttribute(startToken.Span, "BIND", "name");
         }
-        var typeName = attrs["type"];
 
         // Parse optional initializer expression
         ExpressionNode? initializer = null;

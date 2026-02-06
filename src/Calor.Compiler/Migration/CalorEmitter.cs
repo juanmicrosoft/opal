@@ -126,15 +126,15 @@ public sealed class CalorEmitter : IAstVisitor<string>
     {
         if (node.IsStatic)
         {
-            AppendLine($"§USING{{static:{node.Namespace}}}");
+            AppendLine($"§U{{static:{node.Namespace}}}");
         }
         else if (node.Alias != null)
         {
-            AppendLine($"§USING{{{node.Alias}={node.Namespace}}}");
+            AppendLine($"§U{{{node.Alias}={node.Namespace}}}");
         }
         else
         {
-            AppendLine($"§USING{{{node.Namespace}}}");
+            AppendLine($"§U{{{node.Namespace}}}");
         }
         return "";
     }
@@ -192,7 +192,7 @@ public sealed class CalorEmitter : IAstVisitor<string>
             : "";
         var attrs = EmitCSharpAttributes(node.CSharpAttributes);
 
-        AppendLine($"§CLASS{{{node.Id}:{node.Name}{typeParams}{baseStr}{modStr}}}{attrs}");
+        AppendLine($"§CL{{{node.Id}:{node.Name}{typeParams}{baseStr}{modStr}}}{attrs}");
         Indent();
 
         // Emit type parameter constraints
@@ -245,7 +245,7 @@ public sealed class CalorEmitter : IAstVisitor<string>
         }
 
         Dedent();
-        AppendLine($"§/CLASS{{{node.Id}}}");
+        AppendLine($"§/CL{{{node.Id}}}");
 
         return "";
     }
@@ -409,7 +409,7 @@ public sealed class CalorEmitter : IAstVisitor<string>
         var output = node.Output != null ? TypeMapper.CSharpToCalor(node.Output.TypeName) : "void";
         var attrs = EmitCSharpAttributes(node.CSharpAttributes);
 
-        AppendLine($"§METHOD{{{node.Id}:{node.Name}{typeParams}:{visibility}{modStr}}}{attrs}");
+        AppendLine($"§MT{{{node.Id}:{node.Name}{typeParams}:{visibility}{modStr}}}{attrs}");
         Indent();
 
         // Emit type parameter constraints
@@ -450,7 +450,7 @@ public sealed class CalorEmitter : IAstVisitor<string>
         }
 
         Dedent();
-        AppendLine($"§/METHOD{{{node.Id}}}");
+        AppendLine($"§/MT{{{node.Id}}}");
 
         return "";
     }
@@ -517,7 +517,7 @@ public sealed class CalorEmitter : IAstVisitor<string>
     {
         var condition = node.Condition.Accept(this);
         var message = node.Message != null ? $" \"{node.Message}\"" : "";
-        AppendLine($"§REQ {condition}{message}");
+        AppendLine($"§Q {condition}{message}");
         return "";
     }
 
@@ -525,7 +525,7 @@ public sealed class CalorEmitter : IAstVisitor<string>
     {
         var condition = node.Condition.Accept(this);
         var message = node.Message != null ? $" \"{node.Message}\"" : "";
-        AppendLine($"§ENS {condition}{message}");
+        AppendLine($"§S {condition}{message}");
         return "";
     }
 
@@ -533,7 +533,7 @@ public sealed class CalorEmitter : IAstVisitor<string>
     {
         var condition = node.Condition.Accept(this);
         var message = node.Message != null ? $" \"{node.Message}\"" : "";
-        AppendLine($"§INV {condition}{message}");
+        AppendLine($"§IV {condition}{message}");
         return "";
     }
 
@@ -573,7 +573,7 @@ public sealed class CalorEmitter : IAstVisitor<string>
         var id = string.IsNullOrEmpty(node.Id) ? $"sw{_switchCounter++}" : node.Id;
 
         // Add :expr suffix to indicate this is a match expression (not statement)
-        AppendLine($"§MATCH{{{id}:expr}} {target}");
+        AppendLine($"§W{{{id}:expr}} {target}");
         Indent();
 
         foreach (var matchCase in node.Cases)
@@ -582,7 +582,7 @@ public sealed class CalorEmitter : IAstVisitor<string>
         }
 
         Dedent();
-        AppendLine($"§/MATCH{{{id}}}");
+        AppendLine($"§/W{{{id}}}");
     }
 
     public string Visit(CallStatementNode node)
@@ -604,13 +604,13 @@ public sealed class CalorEmitter : IAstVisitor<string>
 
     public string Visit(ContinueStatementNode node)
     {
-        AppendLine("§CONTINUE");
+        AppendLine("§CN");
         return "";
     }
 
     public string Visit(BreakStatementNode node)
     {
-        AppendLine("§BREAK");
+        AppendLine("§BK");
         return "";
     }
 
@@ -679,7 +679,7 @@ public sealed class CalorEmitter : IAstVisitor<string>
         }
 
         Dedent();
-        AppendLine("§FINALLY");
+        AppendLine("§FI");
         Indent();
         // Dispose the resource if not null
         AppendLine($"§IF{{{tryId}_dispose] (!= {namePart} null)");
@@ -763,7 +763,7 @@ public sealed class CalorEmitter : IAstVisitor<string>
     {
         var condition = node.Condition.Accept(this);
 
-        AppendLine($"§WHILE{{{node.Id}}} {condition}");
+        AppendLine($"§WH{{{node.Id}}} {condition}");
         Indent();
 
         foreach (var stmt in node.Body)
@@ -830,7 +830,7 @@ public sealed class CalorEmitter : IAstVisitor<string>
 
         if (node.FinallyBody != null)
         {
-            AppendLine("§FINALLY");
+            AppendLine("§FI");
             Indent();
 
             foreach (var stmt in node.FinallyBody)
@@ -851,7 +851,7 @@ public sealed class CalorEmitter : IAstVisitor<string>
         var varPart = node.VariableName != null ? $":{node.VariableName}" : "";
         var filterPart = node.Filter != null ? $" when {node.Filter.Accept(this)}" : "";
 
-        AppendLine($"§CATCH{{{exType}{varPart}}}{filterPart}");
+        AppendLine($"§CA{{{exType}{varPart}}}{filterPart}");
         Indent();
 
         foreach (var stmt in node.Body)
@@ -868,18 +868,18 @@ public sealed class CalorEmitter : IAstVisitor<string>
         if (node.Exception != null)
         {
             var expr = node.Exception.Accept(this);
-            AppendLine($"§THROW {expr}");
+            AppendLine($"§TH {expr}");
         }
         else
         {
-            AppendLine("§RETHROW");
+            AppendLine("§RT");
         }
         return "";
     }
 
     public string Visit(RethrowStatementNode node)
     {
-        AppendLine("§RETHROW");
+        AppendLine("§RT");
         return "";
     }
 
@@ -888,7 +888,7 @@ public sealed class CalorEmitter : IAstVisitor<string>
         var target = node.Target.Accept(this);
         var id = string.IsNullOrEmpty(node.Id) ? $"sw{_switchCounter++}" : node.Id;
 
-        AppendLine($"§MATCH{{{id}}} {target}");
+        AppendLine($"§W{{{id}}} {target}");
         Indent();
 
         foreach (var matchCase in node.Cases)
@@ -897,7 +897,7 @@ public sealed class CalorEmitter : IAstVisitor<string>
         }
 
         Dedent();
-        AppendLine($"§/MATCH{{{id}}}");
+        AppendLine($"§/W{{{id}}}");
         return "";
     }
     private int _switchCounter = 0;
@@ -906,7 +906,7 @@ public sealed class CalorEmitter : IAstVisitor<string>
     {
         var pattern = EmitPattern(node.Pattern);
         var guard = node.Guard != null ? $" §WHEN {node.Guard.Accept(this)}" : "";
-        AppendLine($"§CASE {pattern}{guard}");
+        AppendLine($"§K {pattern}{guard}");
         Indent();
 
         foreach (var stmt in node.Body)
@@ -1046,20 +1046,20 @@ public sealed class CalorEmitter : IAstVisitor<string>
     public string Visit(MatchExpressionNode node)
     {
         // Use block syntax that the Calor parser can understand
-        // §MATCH{id} target
-        // §CASE pattern
+        // §W{id} target
+        // §K pattern
         //     body statements
-        // §/MATCH{id}
+        // §/W{id}
         var target = node.Target.Accept(this);
         var id = string.IsNullOrEmpty(node.Id) ? $"sw{_switchCounter++}" : node.Id;
 
         var sb = new StringBuilder();
-        sb.AppendLine($"§MATCH{{{id}}} {target}");
+        sb.AppendLine($"§W{{{id}}} {target}");
 
         foreach (var matchCase in node.Cases)
         {
             var pattern = EmitPattern(matchCase.Pattern);
-            sb.AppendLine($"  §CASE {pattern}");
+            sb.AppendLine($"  §K {pattern}");
 
             foreach (var stmt in matchCase.Body)
             {
@@ -1071,20 +1071,20 @@ public sealed class CalorEmitter : IAstVisitor<string>
             }
         }
 
-        sb.Append($"§/MATCH{{{id}}}");
+        sb.Append($"§/W{{{id}}}");
         return sb.ToString();
     }
 
     public string Visit(SomeExpressionNode node)
     {
         var value = node.Value.Accept(this);
-        return $"§SOME{{{value}}}";
+        return $"§SM {value}";
     }
 
     public string Visit(NoneExpressionNode node)
     {
-        var typePart = node.TypeName != null ? $"<{TypeMapper.CSharpToCalor(node.TypeName)}>" : "";
-        return $"§NONE{typePart}";
+        var typePart = node.TypeName != null ? $"{{{TypeMapper.CSharpToCalor(node.TypeName)}}}" : "";
+        return $"§NN{typePart}";
     }
 
     public string Visit(OkExpressionNode node)
@@ -1314,13 +1314,14 @@ public sealed class CalorEmitter : IAstVisitor<string>
     {
         var fields = string.Join(", ", node.Fields.Select(f =>
             $"{TypeMapper.CSharpToCalor(f.TypeName)}:{f.Name}"));
-        AppendLine($"§RECORD{{{node.Name}}} ({fields})");
+        AppendLine($"§D{{{node.Name}}} ({fields})");
         return "";
     }
 
     public string Visit(UnionTypeDefinitionNode node)
     {
-        AppendLine($"§UNION{{{node.Name}}}");
+        // Emit union types using the type/variant syntax
+        AppendLine($"§T{{{node.Name}}}");
         Indent();
         foreach (var variant in node.Variants)
         {
@@ -1330,7 +1331,7 @@ public sealed class CalorEmitter : IAstVisitor<string>
             AppendLine($"§V{{{variant.Name}}}{fields}");
         }
         Dedent();
-        AppendLine("§/UNION");
+        AppendLine("§/T");
         return "";
     }
 
@@ -1386,7 +1387,7 @@ public sealed class CalorEmitter : IAstVisitor<string>
     }
 
     /// <summary>
-    /// Emits §WHERE clauses for type parameters with constraints.
+    /// Emits §WR clauses for type parameters with constraints.
     /// </summary>
     private void EmitTypeParameterConstraints(IReadOnlyList<TypeParameterNode> typeParameters)
     {
@@ -1395,7 +1396,7 @@ public sealed class CalorEmitter : IAstVisitor<string>
             if (tp.Constraints.Count > 0)
             {
                 var constraints = string.Join(",", tp.Constraints.Select(c => Visit(c)));
-                AppendLine($"§WHERE{{{tp.Name}:{constraints}}}");
+                AppendLine($"§WR{{{tp.Name}:{constraints}}}");
             }
         }
     }
@@ -1414,7 +1415,7 @@ public sealed class CalorEmitter : IAstVisitor<string>
         var output = node.Output != null ? TypeMapper.CSharpToCalor(node.Output.TypeName) : "void";
         var paramList = string.Join(", ", node.Parameters.Select(p =>
             $"{TypeMapper.CSharpToCalor(p.TypeName)}:{p.Name}"));
-        AppendLine($"§DELEGATE{{{node.Name}}} ({paramList}) → {output}");
+        AppendLine($"§DEL{{{node.Name}}} ({paramList}) → {output}");
         return "";
     }
 

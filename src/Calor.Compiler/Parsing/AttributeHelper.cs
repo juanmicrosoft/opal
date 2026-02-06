@@ -97,9 +97,10 @@ public static class AttributeHelper
     }
 
     /// <summary>
-    /// Interprets attributes for BIND/§B: {name} or {~name}
+    /// Interprets attributes for BIND/§B: {name} or {~name} or {name:type}
+    /// The ~ prefix indicates mutability. Type is optional second positional.
     /// </summary>
-    public static (string Name, bool Mutable) InterpretBindAttributes(AttributeCollection attrs)
+    public static (string Name, bool Mutable, string? TypeName) InterpretBindAttributes(AttributeCollection attrs)
     {
         var name = attrs["_pos0"] ?? "";
         var isMutable = name.StartsWith('~');
@@ -108,7 +109,14 @@ public static class AttributeHelper
             name = name[1..]; // Remove the ~ prefix
         }
 
-        return (name, isMutable);
+        // Type is in second positional
+        var typeName = attrs["_pos1"];
+        if (!string.IsNullOrEmpty(typeName))
+        {
+            typeName = ExpandType(typeName);
+        }
+
+        return (name, isMutable, typeName);
     }
 
     /// <summary>
@@ -405,53 +413,19 @@ public static class AttributeHelper
     #region Extended Features - Enhanced Contracts
 
     /// <summary>
-    /// Interprets attributes for COMPLEXITY: {time:O(n)}{space:O(1)} or {worst:time:O(n)}
+    /// Interprets attributes for COMPLEXITY: {timeComplexity} or {timeComplexity:spaceComplexity}
+    /// Pure positional format in v2 syntax.
     /// </summary>
     public static (ComplexityClass? Time, ComplexityClass? Space, bool IsWorstCase, string? Custom) InterpretComplexityAttributes(AttributeCollection attrs)
     {
-        ComplexityClass? timeComplexity = null;
-        ComplexityClass? spaceComplexity = null;
-        bool isWorstCase = false;
-        string? custom = null;
+        // Pure positional: {time} or {time:space}
+        var timeVal = attrs["_pos0"];
+        var spaceVal = attrs["_pos1"];
 
-        for (int i = 0; ; i++)
-        {
-            var val = attrs[$"_pos{i}"];
-            if (string.IsNullOrEmpty(val)) break;
+        ComplexityClass? timeComplexity = timeVal != null ? ParseComplexityClass(timeVal) : null;
+        ComplexityClass? spaceComplexity = spaceVal != null ? ParseComplexityClass(spaceVal) : null;
 
-            if (val.StartsWith("worst:", StringComparison.OrdinalIgnoreCase))
-            {
-                isWorstCase = true;
-                val = val[6..];
-            }
-
-            if (val.StartsWith("time:", StringComparison.OrdinalIgnoreCase))
-            {
-                timeComplexity = ParseComplexityClass(val[5..]);
-            }
-            else if (val.StartsWith("space:", StringComparison.OrdinalIgnoreCase))
-            {
-                spaceComplexity = ParseComplexityClass(val[6..]);
-            }
-            else
-            {
-                // Check if it's a complexity class without prefix (assume time)
-                var parsed = ParseComplexityClass(val);
-                if (parsed != null)
-                {
-                    if (timeComplexity == null)
-                        timeComplexity = parsed;
-                    else if (spaceComplexity == null)
-                        spaceComplexity = parsed;
-                }
-                else
-                {
-                    custom = val;
-                }
-            }
-        }
-
-        return (timeComplexity, spaceComplexity, isWorstCase, custom);
+        return (timeComplexity, spaceComplexity, false, null);
     }
 
     /// <summary>
@@ -486,33 +460,20 @@ public static class AttributeHelper
     }
 
     /// <summary>
-    /// Interprets attributes for DEPRECATED: {since:version}{use:replacement}{reason:"reason"}
+    /// Interprets attributes for DEPRECATED: {version:replacement} or {version}
+    /// Pure positional format - no prefixes needed in v2 syntax.
     /// </summary>
     public static (string Since, string? Replacement, string? Reason, string? RemovedIn) InterpretDeprecatedAttributes(AttributeCollection attrs)
     {
-        string since = "";
-        string? replacement = null;
-        string? reason = null;
-        string? removedIn = null;
+        // Pure positional: {version} or {version:replacement}
+        var since = attrs["_pos0"] ?? "";
+        var replacement = attrs["_pos1"];
 
-        for (int i = 0; ; i++)
-        {
-            var val = attrs[$"_pos{i}"];
-            if (string.IsNullOrEmpty(val)) break;
+        // If replacement is empty string, treat as null
+        if (string.IsNullOrEmpty(replacement))
+            replacement = null;
 
-            if (val.StartsWith("since:", StringComparison.OrdinalIgnoreCase))
-                since = val[6..];
-            else if (val.StartsWith("use:", StringComparison.OrdinalIgnoreCase))
-                replacement = val[4..];
-            else if (val.StartsWith("reason:", StringComparison.OrdinalIgnoreCase))
-                reason = val[7..].Trim('"');
-            else if (val.StartsWith("removed:", StringComparison.OrdinalIgnoreCase))
-                removedIn = val[8..];
-            else if (i == 0 && !val.Contains(':'))
-                since = val; // First positional without prefix is version
-        }
-
-        return (since, replacement, reason, removedIn);
+        return (since, replacement, null, null);
     }
 
     /// <summary>
@@ -561,51 +522,30 @@ public static class AttributeHelper
     }
 
     /// <summary>
-    /// Interprets attributes for LOCK: {agent:id}{expires:datetime}
+    /// Interprets attributes for LOCK: {agentId}
+    /// Pure positional format in v2 syntax.
     /// </summary>
     public static (string AgentId, DateTime? Acquired, DateTime? Expires) InterpretLockAttributes(AttributeCollection attrs)
     {
-        string agentId = "";
-        DateTime? acquired = null;
-        DateTime? expires = null;
-
-        for (int i = 0; ; i++)
-        {
-            var val = attrs[$"_pos{i}"];
-            if (string.IsNullOrEmpty(val)) break;
-
-            if (val.StartsWith("agent:", StringComparison.OrdinalIgnoreCase))
-                agentId = val[6..];
-            else if (val.StartsWith("acquired:", StringComparison.OrdinalIgnoreCase))
-                acquired = TryParseDateTime(val[9..]);
-            else if (val.StartsWith("expires:", StringComparison.OrdinalIgnoreCase))
-                expires = TryParseDateTime(val[8..]);
-        }
-
-        return (agentId, acquired, expires);
+        // Pure positional: {agentId}
+        var agentId = attrs["_pos0"] ?? "";
+        return (agentId, null, null);
     }
 
     /// <summary>
-    /// Interprets attributes for AUTHOR: {agent:id}{date:date}{task:taskId}
+    /// Interprets attributes for AUTHOR: {agentId:taskId}
+    /// Pure positional format in v2 syntax.
     /// </summary>
     public static (string AgentId, DateOnly Date, string? TaskId) InterpretAuthorAttributes(AttributeCollection attrs)
     {
-        string agentId = "";
-        DateOnly date = DateOnly.FromDateTime(DateTime.Now);
-        string? taskId = null;
+        // Pure positional: {agentId} or {agentId:taskId}
+        var agentId = attrs["_pos0"] ?? "";
+        var taskId = attrs["_pos1"];
+        var date = DateOnly.FromDateTime(DateTime.Now);
 
-        for (int i = 0; ; i++)
-        {
-            var val = attrs[$"_pos{i}"];
-            if (string.IsNullOrEmpty(val)) break;
-
-            if (val.StartsWith("agent:", StringComparison.OrdinalIgnoreCase))
-                agentId = val[6..];
-            else if (val.StartsWith("date:", StringComparison.OrdinalIgnoreCase))
-                date = TryParseDateOnly(val[5..]) ?? date;
-            else if (val.StartsWith("task:", StringComparison.OrdinalIgnoreCase))
-                taskId = val[5..];
-        }
+        // If taskId is empty string, treat as null
+        if (string.IsNullOrEmpty(taskId))
+            taskId = null;
 
         return (agentId, date, taskId);
     }

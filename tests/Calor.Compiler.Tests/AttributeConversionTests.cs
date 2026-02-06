@@ -367,8 +367,8 @@ public class AttributeConversionTests
     {
         var calorSource = """
             §M{m001:TestModule}
-              §CLASS{c001:TestController:ControllerBase}[@Route("api/test")][@ApiController]
-              §/CLASS{c001}
+              §CL{c001:TestController:ControllerBase}[@Route("api/test")][@ApiController]
+              §/CL{c001}
             §/M{m001}
             """;
 
@@ -394,11 +394,11 @@ public class AttributeConversionTests
     {
         var calorSource = """
             §M{m001:TestModule}
-              §CLASS{c001:TestController:ControllerBase}
-                §METHOD{m001:Post:pub}[@HttpPost]
+              §CL{c001:TestController:ControllerBase}
+                §MT{m001:Post:pub}[@HttpPost]
                   §O{void}
-                §/METHOD{m001}
-              §/CLASS{c001}
+                §/MT{m001}
+              §/CL{c001}
             §/M{m001}
             """;
 
@@ -425,12 +425,12 @@ public class AttributeConversionTests
     {
         var calorSource = """
             §M{m001:TestModule}
-              §CLASS{c001:TestModel}
+              §CL{c001:TestModel}
                 §PROP{p001:Value:int:pub}[@Range(1, 100, ErrorMessage="Invalid")]
                   §GET
                   §SET
                 §/PROP{p001}
-              §/CLASS{c001}
+              §/CL{c001}
             §/M{m001}
             """;
 
