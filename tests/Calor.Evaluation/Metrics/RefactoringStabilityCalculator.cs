@@ -10,7 +10,7 @@ namespace Calor.Evaluation.Metrics;
 /// Category 8: Refactoring Stability Calculator
 /// Measures how well unique IDs preserve references during code transformations.
 ///
-/// Calor's unique IDs (§F[funcId:, §M[modId:, etc.) are hypothesized to survive
+/// Calor's unique IDs (§F{funcId:, §M{modId:, etc.) are hypothesized to survive
 /// refactoring operations better than C#'s name-based references.
 /// </summary>
 public class RefactoringStabilityCalculator : IMetricCalculator
@@ -205,7 +205,7 @@ public class RefactoringStabilityCalculator : IMetricCalculator
         if (source.Contains("§INV")) score += 0.1;
 
         // Effect declarations preserve behavior constraints
-        if (source.Contains("§E[")) score += 0.2;
+        if (source.Contains("§E{")) score += 0.2;
 
         return Math.Min(score, 1.0);
     }
