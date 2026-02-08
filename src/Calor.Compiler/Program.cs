@@ -6,6 +6,7 @@ using Calor.Compiler.Commands;
 using Calor.Compiler.Diagnostics;
 using Calor.Compiler.Effects;
 using Calor.Compiler.Parsing;
+using Calor.Compiler.Verification.Z3;
 
 namespace Calor.Compiler;
 
@@ -43,6 +44,10 @@ public class Program
             description: "Contract enforcement mode: off, debug, or release (default: debug)",
             getDefaultValue: () => "debug");
 
+        var verifyOption = new Option<bool>(
+            aliases: ["--verify"],
+            description: "Enable static contract verification with Z3 SMT solver");
+
         var rootCommand = new RootCommand("Calor Compiler - Compiles Calor source to C# and migrates between languages")
         {
             inputOption,
@@ -51,11 +56,12 @@ public class Program
             strictApiOption,
             requireDocsOption,
             enforceEffectsOption,
-            contractModeOption
+            contractModeOption,
+            verifyOption
         };
 
         // Legacy compile handler (when --input is provided)
-        rootCommand.SetHandler(CompileAsync, inputOption, outputOption, verboseOption, strictApiOption, requireDocsOption, enforceEffectsOption, contractModeOption);
+        rootCommand.SetHandler(CompileAsync, inputOption, outputOption, verboseOption, strictApiOption, requireDocsOption, enforceEffectsOption, contractModeOption, verifyOption);
 
         // Add subcommands
         rootCommand.AddCommand(ConvertCommand.Create());
@@ -72,7 +78,7 @@ public class Program
         return await rootCommand.InvokeAsync(args);
     }
 
-    private static async Task CompileAsync(FileInfo? input, FileInfo? output, bool verbose, bool strictApi, bool requireDocs, bool enforceEffects, string contractMode)
+    private static async Task CompileAsync(FileInfo? input, FileInfo? output, bool verbose, bool strictApi, bool requireDocs, bool enforceEffects, string contractMode, bool verify)
     {
         try
         {
@@ -95,6 +101,7 @@ public class Program
                 Console.WriteLine("  --require-docs    Require documentation on public functions");
                 Console.WriteLine("  --enforce-effects Enforce effect declarations (default: true)");
                 Console.WriteLine("  --contract-mode   Contract mode: off, debug, release (default: debug)");
+                Console.WriteLine("  --verify          Enable static contract verification with Z3");
                 Console.WriteLine();
                 Console.WriteLine("Run 'calor --help' for more information.");
                 return;
@@ -126,6 +133,7 @@ public class Program
                 RequireDocs = requireDocs,
                 EnforceEffects = enforceEffects,
                 ContractMode = parsedContractMode,
+                VerifyContracts = verify,
                 ProjectDirectory = Path.GetDirectoryName(input.FullName)
             };
             var result = Compile(source, input.FullName, options);
@@ -250,8 +258,22 @@ public class Program
             return new CompilationResult(diagnostics, ast, "");
         }
 
+        // Static contract verification with Z3 (optional)
+        if (options.VerifyContracts)
+        {
+            var verificationPass = new ContractVerificationPass(
+                diagnostics,
+                new VerificationOptions { Verbose = options.Verbose });
+            options.VerificationResults = verificationPass.Verify(ast);
+
+            if (options.Verbose)
+            {
+                Console.WriteLine("Contract verification completed");
+            }
+        }
+
         // Code generation
-        var emitter = new CSharpEmitter(options.ContractMode);
+        var emitter = new CSharpEmitter(options.ContractMode, options.VerificationResults);
         var generatedCode = emitter.Emit(ast);
 
         if (options.Verbose)
@@ -303,6 +325,16 @@ public sealed class CompilationOptions
     /// Project directory for loading calor.effects.json stubs.
     /// </summary>
     public string? ProjectDirectory { get; init; }
+
+    /// <summary>
+    /// Enable static contract verification with Z3 SMT solver.
+    /// </summary>
+    public bool VerifyContracts { get; init; }
+
+    /// <summary>
+    /// Verification results populated after running verification pass.
+    /// </summary>
+    public ModuleVerificationResult? VerificationResults { get; internal set; }
 }
 
 /// <summary>
