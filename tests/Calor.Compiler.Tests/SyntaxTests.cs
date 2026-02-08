@@ -674,7 +674,7 @@ public class SyntaxTests
     {
         var (category, value) = AttributeHelper.ExpandEffectCode("net");
         Assert.Equal("io", category);
-        Assert.Equal("network", value);
+        Assert.Equal("network_readwrite", value);  // Changed in effect taxonomy enhancement
     }
 
     [Fact]

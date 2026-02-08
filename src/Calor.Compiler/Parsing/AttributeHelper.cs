@@ -250,30 +250,51 @@ public static class AttributeHelper
             "cw" => ("io", "console_write"),
             "cr" => ("io", "console_read"),
 
-            // File I/O
+            // File I/O - legacy codes
             "fw" => ("io", "file_write"),
             "fr" => ("io", "file_read"),
             "fd" => ("io", "file_delete"),
 
-            // Network
-            "net" => ("io", "network"),
+            // Granular filesystem effects
+            "fs:r" => ("io", "filesystem_read"),
+            "fs:w" => ("io", "filesystem_write"),
+            "fs:rw" => ("io", "filesystem_readwrite"),
+
+            // Network - legacy code (maps to rw for backward compat)
+            "net" => ("io", "network_readwrite"),
             "http" => ("io", "http"),
 
-            // Database
-            "db" => ("io", "database"),
+            // Granular network effects
+            "net:r" => ("io", "network_read"),
+            "net:w" => ("io", "network_write"),
+            "net:rw" => ("io", "network_readwrite"),
+
+            // Database - legacy code (maps to rw for backward compat)
+            "db" => ("io", "database_readwrite"),
             "dbr" => ("io", "database_read"),
             "dbw" => ("io", "database_write"),
 
-            // System
-            "env" => ("io", "environment"),
+            // Granular database effects
+            "db:r" => ("io", "database_read"),
+            "db:w" => ("io", "database_write"),
+            "db:rw" => ("io", "database_readwrite"),
+
+            // System - legacy code (maps to rw for backward compat)
+            "env" => ("io", "environment_readwrite"),
             "proc" => ("io", "process"),
+
+            // Granular environment effects
+            "env:r" => ("io", "environment_read"),
+            "env:w" => ("io", "environment_write"),
 
             // Memory/Resources
             "alloc" => ("memory", "allocation"),
+            "unsafe" => ("memory", "unsafe"),
 
             // Non-determinism
             "time" => ("nondeterminism", "time"),
             "rand" => ("nondeterminism", "random"),
+            "rng" => ("nondeterminism", "random"),  // alias for rand
 
             // Default: treat as io with the code as value
             _ => ("io", code)

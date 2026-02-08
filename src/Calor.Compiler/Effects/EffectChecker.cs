@@ -238,6 +238,7 @@ public enum EffectKind
     Unknown,
     IO,
     Mutation,
+    Memory,
     Allocation,
     Exception,
     Nondeterminism
