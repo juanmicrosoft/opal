@@ -17,7 +17,7 @@ The `calor` command-line tool provides commands for working with Calor code and 
 Install `calor` as a global .NET tool:
 
 ```bash
-dotnet tool install -g calor --version 0.1.3
+dotnet tool install -g calor
 ```
 
 Or update an existing installation:
