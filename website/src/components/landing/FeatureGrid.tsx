@@ -15,7 +15,7 @@ const features = [
     description:
       'Declare side effects upfront. No guessing whether a function touches the file system or network.',
     icon: FileCode,
-    code: '§E[cw,fr,net]',
+    code: '§E{cw,fs:r,net:rw}',
     href: '/docs/philosophy/effects-contracts-enforcement/',
   },
   {
@@ -23,14 +23,14 @@ const features = [
     description:
       'Every element has a stable ID. Refactoring changes names, not references.',
     icon: Fingerprint,
-    code: '§F[f001:Process:pub]',
+    code: '§F{f001:Process:pub}',
   },
   {
     name: 'Explicit Structure',
     description:
       'Matched opening and closing tags. No ambiguous scope boundaries for agents to parse.',
     icon: Layers,
-    code: '§M[m001:App]\n  ...\n§/M[m001]',
+    code: '§M{m001:App}\n  ...\n§/M{m001}',
   },
 ];
 
