@@ -34,6 +34,15 @@ public sealed class TypeChecker
 
     private void RegisterFunction(FunctionNode func)
     {
+        _env.EnterScope();
+
+        // Register type parameters first so they can be resolved in parameter types
+        foreach (var tp in func.TypeParameters)
+        {
+            var tpType = new TypeParameterType(tp.Name, tp.Constraints);
+            _env.DefineType(tp.Name, tpType);
+        }
+
         var paramTypes = new List<CalorType>();
         foreach (var param in func.Parameters)
         {
@@ -44,6 +53,8 @@ public sealed class TypeChecker
         var returnType = func.Output != null
             ? ResolveTypeName(func.Output.TypeName, func.Output.Span)
             : PrimitiveType.Void;
+
+        _env.ExitScope();
 
         var funcType = new FunctionType(paramTypes, returnType);
         _env.DefineFunction(func.Name, funcType);
@@ -513,13 +524,13 @@ public sealed class TypeChecker
 
     private CalorType ResolveTypeName(string typeName, Parsing.TextSpan span)
     {
-        // Handle generic types like Option[INT] or Result[INT, STRING]
+        // Handle generic types with bracket syntax: Option[INT] or Result[INT, STRING]
         var bracketIndex = typeName.IndexOf('[');
-        if (bracketIndex > 0)
+        if (bracketIndex > 0 && typeName.EndsWith(']'))
         {
             var baseName = typeName[..bracketIndex];
             var argsStr = typeName[(bracketIndex + 1)..^1];
-            var args = argsStr.Split(',').Select(a => a.Trim()).ToList();
+            var args = SplitGenericArgs(argsStr);
 
             if (baseName.Equals("Option", StringComparison.OrdinalIgnoreCase) && args.Count == 1)
             {
@@ -535,12 +546,45 @@ public sealed class TypeChecker
             }
         }
 
+        // Handle generic types with angle bracket syntax: List<T>, Dictionary<K, V>
+        var angleIndex = typeName.IndexOf('<');
+        if (angleIndex > 0 && typeName.EndsWith('>'))
+        {
+            var baseName = typeName[..angleIndex];
+            var argsStr = typeName[(angleIndex + 1)..^1];
+            var args = SplitGenericArgs(argsStr);
+
+            // Handle Option<T> with angle brackets
+            if (baseName.Equals("Option", StringComparison.OrdinalIgnoreCase) && args.Count == 1)
+            {
+                var innerType = ResolveTypeName(args[0], span);
+                return new OptionType(innerType);
+            }
+
+            // Handle Result<T, E> with angle brackets
+            if (baseName.Equals("Result", StringComparison.OrdinalIgnoreCase) && args.Count == 2)
+            {
+                var okType = ResolveTypeName(args[0], span);
+                var errType = ResolveTypeName(args[1], span);
+                return new ResultType(okType, errType);
+            }
+
+            // For other generic types (List<T>, Dictionary<K, V>, etc.),
+            // resolve the type arguments and create a GenericInstanceType
+            var resolvedArgs = new List<CalorType>();
+            foreach (var arg in args)
+            {
+                resolvedArgs.Add(ResolveTypeName(arg, span));
+            }
+            return new GenericInstanceType(baseName, resolvedArgs);
+        }
+
         // Try primitive type
         var primitive = PrimitiveType.FromName(typeName);
         if (primitive != null)
             return primitive;
 
-        // Try user-defined type
+        // Try user-defined type (includes type parameters in scope)
         var userType = _env.LookupType(typeName);
         if (userType != null)
             return userType;
@@ -548,6 +592,35 @@ public sealed class TypeChecker
         _diagnostics.ReportError(span, DiagnosticCode.UndefinedReference,
             $"Unknown type '{typeName}'");
         return ErrorType.Instance;
+    }
+
+    /// <summary>
+    /// Splits generic type arguments, respecting nested angle brackets.
+    /// For example: "str, List&lt;T&gt;" splits to ["str", "List&lt;T&gt;"]
+    /// </summary>
+    private static List<string> SplitGenericArgs(string argsStr)
+    {
+        var args = new List<string>();
+        var current = new System.Text.StringBuilder();
+        var depth = 0;
+
+        foreach (var c in argsStr)
+        {
+            if (c == '<' || c == '[') depth++;
+            else if (c == '>' || c == ']') depth--;
+            else if (c == ',' && depth == 0)
+            {
+                args.Add(current.ToString().Trim());
+                current.Clear();
+                continue;
+            }
+            current.Append(c);
+        }
+
+        if (current.Length > 0)
+            args.Add(current.ToString().Trim());
+
+        return args;
     }
 
     private static bool IsNumeric(CalorType type)

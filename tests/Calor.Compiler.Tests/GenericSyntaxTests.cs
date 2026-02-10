@@ -685,4 +685,211 @@ public class GenericSyntaxTests
     }
 
     #endregion
+
+    #region Type Checker Tests
+
+    [Fact]
+    public void TypeChecker_TypeParamInScope_Resolves()
+    {
+        var source = """
+            §M{m001:Test}
+            §F{f001:Identity:pub}<T>
+              §I{T:value}
+              §O{T}
+              §R value
+            §/F{f001}
+            §/M{m001}
+            """;
+
+        var module = Parse(source, out var diagnostics);
+        Assert.False(diagnostics.HasErrors, string.Join("; ", diagnostics.Errors));
+
+        var checker = new TypeChecking.TypeChecker(diagnostics);
+        checker.Check(module);
+
+        // No errors should occur - T should be in scope
+        Assert.False(diagnostics.HasErrors, string.Join("; ", diagnostics.Errors));
+    }
+
+    [Fact]
+    public void TypeChecker_GenericListType_Resolves()
+    {
+        var source = """
+            §M{m001:Test}
+            §F{f001:Process:pub}<T>
+              §I{List<T>:items}
+              §O{void}
+            §/F{f001}
+            §/M{m001}
+            """;
+
+        var module = Parse(source, out var diagnostics);
+        Assert.False(diagnostics.HasErrors, string.Join("; ", diagnostics.Errors));
+
+        var checker = new TypeChecking.TypeChecker(diagnostics);
+        checker.Check(module);
+
+        // List<T> should be resolved without errors
+        Assert.False(diagnostics.HasErrors, string.Join("; ", diagnostics.Errors));
+    }
+
+    [Fact]
+    public void TypeChecker_NestedGenericType_Resolves()
+    {
+        var source = """
+            §M{m001:Test}
+            §F{f001:GetData:pub}<T>
+              §I{Dictionary<str, List<T>>:data}
+              §O{void}
+            §/F{f001}
+            §/M{m001}
+            """;
+
+        var module = Parse(source, out var diagnostics);
+        Assert.False(diagnostics.HasErrors, string.Join("; ", diagnostics.Errors));
+
+        var checker = new TypeChecking.TypeChecker(diagnostics);
+        checker.Check(module);
+
+        // Nested generic Dictionary<str, List<T>> should resolve without errors
+        Assert.False(diagnostics.HasErrors, string.Join("; ", diagnostics.Errors));
+    }
+
+    [Fact]
+    public void TypeChecker_MultipleTypeParams_AllResolve()
+    {
+        var source = """
+            §M{m001:Test}
+            §F{f001:Combine:pub}<T, U>
+              §I{T:first}
+              §I{U:second}
+              §O{T}
+              §R first
+            §/F{f001}
+            §/M{m001}
+            """;
+
+        var module = Parse(source, out var diagnostics);
+        Assert.False(diagnostics.HasErrors, string.Join("; ", diagnostics.Errors));
+
+        var checker = new TypeChecking.TypeChecker(diagnostics);
+        checker.Check(module);
+
+        // Both T and U should be in scope
+        Assert.False(diagnostics.HasErrors, string.Join("; ", diagnostics.Errors));
+    }
+
+    #endregion
+
+    #region Parser Edge Case Tests
+
+    [Fact]
+    public void Parse_MultipleWhereClauses_DifferentTypeParams()
+    {
+        var source = """
+            §M{m001:Test}
+            §F{f001:Combine:pub}<T, U>
+              §WHERE T : class
+              §WHERE U : struct
+              §I{T:a}
+              §I{U:b}
+              §O{void}
+            §/F{f001}
+            §/M{m001}
+            """;
+
+        var module = Parse(source, out var diagnostics);
+
+        Assert.False(diagnostics.HasErrors, string.Join("; ", diagnostics.Errors));
+        var func = module.Functions[0];
+        Assert.Equal(2, func.TypeParameters.Count);
+        Assert.Single(func.TypeParameters[0].Constraints); // T : class
+        Assert.Equal(TypeConstraintKind.Class, func.TypeParameters[0].Constraints[0].Kind);
+        Assert.Single(func.TypeParameters[1].Constraints); // U : struct
+        Assert.Equal(TypeConstraintKind.Struct, func.TypeParameters[1].Constraints[0].Kind);
+    }
+
+    [Fact]
+    public void Parse_Where_InvalidTypeParam_ReportsError()
+    {
+        var source = """
+            §M{m001:Test}
+            §F{f001:Test:pub}<T>
+              §WHERE X : class
+              §O{void}
+            §/F{f001}
+            §/M{m001}
+            """;
+
+        var module = Parse(source, out var diagnostics);
+
+        // Should report error: X is not a declared type parameter
+        Assert.True(diagnostics.HasErrors);
+        Assert.Contains(diagnostics.Errors, e => e.Message.Contains("not found"));
+    }
+
+    [Fact]
+    public void E2E_GenericMethodInInterface_WithTypeParams_CompilesCorrectly()
+    {
+        var calor = """
+            §M{m001:Test}
+            §IFACE{i001:IMapper:pub}
+              §MT{m001:Map}<TSource, TDest>
+                §I{TSource:source}
+                §O{TDest}
+              §/MT{m001}
+            §/IFACE{i001}
+            §/M{m001}
+            """;
+
+        var csharp = CompileToCS(calor);
+
+        Assert.Contains("TDest Map<TSource, TDest>(TSource source)", csharp);
+    }
+
+    [Fact]
+    public void E2E_CombinedInterfaceAndMethodTypeParams_CompilesCorrectly()
+    {
+        var calor = """
+            §M{m001:Test}
+            §IFACE{i001:IConverter:pub}<T>
+              §WHERE T : class
+              §MT{m001:Convert}<U>
+                §I{T:input}
+                §O{U}
+              §/MT{m001}
+            §/IFACE{i001}
+            §/M{m001}
+            """;
+
+        var csharp = CompileToCS(calor);
+
+        Assert.Contains("public interface IConverter<T>", csharp);
+        Assert.Contains("where T : class", csharp);
+        Assert.Contains("U Convert<U>(T input)", csharp);
+    }
+
+    [Fact]
+    public void Parse_GenericTypeInFieldDeclaration_Parses()
+    {
+        var source = """
+            §M{m001:Test}
+            §CL{c001:Container:pub}<T>
+              §FLD{List<T>:_items:pri}
+              §FLD{Dictionary<str, T>:_lookup:pri}
+            §/CL{c001}
+            §/M{m001}
+            """;
+
+        var module = Parse(source, out var diagnostics);
+
+        Assert.False(diagnostics.HasErrors, string.Join("; ", diagnostics.Errors));
+        var cls = module.Classes[0];
+        Assert.Equal(2, cls.Fields.Count);
+        Assert.Equal("List<T>", cls.Fields[0].TypeName);
+        // The parser preserves the compact form - str is not expanded to STRING in type names
+        Assert.Equal("Dictionary<str,T>", cls.Fields[1].TypeName);
+    }
+
+    #endregion
 }
