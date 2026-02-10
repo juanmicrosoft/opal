@@ -191,6 +191,13 @@ public sealed class CSharpEmitter : IAstVisitor<string>
             AppendLine();
         }
 
+        // Emit delegates
+        foreach (var del in node.Delegates)
+        {
+            Visit(del);
+            AppendLine();
+        }
+
         // Emit classes
         foreach (var cls in node.Classes)
         {
@@ -308,6 +315,11 @@ public sealed class CSharpEmitter : IAstVisitor<string>
 
         var returnType = node.Output?.TypeName ?? "void";
         var mappedReturnType = MapTypeName(returnType);
+        // Wrap in Task if async
+        if (node.IsAsync)
+        {
+            mappedReturnType = WrapInTask(mappedReturnType);
+        }
         var hasReturnValue = returnType.ToUpperInvariant() != "VOID";
 
         var parameters = string.Join(", ", node.Parameters.Select(p =>
@@ -341,8 +353,9 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         // Check if this is the entry point
         var isMain = node.Name.Equals("Main", StringComparison.OrdinalIgnoreCase);
         var staticKeyword = "static "; // All module functions are static
+        var asyncKeyword = node.IsAsync ? "async " : "";
 
-        AppendLine($"{visibility} {staticKeyword}{mappedReturnType} {methodName}{typeParams}({parameters}){whereClause}");
+        AppendLine($"{visibility} {staticKeyword}{asyncKeyword}{mappedReturnType} {methodName}{typeParams}({parameters}){whereClause}");
         AppendLine("{");
         Indent();
 
@@ -1353,6 +1366,12 @@ public sealed class CSharpEmitter : IAstVisitor<string>
             AppendLine();
         }
 
+        // Emit events
+        foreach (var evt in node.Events)
+        {
+            Visit(evt);
+        }
+
         _currentClassName = null;
 
         Dedent();
@@ -1403,6 +1422,7 @@ public sealed class CSharpEmitter : IAstVisitor<string>
 
         var modifiers = new List<string> { visibility };
         if (node.IsStatic) modifiers.Add("static");
+        if (node.IsAsync) modifiers.Add("async");
         if (node.IsAbstract) modifiers.Add("abstract");
         else if (node.IsVirtual) modifiers.Add("virtual");
         if (node.IsOverride) modifiers.Add("override");
@@ -1410,6 +1430,11 @@ public sealed class CSharpEmitter : IAstVisitor<string>
 
         var returnType = node.Output?.TypeName ?? "void";
         var mappedReturnType = MapTypeName(returnType);
+        // Wrap in Task if async
+        if (node.IsAsync)
+        {
+            mappedReturnType = WrapInTask(mappedReturnType);
+        }
         var hasReturnValue = returnType.ToUpperInvariant() != "VOID";
         var methodName = SanitizeIdentifier(node.Name);
 
@@ -2374,6 +2399,24 @@ public sealed class CSharpEmitter : IAstVisitor<string>
     {
         // Use the centralized TypeMapper for bidirectional type mapping
         return TypeMapper.CalorToCSharp(calorType);
+    }
+
+    /// <summary>
+    /// Wraps a return type in Task for async methods.
+    /// </summary>
+    private static string WrapInTask(string returnType)
+    {
+        // Don't double-wrap types that are already Task/ValueTask
+        if (returnType.StartsWith("Task<", StringComparison.Ordinal) ||
+            returnType == "Task" ||
+            returnType.StartsWith("ValueTask<", StringComparison.Ordinal) ||
+            returnType == "ValueTask")
+        {
+            return returnType;
+        }
+
+        // void -> Task, T -> Task<T>
+        return returnType == "void" ? "Task" : $"Task<{returnType}>";
     }
 
     private static string SanitizeIdentifier(string name)

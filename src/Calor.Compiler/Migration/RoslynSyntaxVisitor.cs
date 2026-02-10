@@ -16,6 +16,7 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
     private readonly List<InterfaceDefinitionNode> _interfaces = new();
     private readonly List<ClassDefinitionNode> _classes = new();
     private readonly List<EnumDefinitionNode> _enums = new();
+    private readonly List<DelegateDefinitionNode> _delegates = new();
     private readonly List<FunctionNode> _functions = new();
     private readonly List<StatementNode> _topLevelStatements = new();
 
@@ -38,6 +39,7 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
         _interfaces.Clear();
         _classes.Clear();
         _enums.Clear();
+        _delegates.Clear();
         _functions.Clear();
         _topLevelStatements.Clear();
 
@@ -73,8 +75,14 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
             _interfaces,
             _classes,
             _enums,
+            _delegates,
             functions,
-            new AttributeCollection());
+            new AttributeCollection(),
+            Array.Empty<IssueNode>(),
+            Array.Empty<AssumeNode>(),
+            Array.Empty<InvariantNode>(),
+            Array.Empty<DecisionNode>(),
+            null);
     }
 
     public override void VisitUsingDirective(UsingDirectiveSyntax node)
@@ -229,6 +237,33 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
 
         _enums.Add(enumNode);
         _context.Stats.EnumsConverted++;
+        _context.IncrementConverted();
+    }
+
+    public override void VisitDelegateDeclaration(DelegateDeclarationSyntax node)
+    {
+        _context.RecordFeatureUsage("delegate");
+
+        var id = _context.GenerateId("del");
+        var name = node.Identifier.Text;
+
+        // Convert parameters
+        var parameters = ConvertParameters(node.ParameterList);
+
+        // Convert return type
+        var returnType = TypeMapper.CSharpToCalor(node.ReturnType.ToString());
+        var output = returnType != "void" ? new OutputNode(GetTextSpan(node.ReturnType), returnType) : null;
+
+        var delegateNode = new DelegateDefinitionNode(
+            GetTextSpan(node),
+            id,
+            name,
+            parameters,
+            output,
+            effects: null,
+            new AttributeCollection());
+
+        _delegates.Add(delegateNode);
         _context.IncrementConverted();
     }
 
@@ -474,7 +509,19 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
         var modifiers = GetMethodModifiers(node.Modifiers);
         var typeParameters = ConvertTypeParameters(node.TypeParameterList, node.ConstraintClauses);
         var parameters = ConvertParameters(node.ParameterList);
-        var returnType = TypeMapper.CSharpToCalor(node.ReturnType.ToString());
+
+        // Check for async modifier
+        var isAsync = node.Modifiers.Any(SyntaxKind.AsyncKeyword);
+        var returnTypeStr = node.ReturnType.ToString();
+
+        // For async methods, unwrap Task<T> -> T
+        if (isAsync)
+        {
+            returnTypeStr = UnwrapTaskType(returnTypeStr);
+            _context.RecordFeatureUsage("async-method");
+        }
+
+        var returnType = TypeMapper.CSharpToCalor(returnTypeStr);
         var output = returnType != "void" ? new OutputNode(GetTextSpan(node.ReturnType), returnType) : null;
         var body = ConvertMethodBody(node.Body, node.ExpressionBody);
         var csharpAttrs = ConvertAttributes(node.AttributeLists);
@@ -497,7 +544,8 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
             postconditions: Array.Empty<EnsuresNode>(),
             body,
             new AttributeCollection(),
-            csharpAttrs);
+            csharpAttrs,
+            isAsync);
     }
 
     private ConstructorNode ConvertConstructor(ConstructorDeclarationSyntax node)
@@ -2086,6 +2134,23 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
             result |= MethodModifiers.Static;
 
         return result;
+    }
+
+    /// <summary>
+    /// Unwraps Task/ValueTask types to get the underlying return type.
+    /// Task&lt;T&gt; -> T, Task -> void, ValueTask&lt;T&gt; -> T, ValueTask -> void
+    /// </summary>
+    private static string UnwrapTaskType(string typeName)
+    {
+        if (typeName.StartsWith("Task<", StringComparison.Ordinal) && typeName.EndsWith(">"))
+            return typeName.Substring(5, typeName.Length - 6);
+        if (typeName == "Task")
+            return "void";
+        if (typeName.StartsWith("ValueTask<", StringComparison.Ordinal) && typeName.EndsWith(">"))
+            return typeName.Substring(10, typeName.Length - 11);
+        if (typeName == "ValueTask")
+            return "void";
+        return typeName;
     }
 
     private static TextSpan GetTextSpan(SyntaxNode node)

@@ -87,6 +87,7 @@ public sealed class Parser
         var usings = new List<UsingDirectiveNode>();
         var interfaces = new List<InterfaceDefinitionNode>();
         var classes = new List<ClassDefinitionNode>();
+        var delegates = new List<DelegateDefinitionNode>();
         var functions = new List<FunctionNode>();
 
         // Extended Features: Module-level metadata
@@ -113,6 +114,14 @@ public sealed class Parser
             else if (Check(TokenKind.Func))
             {
                 functions.Add(ParseFunction());
+            }
+            else if (Check(TokenKind.AsyncFunc))
+            {
+                functions.Add(ParseAsyncFunction());
+            }
+            else if (Check(TokenKind.Delegate))
+            {
+                delegates.Add(ParseDelegateDefinition());
             }
             // Extended Features: Module-level metadata
             else if (Check(TokenKind.Todo))
@@ -151,7 +160,7 @@ public sealed class Parser
             }
             else
             {
-                _diagnostics.ReportUnexpectedToken(Current.Span, "USING, IFACE, CLASS, FUNC, or END_MODULE", Current.Kind);
+                _diagnostics.ReportUnexpectedToken(Current.Span, "USING, IFACE, CLASS, DEL, FUNC, or END_MODULE", Current.Kind);
                 Advance();
             }
         }
@@ -167,7 +176,8 @@ public sealed class Parser
         }
 
         var span = startToken.Span.Union(endToken.Span);
-        return new ModuleNode(span, id, moduleName, usings, interfaces, classes, functions, attrs,
+        return new ModuleNode(span, id, moduleName, usings, interfaces, classes,
+            Array.Empty<EnumDefinitionNode>(), delegates, functions, attrs,
             issues, assumptions, invariants, decisions, context);
     }
 
@@ -393,6 +403,179 @@ public sealed class Parser
             properties, lockNode, author, taskRef);
     }
 
+    /// <summary>
+    /// Parses an async function definition.
+    /// §AF{id:name:visibility}
+    ///   §I{type:name} ...
+    ///   §O{type}
+    ///   ... body ...
+    /// §/AF{id}
+    /// </summary>
+    private FunctionNode ParseAsyncFunction()
+    {
+        var startToken = Expect(TokenKind.AsyncFunc);
+        var attrs = ParseAttributes();
+
+        var (id, funcName, visibilityStr) = AttributeHelper.InterpretFuncAttributes(attrs);
+        if (string.IsNullOrEmpty(id))
+        {
+            _diagnostics.ReportMissingRequiredAttribute(startToken.Span, "AF", "id");
+            id = "";
+        }
+        if (string.IsNullOrEmpty(funcName))
+        {
+            _diagnostics.ReportMissingRequiredAttribute(startToken.Span, "AF", "name");
+            funcName = "";
+        }
+        var visibility = ParseVisibility(visibilityStr);
+
+        // Parse optional type parameters §AF{...}<T, U>
+        var typeParameters = ParseOptionalTypeParameterList(startToken.Span);
+        var parameters = new List<ParameterNode>();
+        OutputNode? output = null;
+        EffectsNode? effects = null;
+        var preconditions = new List<RequiresNode>();
+        var postconditions = new List<EnsuresNode>();
+        var body = new List<StatementNode>();
+
+        // Extended Features: Function-level metadata
+        var examples = new List<ExampleNode>();
+        var issues = new List<IssueNode>();
+        UsesNode? uses = null;
+        UsedByNode? usedBy = null;
+        var assumptions = new List<AssumeNode>();
+        ComplexityNode? complexity = null;
+        SinceNode? since = null;
+        DeprecatedNode? deprecated = null;
+        var breakingChanges = new List<BreakingChangeNode>();
+        var properties = new List<PropertyTestNode>();
+        LockNode? lockNode = null;
+        AuthorNode? author = null;
+        TaskRefNode? taskRef = null;
+
+        // Parse optional sections before BODY
+        while (!IsAtEnd && !Check(TokenKind.Body) && !Check(TokenKind.EndAsyncFunc))
+        {
+            if (Check(TokenKind.TypeParam))
+            {
+                typeParameters.Add(ParseTypeParameter());
+            }
+            else if (Check(TokenKind.Where))
+            {
+                ParseWhereClause(typeParameters);
+            }
+            else if (Check(TokenKind.In))
+            {
+                parameters.Add(ParseParameter());
+            }
+            else if (Check(TokenKind.Out))
+            {
+                output = ParseOutput();
+            }
+            else if (Check(TokenKind.Effects))
+            {
+                effects = ParseEffects();
+            }
+            else if (Check(TokenKind.Requires))
+            {
+                preconditions.Add(ParseRequires());
+            }
+            else if (Check(TokenKind.Ensures))
+            {
+                postconditions.Add(ParseEnsures());
+            }
+            else if (Check(TokenKind.Example))
+            {
+                examples.Add(ParseExample());
+            }
+            else if (Check(TokenKind.Todo))
+            {
+                issues.Add(ParseTodoIssue());
+            }
+            else if (Check(TokenKind.Fixme))
+            {
+                issues.Add(ParseFixmeIssue());
+            }
+            else if (Check(TokenKind.Hack))
+            {
+                issues.Add(ParseHackIssue());
+            }
+            else if (Check(TokenKind.Uses))
+            {
+                uses = ParseUses();
+            }
+            else if (Check(TokenKind.UsedBy))
+            {
+                usedBy = ParseUsedBy();
+            }
+            else if (Check(TokenKind.Assume))
+            {
+                assumptions.Add(ParseAssume());
+            }
+            else if (Check(TokenKind.Complexity))
+            {
+                complexity = ParseComplexity();
+            }
+            else if (Check(TokenKind.Since))
+            {
+                since = ParseSince();
+            }
+            else if (Check(TokenKind.Deprecated))
+            {
+                deprecated = ParseDeprecated();
+            }
+            else if (Check(TokenKind.Breaking))
+            {
+                breakingChanges.Add(ParseBreaking());
+            }
+            else if (Check(TokenKind.PropertyTest))
+            {
+                properties.Add(ParsePropertyTest());
+            }
+            else if (Check(TokenKind.Lock))
+            {
+                lockNode = ParseLock();
+            }
+            else if (Check(TokenKind.AgentAuthor))
+            {
+                author = ParseAuthor();
+            }
+            else if (Check(TokenKind.TaskRef))
+            {
+                taskRef = ParseTaskRef();
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        // Parse BODY - either explicit §BODY/§END_BODY or implicit
+        if (Check(TokenKind.Body))
+        {
+            body = ParseBody();
+        }
+        else if (!Check(TokenKind.EndAsyncFunc))
+        {
+            body = ParseImplicitBody();
+        }
+
+        var endToken = Expect(TokenKind.EndAsyncFunc);
+        var endAttrs = ParseAttributes();
+        var endId = AttributeHelper.InterpretEndFuncAttributes(endAttrs);
+
+        if (endId != id)
+        {
+            _diagnostics.ReportMismatchedId(endToken.Span, "AF", id, "END_AF", endId);
+        }
+
+        var span = startToken.Span.Union(endToken.Span);
+        return new FunctionNode(span, id, funcName, visibility, typeParameters, parameters, output, effects,
+            preconditions, postconditions, body, attrs,
+            examples, issues, uses, usedBy, assumptions, complexity, since, deprecated, breakingChanges,
+            properties, lockNode, author, taskRef, isAsync: true);
+    }
+
     private ParameterNode ParseParameter()
     {
         var startToken = Expect(TokenKind.In);
@@ -499,7 +682,7 @@ public sealed class Parser
     {
         var statements = new List<StatementNode>();
 
-        while (!IsAtEnd && !Check(TokenKind.EndFunc))
+        while (!IsAtEnd && !Check(TokenKind.EndFunc) && !Check(TokenKind.EndAsyncFunc))
         {
             var statement = ParseStatement();
             if (statement != null)
@@ -3055,6 +3238,7 @@ public sealed class Parser
         var properties = new List<PropertyNode>();
         var constructors = new List<ConstructorNode>();
         var methods = new List<MethodNode>();
+        var events = new List<EventDefinitionNode>();
 
         while (!IsAtEnd && !Check(TokenKind.EndClass))
         {
@@ -3098,9 +3282,17 @@ public sealed class Parser
             {
                 methods.Add(ParseMethodDefinition());
             }
+            else if (Check(TokenKind.AsyncMethod))
+            {
+                methods.Add(ParseAsyncMethodDefinition());
+            }
+            else if (Check(TokenKind.Event))
+            {
+                events.Add(ParseEventDefinition());
+            }
             else
             {
-                _diagnostics.ReportUnexpectedToken(Current.Span, "TP, WHERE, EXT, IMPL, FLD, PROP, CTOR, METHOD, or END_CLASS", Current.Kind);
+                _diagnostics.ReportUnexpectedToken(Current.Span, "TP, WHERE, EXT, IMPL, FLD, PROP, CTOR, METHOD, AMT, EVT, or END_CLASS", Current.Kind);
                 Advance();
             }
         }
@@ -3115,8 +3307,8 @@ public sealed class Parser
         }
 
         var span = startToken.Span.Union(endToken.Span);
-        return new ClassDefinitionNode(span, id, name, isAbstract, isSealed, baseClass,
-            implementedInterfaces, typeParameters, fields, properties, constructors, methods, attrs, csharpAttrs);
+        return new ClassDefinitionNode(span, id, name, isAbstract, isSealed, isPartial: false, isStatic: false, baseClass,
+            implementedInterfaces, typeParameters, fields, properties, constructors, methods, events, attrs, csharpAttrs);
     }
 
     /// <summary>
@@ -3272,6 +3464,124 @@ public sealed class Parser
         var span = startToken.Span.Union(endToken.Span);
         return new MethodNode(span, id, name, visibility, modifiers, typeParameters, parameters,
             output, effects, preconditions, postconditions, body, attrs, csharpAttrs);
+    }
+
+    /// <summary>
+    /// Parses an async method definition.
+    /// §AMT{id:name:visibility:modifiers?}[@Attribute]
+    ///   §I{type:name} ...
+    ///   §O{type}
+    ///   ... body ...
+    /// §/AMT{id}
+    /// </summary>
+    private MethodNode ParseAsyncMethodDefinition()
+    {
+        var startToken = Expect(TokenKind.AsyncMethod);
+        var attrs = ParseAttributes();
+        var csharpAttrs = ParseCSharpAttributes();
+
+        // Positional: [id:name:visibility?:modifiers?]
+        var id = attrs["_pos0"] ?? "";
+        var name = attrs["_pos1"] ?? "";
+        var visStr = attrs["_pos2"] ?? "private";
+        var modStr = attrs["_pos3"] ?? "";
+
+        if (string.IsNullOrEmpty(id))
+        {
+            _diagnostics.ReportMissingRequiredAttribute(startToken.Span, "AMT", "id");
+        }
+
+        var visibility = ParseVisibility(visStr);
+        var modifiers = ParseMethodModifiers(modStr);
+
+        // Parse optional type parameters §AMT{...}<T, U>
+        var typeParameters = ParseOptionalTypeParameterList(startToken.Span);
+
+        // Support legacy: Extract type parameters from method name if present
+        if (typeParameters.Count == 0)
+        {
+            var typeParamStart = name.IndexOf('<');
+            if (typeParamStart >= 0)
+            {
+                var typeParamEnd = name.LastIndexOf('>');
+                if (typeParamEnd > typeParamStart)
+                {
+                    var typeParamStr = name.Substring(typeParamStart + 1, typeParamEnd - typeParamStart - 1);
+                    name = name.Substring(0, typeParamStart);
+
+                    foreach (var tpName in typeParamStr.Split(','))
+                    {
+                        var trimmedName = tpName.Trim();
+                        if (!string.IsNullOrEmpty(trimmedName))
+                        {
+                            typeParameters.Add(new TypeParameterNode(startToken.Span, trimmedName, Array.Empty<TypeConstraintNode>()));
+                        }
+                    }
+                }
+            }
+        }
+
+        var parameters = new List<ParameterNode>();
+        OutputNode? output = null;
+        EffectsNode? effects = null;
+        var preconditions = new List<RequiresNode>();
+        var postconditions = new List<EnsuresNode>();
+        var body = new List<StatementNode>();
+
+        // Parse signature and body until END_AMT
+        while (!IsAtEnd && !Check(TokenKind.EndAsyncMethod))
+        {
+            if (Check(TokenKind.TypeParam))
+            {
+                typeParameters.Add(ParseTypeParameter());
+            }
+            else if (Check(TokenKind.Where))
+            {
+                ParseWhereClause(typeParameters);
+            }
+            else if (Check(TokenKind.In))
+            {
+                parameters.Add(ParseParameter());
+            }
+            else if (Check(TokenKind.Out))
+            {
+                output = ParseOutput();
+            }
+            else if (Check(TokenKind.Effects))
+            {
+                effects = ParseEffects();
+            }
+            else if (Check(TokenKind.Requires))
+            {
+                preconditions.Add(ParseRequires());
+            }
+            else if (Check(TokenKind.Ensures))
+            {
+                postconditions.Add(ParseEnsures());
+            }
+            else
+            {
+                // Must be body statements
+                var stmt = ParseStatement();
+                if (stmt != null)
+                {
+                    body.Add(stmt);
+                }
+            }
+        }
+
+        var endToken = Expect(TokenKind.EndAsyncMethod);
+        var endAttrs = ParseAttributes();
+        var endId = endAttrs["_pos0"] ?? "";
+
+        if (endId != id)
+        {
+            _diagnostics.ReportMismatchedId(endToken.Span, "AMT", id, "END_AMT", endId);
+        }
+
+        var span = startToken.Span.Union(endToken.Span);
+        return new MethodNode(span, id, name, visibility, modifiers, typeParameters, parameters,
+            output, effects, preconditions, postconditions, body, attrs, csharpAttrs, isAsync: true);
     }
 
     private static MethodModifiers ParseMethodModifiers(string modStr)
@@ -3965,6 +4275,100 @@ public sealed class Parser
 
         var span = startToken.Span.Union(handler.Span);
         return new EventUnsubscribeNode(span, @event, handler);
+    }
+
+    /// <summary>
+    /// Parses a delegate definition.
+    /// §DEL[d001:Processor] §I[string:input] §O[bool] §E[fr,fw] §/DEL[d001]
+    /// </summary>
+    private DelegateDefinitionNode ParseDelegateDefinition()
+    {
+        var startToken = Expect(TokenKind.Delegate);
+        var attrs = ParseAttributes();
+
+        // Positional: [id:name]
+        var id = attrs["_pos0"] ?? "";
+        var name = attrs["_pos1"] ?? "";
+
+        if (string.IsNullOrEmpty(id))
+        {
+            _diagnostics.ReportMissingRequiredAttribute(startToken.Span, "DEL", "id");
+        }
+        if (string.IsNullOrEmpty(name))
+        {
+            _diagnostics.ReportMissingRequiredAttribute(startToken.Span, "DEL", "name");
+        }
+
+        var parameters = new List<ParameterNode>();
+        OutputNode? output = null;
+        EffectsNode? effects = null;
+
+        // Parse parameters, output, and effects until END_DEL
+        while (!IsAtEnd && !Check(TokenKind.EndDelegate))
+        {
+            if (Check(TokenKind.In))
+            {
+                parameters.Add(ParseParameter());
+            }
+            else if (Check(TokenKind.Out))
+            {
+                output = ParseOutput();
+            }
+            else if (Check(TokenKind.Effects))
+            {
+                effects = ParseEffects();
+            }
+            else
+            {
+                _diagnostics.ReportUnexpectedToken(Current.Span, "I, O, E, or END_DEL", Current.Kind);
+                Advance();
+            }
+        }
+
+        var endToken = Expect(TokenKind.EndDelegate);
+        var endAttrs = ParseAttributes();
+        var endId = endAttrs["_pos0"] ?? "";
+
+        if (endId != id)
+        {
+            _diagnostics.ReportMismatchedId(endToken.Span, "DEL", id, "END_DEL", endId);
+        }
+
+        var span = startToken.Span.Union(endToken.Span);
+        return new DelegateDefinitionNode(span, id, name, parameters, output, effects, attrs);
+    }
+
+    /// <summary>
+    /// Parses an event definition.
+    /// §EVT[e001:Click:pub:EventHandler]
+    /// </summary>
+    private EventDefinitionNode ParseEventDefinition()
+    {
+        var startToken = Expect(TokenKind.Event);
+        var attrs = ParseAttributes();
+
+        // Positional: [id:name:visibility:delegateType]
+        var id = attrs["_pos0"] ?? "";
+        var name = attrs["_pos1"] ?? "";
+        var visStr = attrs["_pos2"] ?? "private";
+        var delegateType = attrs["_pos3"] ?? "";
+
+        if (string.IsNullOrEmpty(id))
+        {
+            _diagnostics.ReportMissingRequiredAttribute(startToken.Span, "EVT", "id");
+        }
+        if (string.IsNullOrEmpty(name))
+        {
+            _diagnostics.ReportMissingRequiredAttribute(startToken.Span, "EVT", "name");
+        }
+        if (string.IsNullOrEmpty(delegateType))
+        {
+            _diagnostics.ReportMissingRequiredAttribute(startToken.Span, "EVT", "delegateType");
+        }
+
+        var visibility = ParseVisibility(visStr);
+
+        return new EventDefinitionNode(startToken.Span, id, name, visibility, delegateType, attrs);
     }
 
     // Phase 12: Async/Await
