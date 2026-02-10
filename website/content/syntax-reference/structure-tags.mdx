@@ -253,6 +253,88 @@ Attributes can be attached to:
 
 ---
 
+## Generics
+
+Calor supports generic functions, classes, interfaces, and methods using angle bracket syntax.
+
+### Type Parameters
+
+Type parameters are declared using `<T>` suffix syntax after the tag attributes.
+
+```
+§F{id:name:vis}<T>         // Generic function with one type parameter
+§F{id:name:vis}<T, U>      // Generic function with two type parameters
+§CL{id:name}<T>            // Generic class
+§IFACE{id:name}<T>         // Generic interface
+§MT{id:name:vis}<T>        // Generic method
+```
+
+### Constraints
+
+Type parameter constraints are declared using `§WHERE` clauses.
+
+```
+§WHERE T : class                    // T must be a reference type
+§WHERE T : struct                   // T must be a value type
+§WHERE T : new()                    // T must have parameterless constructor
+§WHERE T : IComparable<T>           // T must implement interface
+§WHERE T : class, IComparable<T>    // Multiple constraints
+```
+
+### Generic Type References
+
+Generic types are written inline using angle bracket syntax.
+
+```
+§I{List<T>:items}                   // Parameter of type List<T>
+§I{Dictionary<str, T>:lookup}       // Nested generic types
+§O{IEnumerable<T>}                  // Generic return type
+§FLD{List<T>:_items:pri}            // Generic field type
+```
+
+### Examples
+
+**Generic identity function:**
+```
+§F{f001:Identity:pub}<T>
+  §I{T:value}
+  §O{T}
+  §R value
+§/F{f001}
+```
+
+**Generic class with constraint:**
+```
+§CL{c001:Repository:pub}<T>
+  §WHERE T : class
+  §FLD{List<T>:_items:pri}
+
+  §MT{m001:Add:pub}
+    §I{T:item}
+    §O{void}
+    §C{_items.Add} §A item §/C
+  §/MT{m001}
+
+  §MT{m002:GetAll:pub}
+    §O{IReadOnlyList<T>}
+    §R _items
+  §/MT{m002}
+§/CL{c001}
+```
+
+**Generic interface:**
+```
+§IFACE{i001:IRepository}<T>
+  §WHERE T : class
+  §MT{m001:Get}
+    §I{i32:id}
+    §O{T}
+  §/MT{m001}
+§/IFACE{i001}
+```
+
+---
+
 ## Why Explicit Closing Tags?
 
 1. **Unambiguous parsing** - No brace-counting needed

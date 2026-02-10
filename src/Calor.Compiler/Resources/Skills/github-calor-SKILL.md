@@ -169,6 +169,65 @@ Multi-line form:
 §/C
 ```
 
+## Generics
+
+### Generic Functions and Classes
+
+Type parameters use `<T>` suffix syntax after tag attributes:
+
+```
+§F{id:Name:pub}<T>            Generic function with one type param
+§F{id:Name:pub}<T, U>         Generic function with two type params
+§CL{id:Name}<T>               Generic class
+§IFACE{id:Name}<T>            Generic interface
+§MT{id:Name:vis}<T>           Generic method
+```
+
+### Generic Type References
+
+Use angle brackets inline for generic types:
+
+```
+§I{List<T>:items}             List<T> parameter
+§I{Dictionary<str, T>:lookup} Dictionary parameter
+§O{IEnumerable<T>}            Generic return type
+§FLD{List<T>:_items:pri}      Generic field
+```
+
+### Type Constraints (§WHERE)
+
+```
+§WHERE T : class              Reference type constraint
+§WHERE T : struct             Value type constraint
+§WHERE T : new()              Parameterless constructor
+§WHERE T : IComparable<T>     Interface constraint
+§WHERE T : class, IDisposable Multiple constraints
+```
+
+### Template: Generic Repository
+
+```calor
+§CL{c001:Repository:pub}<T>
+  §WHERE T : class
+  §FLD{List<T>:_items:pri}
+
+  §CTOR{ct001:pub}
+    §ASSIGN _items §NEW{List:T}
+  §/CTOR{ct001}
+
+  §MT{m001:Add:pub}
+    §I{T:item}
+    §O{void}
+    §C{_items.Add} §A item §/C
+  §/MT{m001}
+
+  §MT{m002:GetAll:pub}
+    §O{IReadOnlyList<T>}
+    §R _items
+  §/MT{m002}
+§/CL{c001}
+```
+
 ## C# Attributes
 
 Attributes attach inline after structural braces using `[@...]` syntax:

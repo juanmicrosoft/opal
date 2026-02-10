@@ -110,15 +110,17 @@ if (expression is UnaryExpression unary)
 
 **Implementation Notes:** Need to generate proper Calor pattern matching with variable binding.
 
-#### Nested Generic Types
+#### ~~Nested Generic Types~~ ✅ DONE
 ```csharp
-// Not supported:
+// NOW SUPPORTED:
 Expression<Func<T, TProp>> expression;
 Action<Dictionary<string, List<int>>> handler;
 ```
-**Workaround:** Simplify generic nesting or use intermediate types.
-
-**Implementation Notes:** Type parameter parsing needs to handle recursive generic arguments.
+**Status:** Implemented in v0.3.0. Nested generic types are now parsed correctly using inline angle bracket syntax:
+```calor
+§I{Dictionary<str, List<i32>>:data}
+§O{Expression<Func<T, TProp>>}
+```
 
 #### Lambda Expressions
 ```csharp
@@ -139,14 +141,24 @@ Name = value ?? throw new ArgumentNullException(nameof(value));
 
 **Implementation Notes:** Throw expressions need proper Calor representation in S-expression context.
 
-#### Generic Type Constraints
+#### ~~Generic Type Constraints~~ ✅ DONE
 ```csharp
-// Not supported:
+// NOW SUPPORTED:
 public class UnitDefinition<TUnit> where TUnit : struct, Enum { }
+public T Identity<T>(T value) where T : class, IComparable<T> { ... }
 ```
-**Workaround:** Remove constraints or use simpler patterns.
+**Status:** Implemented in v0.3.0. Use the new `§WHERE` syntax:
+```calor
+§CL{c001:UnitDefinition}<TUnit>
+  §WHERE TUnit : struct
 
-**Implementation Notes:** Constraint syntax needs Calor §WHERE tag enhancement.
+§F{f001:Identity:pub}<T>
+  §WHERE T : class, IComparable<T>
+  §I{T:value}
+  §O{T}
+§/F{f001}
+```
+Supported constraints: `class`, `struct`, `new()`, interface types, and base class types.
 
 ### Medium Priority
 
