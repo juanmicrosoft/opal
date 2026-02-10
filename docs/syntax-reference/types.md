@@ -188,6 +188,53 @@ T!E                 // Result: either T (success) or E (error)
 
 ---
 
+## Generic Types
+
+Generic types use angle bracket syntax inline.
+
+### Syntax
+
+```
+List<T>                 // List of T
+Dictionary<K, V>        // Dictionary with key K and value V
+IEnumerable<T>          // Enumerable of T
+Func<T, U>              // Function from T to U
+```
+
+### Examples
+
+```
+§I{List<i32>:numbers}           // List<int> parameter
+§I{Dictionary<str, i32>:scores} // Dictionary<string, int>
+§O{IEnumerable<str>}            // Returns IEnumerable<string>
+§FLD{HashSet<T>:_items:pri}     // Generic field with type parameter T
+```
+
+### Nested Generic Types
+
+Generic types can be nested.
+
+```
+§I{Dictionary<str, List<i32>>:data}     // Dictionary<string, List<int>>
+§O{List<Tuple<str, i32>>}               // List<(string, int)>
+```
+
+### Type Parameters
+
+When defining generic functions or classes, type parameters (like `T`, `U`) can be used as types.
+
+```
+§F{f001:First:pub}<T>
+  §I{List<T>:items}
+  §O{T}
+  §R items[0]
+§/F{f001}
+```
+
+See [Structure Tags - Generics](/calor/syntax-reference/structure-tags/#generics) for more on defining generic functions and classes.
+
+---
+
 ## Type Annotations in Contracts
 
 Types matter in contracts for proper comparisons:
