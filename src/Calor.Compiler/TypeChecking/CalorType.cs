@@ -290,3 +290,44 @@ public sealed class TypeParameterType : CalorType
 
     public override int GetHashCode() => Name.GetHashCode();
 }
+
+/// <summary>
+/// Represents an instantiated generic type (e.g., List&lt;int&gt;, Dictionary&lt;string, T&gt;).
+/// Used during type checking to track generic type instantiations.
+/// </summary>
+public sealed class GenericInstanceType : CalorType
+{
+    public string BaseName { get; }
+    public IReadOnlyList<CalorType> TypeArguments { get; }
+    public override string Name
+    {
+        get
+        {
+            var argsStr = string.Join(", ", TypeArguments.Select(a => a.Name));
+            return $"{BaseName}<{argsStr}>";
+        }
+    }
+
+    public GenericInstanceType(string baseName, IReadOnlyList<CalorType> typeArguments)
+    {
+        BaseName = baseName ?? throw new ArgumentNullException(nameof(baseName));
+        TypeArguments = typeArguments ?? throw new ArgumentNullException(nameof(typeArguments));
+    }
+
+    public override bool Equals(CalorType? other)
+    {
+        if (other is not GenericInstanceType git) return false;
+        if (BaseName != git.BaseName) return false;
+        if (TypeArguments.Count != git.TypeArguments.Count) return false;
+        return TypeArguments.Zip(git.TypeArguments).All(pair => pair.First.Equals(pair.Second));
+    }
+
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+        hash.Add(BaseName);
+        foreach (var arg in TypeArguments)
+            hash.Add(arg);
+        return hash.ToHashCode();
+    }
+}
