@@ -183,6 +183,23 @@ public static class DiagnosticCode
     /// Info: Z3 SMT solver is unavailable, using heuristic checking only.
     /// </summary>
     public const string Z3UnavailableForInheritance = "Calor0817";
+
+    // Contract simplification (Calor0330-0339)
+
+    /// <summary>
+    /// Info: Contract expression is a tautology (always true).
+    /// </summary>
+    public const string ContractTautology = "Calor0330";
+
+    /// <summary>
+    /// Warning: Contract expression is a contradiction (always false).
+    /// </summary>
+    public const string ContractContradiction = "Calor0331";
+
+    /// <summary>
+    /// Info: Contract expression was simplified.
+    /// </summary>
+    public const string ContractSimplified = "Calor0332";
 }
 
 /// <summary>

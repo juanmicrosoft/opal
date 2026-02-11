@@ -310,6 +310,15 @@ public class Program
             Console.WriteLine("Contract semantic verification completed");
         }
 
+        // Contract simplification pass
+        var simplificationPass = new ContractSimplificationPass(diagnostics);
+        ast = simplificationPass.Simplify(ast);
+
+        if (options.Verbose)
+        {
+            Console.WriteLine("Contract simplification completed");
+        }
+
         // Static contract verification with Z3 (optional)
         if (options.VerifyContracts)
         {
