@@ -620,6 +620,23 @@ public sealed class CalorEmitter : IAstVisitor<string>
 
     public string Visit(BindStatementNode node)
     {
+        // Handle collection initializers specially - emit as collection block syntax
+        if (node.Initializer is ListCreationNode listNode)
+        {
+            EmitListCreationWithName(listNode, node.Name);
+            return "";
+        }
+        if (node.Initializer is DictionaryCreationNode dictNode)
+        {
+            EmitDictionaryCreationWithName(dictNode, node.Name);
+            return "";
+        }
+        if (node.Initializer is SetCreationNode setNode)
+        {
+            EmitSetCreationWithName(setNode, node.Name);
+            return "";
+        }
+
         var typePart = node.TypeName != null ? $"{TypeMapper.CSharpToCalor(node.TypeName)}:" : "";
         var mutPart = node.IsMutable ? "" : ":const";
         // Parser expects: §B[type:name] expression (no = sign)
@@ -627,6 +644,57 @@ public sealed class CalorEmitter : IAstVisitor<string>
 
         AppendLine($"§B{{{typePart}{node.Name}{mutPart}}}{initPart}");
         return "";
+    }
+
+    private void EmitListCreationWithName(ListCreationNode node, string variableName)
+    {
+        var elementType = TypeMapper.CSharpToCalor(node.ElementType);
+
+        AppendLine($"§LIST{{{variableName}:{elementType}}}");
+        Indent();
+
+        foreach (var element in node.Elements)
+        {
+            AppendLine(element.Accept(this));
+        }
+
+        Dedent();
+        AppendLine($"§/LIST{{{variableName}}}");
+    }
+
+    private void EmitDictionaryCreationWithName(DictionaryCreationNode node, string variableName)
+    {
+        var keyType = TypeMapper.CSharpToCalor(node.KeyType);
+        var valueType = TypeMapper.CSharpToCalor(node.ValueType);
+
+        AppendLine($"§DICT{{{variableName}:{keyType}:{valueType}}}");
+        Indent();
+
+        foreach (var entry in node.Entries)
+        {
+            var key = entry.Key.Accept(this);
+            var value = entry.Value.Accept(this);
+            AppendLine($"§KV {key} {value}");
+        }
+
+        Dedent();
+        AppendLine($"§/DICT{{{variableName}}}");
+    }
+
+    private void EmitSetCreationWithName(SetCreationNode node, string variableName)
+    {
+        var elementType = TypeMapper.CSharpToCalor(node.ElementType);
+
+        AppendLine($"§HSET{{{variableName}:{elementType}}}");
+        Indent();
+
+        foreach (var element in node.Elements)
+        {
+            AppendLine(element.Accept(this));
+        }
+
+        Dedent();
+        AppendLine($"§/HSET{{{variableName}}}");
     }
 
     public string Visit(AssignmentStatementNode node)
@@ -815,6 +883,147 @@ public sealed class CalorEmitter : IAstVisitor<string>
         return "";
     }
 
+    // Phase 6 Extended: Collections (List, Dictionary, HashSet)
+
+    public string Visit(ListCreationNode node)
+    {
+        var elementType = TypeMapper.CSharpToCalor(node.ElementType);
+
+        AppendLine($"§LIST{{{node.Id}:{elementType}}}");
+        Indent();
+
+        foreach (var element in node.Elements)
+        {
+            AppendLine(element.Accept(this));
+        }
+
+        Dedent();
+        AppendLine($"§/LIST{{{node.Id}}}");
+        return "";
+    }
+
+    public string Visit(DictionaryCreationNode node)
+    {
+        var keyType = TypeMapper.CSharpToCalor(node.KeyType);
+        var valueType = TypeMapper.CSharpToCalor(node.ValueType);
+
+        AppendLine($"§DICT{{{node.Id}:{keyType}:{valueType}}}");
+        Indent();
+
+        foreach (var entry in node.Entries)
+        {
+            entry.Accept(this);
+        }
+
+        Dedent();
+        AppendLine($"§/DICT{{{node.Id}}}");
+        return "";
+    }
+
+    public string Visit(KeyValuePairNode node)
+    {
+        var key = node.Key.Accept(this);
+        var value = node.Value.Accept(this);
+        AppendLine($"§KV {key} {value}");
+        return "";
+    }
+
+    public string Visit(SetCreationNode node)
+    {
+        var elementType = TypeMapper.CSharpToCalor(node.ElementType);
+
+        AppendLine($"§HSET{{{node.Id}:{elementType}}}");
+        Indent();
+
+        foreach (var element in node.Elements)
+        {
+            AppendLine(element.Accept(this));
+        }
+
+        Dedent();
+        AppendLine($"§/HSET{{{node.Id}}}");
+        return "";
+    }
+
+    public string Visit(CollectionPushNode node)
+    {
+        var value = node.Value.Accept(this);
+        AppendLine($"§PUSH{{{node.CollectionName}}} {value}");
+        return "";
+    }
+
+    public string Visit(DictionaryPutNode node)
+    {
+        var key = node.Key.Accept(this);
+        var value = node.Value.Accept(this);
+        AppendLine($"§PUT{{{node.DictionaryName}}} {key} {value}");
+        return "";
+    }
+
+    public string Visit(CollectionRemoveNode node)
+    {
+        var keyOrValue = node.KeyOrValue.Accept(this);
+        AppendLine($"§REM{{{node.CollectionName}}} {keyOrValue}");
+        return "";
+    }
+
+    public string Visit(CollectionSetIndexNode node)
+    {
+        var index = node.Index.Accept(this);
+        var value = node.Value.Accept(this);
+        AppendLine($"§SETIDX{{{node.CollectionName}}} {index} {value}");
+        return "";
+    }
+
+    public string Visit(CollectionClearNode node)
+    {
+        AppendLine($"§CLR{{{node.CollectionName}}}");
+        return "";
+    }
+
+    public string Visit(CollectionInsertNode node)
+    {
+        var index = node.Index.Accept(this);
+        var value = node.Value.Accept(this);
+        AppendLine($"§INS{{{node.CollectionName}}} {index} {value}");
+        return "";
+    }
+
+    public string Visit(CollectionContainsNode node)
+    {
+        var keyOrValue = node.KeyOrValue.Accept(this);
+        var modePrefix = node.Mode switch
+        {
+            ContainsMode.Key => "§KEY ",
+            ContainsMode.DictValue => "§VAL ",
+            _ => ""
+        };
+        return $"§HAS{{{node.CollectionName}}} {modePrefix}{keyOrValue}";
+    }
+
+    public string Visit(DictionaryForeachNode node)
+    {
+        var dictionary = node.Dictionary.Accept(this);
+
+        AppendLine($"§EACHKV{{{node.Id}:{node.KeyName}:{node.ValueName}}} {dictionary}");
+        Indent();
+
+        foreach (var stmt in node.Body)
+        {
+            stmt.Accept(this);
+        }
+
+        Dedent();
+        AppendLine($"§/EACHKV{{{node.Id}}}");
+        return "";
+    }
+
+    public string Visit(CollectionCountNode node)
+    {
+        var collection = node.Collection.Accept(this);
+        return $"§CNT {collection}";
+    }
+
     public string Visit(TryStatementNode node)
     {
         AppendLine($"§TR{{{node.Id}}}");
@@ -910,15 +1119,29 @@ public sealed class CalorEmitter : IAstVisitor<string>
     {
         var pattern = EmitPattern(node.Pattern);
         var guard = node.Guard != null ? $" §WHEN {node.Guard.Accept(this)}" : "";
-        AppendLine($"§K {pattern}{guard}");
-        Indent();
 
-        foreach (var stmt in node.Body)
+        // Check if this is a single-return case suitable for arrow syntax
+        if (node.Body.Count == 1 && node.Body[0] is ReturnStatementNode returnStmt && returnStmt.Expression != null)
         {
-            stmt.Accept(this);
+            // Use arrow syntax: §K pattern → expression
+            var expr = returnStmt.Expression.Accept(this);
+            AppendLine($"§K {pattern}{guard} → {expr}");
+        }
+        else
+        {
+            // Use block syntax with §/K closing tag
+            AppendLine($"§K {pattern}{guard}");
+            Indent();
+
+            foreach (var stmt in node.Body)
+            {
+                stmt.Accept(this);
+            }
+
+            Dedent();
+            AppendLine("§/K");
         }
 
-        Dedent();
         return "";
     }
 
@@ -1127,7 +1350,8 @@ public sealed class CalorEmitter : IAstVisitor<string>
     {
         var array = node.Array.Accept(this);
         var index = node.Index.Accept(this);
-        return $"{array}{{{index}}}";
+        // Use §IDX syntax for element access
+        return $"§IDX{{{array}}} {index}";
     }
 
     public string Visit(ArrayLengthNode node)
@@ -1255,15 +1479,15 @@ public sealed class CalorEmitter : IAstVisitor<string>
         return pattern switch
         {
             WildcardPatternNode => "_",
-            VariablePatternNode vp => $"var {vp.Name}",
+            VariablePatternNode vp => $"§VAR{{{vp.Name}}}",
             LiteralPatternNode lp => lp.Literal.Accept(this),
-            SomePatternNode sp => $"some({EmitPattern(sp.InnerPattern)})",
-            NonePatternNode => "none",
-            OkPatternNode op => $"ok({EmitPattern(op.InnerPattern)})",
-            ErrPatternNode ep => $"err({EmitPattern(ep.InnerPattern)})",
-            VarPatternNode varp => $"var {varp.Name}",
+            SomePatternNode sp => $"§SM {EmitPattern(sp.InnerPattern)}",
+            NonePatternNode => "§NN",
+            OkPatternNode op => $"§OK {EmitPattern(op.InnerPattern)}",
+            ErrPatternNode ep => $"§ERR {EmitPattern(ep.InnerPattern)}",
+            VarPatternNode varp => $"§VAR{{{varp.Name}}}",
             ConstantPatternNode cp => cp.Value.Accept(this),
-            RelationalPatternNode rp => Visit(rp),
+            RelationalPatternNode rp => EmitRelationalPattern(rp),
             PropertyPatternNode pp => Visit(pp),
             PositionalPatternNode pos => Visit(pos),
             ListPatternNode lp => Visit(lp),
@@ -1271,14 +1495,33 @@ public sealed class CalorEmitter : IAstVisitor<string>
         };
     }
 
+    private string EmitRelationalPattern(RelationalPatternNode node)
+    {
+        // Map C# operator back to Calor keyword
+        var opKeyword = node.Operator switch
+        {
+            ">=" => "gte",
+            "<=" => "lte",
+            ">" => "gt",
+            "<" => "lt",
+            "gte" => "gte",
+            "lte" => "lte",
+            "gt" => "gt",
+            "lt" => "lt",
+            _ => "gte"
+        };
+        var value = node.Value.Accept(this);
+        return $"§PREL{{{opKeyword}}} {value}";
+    }
+
     public string Visit(WildcardPatternNode node) => "_";
-    public string Visit(VariablePatternNode node) => $"var {node.Name}";
+    public string Visit(VariablePatternNode node) => $"§VAR{{{node.Name}}}";
     public string Visit(LiteralPatternNode node) => node.Literal.Accept(this);
-    public string Visit(SomePatternNode node) => $"some({EmitPattern(node.InnerPattern)})";
-    public string Visit(NonePatternNode node) => "none";
-    public string Visit(OkPatternNode node) => $"ok({EmitPattern(node.InnerPattern)})";
-    public string Visit(ErrPatternNode node) => $"err({EmitPattern(node.InnerPattern)})";
-    public string Visit(VarPatternNode node) => $"var {node.Name}";
+    public string Visit(SomePatternNode node) => $"§SM {EmitPattern(node.InnerPattern)}";
+    public string Visit(NonePatternNode node) => "§NN";
+    public string Visit(OkPatternNode node) => $"§OK {EmitPattern(node.InnerPattern)}";
+    public string Visit(ErrPatternNode node) => $"§ERR {EmitPattern(node.InnerPattern)}";
+    public string Visit(VarPatternNode node) => $"§VAR{{{node.Name}}}";
     public string Visit(ConstantPatternNode node) => node.Value.Accept(this);
 
     // Additional pattern nodes
@@ -1302,8 +1545,7 @@ public sealed class CalorEmitter : IAstVisitor<string>
 
     public string Visit(RelationalPatternNode node)
     {
-        var value = node.Value.Accept(this);
-        return $"{node.Operator} {value}";
+        return EmitRelationalPattern(node);
     }
 
     public string Visit(ListPatternNode node)

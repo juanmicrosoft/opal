@@ -108,6 +108,50 @@ public static class DiagnosticCode
     /// Error: ID churn detected (existing ID was modified).
     /// </summary>
     public const string Calor0805 = "Calor0805";
+
+    // Contract inheritance (Calor0810-0814)
+
+    /// <summary>
+    /// Error: LSP violation - implementer has stronger precondition than interface.
+    /// </summary>
+    public const string StrongerPrecondition = "Calor0810";
+
+    /// <summary>
+    /// Error: LSP violation - implementer has weaker postcondition than interface.
+    /// </summary>
+    public const string WeakerPostcondition = "Calor0811";
+
+    /// <summary>
+    /// Info: Contracts inherited from interface.
+    /// </summary>
+    public const string InheritedContracts = "Calor0812";
+
+    /// <summary>
+    /// Warning: Interface method not implemented.
+    /// </summary>
+    public const string InterfaceMethodNotFound = "Calor0813";
+
+    /// <summary>
+    /// Info: Contract inheritance is valid.
+    /// </summary>
+    public const string ContractInheritanceValid = "Calor0814";
+
+    // Contract inheritance Z3 proving (Calor0815-0817)
+
+    /// <summary>
+    /// Info: Contract implication proven by Z3 SMT solver.
+    /// </summary>
+    public const string ImplicationProvenByZ3 = "Calor0815";
+
+    /// <summary>
+    /// Warning: Contract implication could not be determined (Z3 timeout or complexity).
+    /// </summary>
+    public const string ImplicationUnknown = "Calor0816";
+
+    /// <summary>
+    /// Info: Z3 SMT solver is unavailable, using heuristic checking only.
+    /// </summary>
+    public const string Z3UnavailableForInheritance = "Calor0817";
 }
 
 /// <summary>

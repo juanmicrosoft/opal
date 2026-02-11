@@ -34,6 +34,22 @@ Complete reference for Calor syntax. Calor uses Lisp-style expressions for all o
 | Binding | `§B{name} expr` | `§B{x} (+ 1 2)` |
 | Operations | `(op args...)` | `(+ a b)`, `(== x 0)` |
 | Close tag | `§/X{id}` | `§/F{f001}` |
+| List | `§LIST{id:type}` | `§LIST{nums:i32}` |
+| Dictionary | `§DICT{id:kType:vType}` | `§DICT{ages:str:i32}` |
+| HashSet | `§HSET{id:type}` | `§HSET{tags:str}` |
+| Key-Value | `§KV key value` | `§KV "alice" 30` |
+| Push | `§PUSH{coll} value` | `§PUSH{nums} 5` |
+| Put | `§PUT{dict} key value` | `§PUT{ages} "bob" 25` |
+| Set Index | `§SETIDX{list} idx val` | `§SETIDX{nums} 0 10` |
+| Contains | `§HAS{coll} value` | `§HAS{nums} 5` |
+| Count | `§CNT{coll}` | `§CNT{nums}` |
+| Dict Foreach | `§EACHKV{id:k:v} dict` | `§EACHKV{e1:k:v} ages` |
+| Switch | `§W{id} expr` | `§W{sw1} score` |
+| Case | `§K pattern → result` | `§K 200 → "OK"` |
+| Wildcard | `§K _` | `§K _ → "default"` |
+| Relational | `§PREL{op} value` | `§PREL{gte} 90` |
+| Var Pattern | `§VAR{name}` | `§VAR{n}` |
+| Guard | `§WHEN condition` | `§WHEN (> n 0)` |
 
 ---
 

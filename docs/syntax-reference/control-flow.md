@@ -148,6 +148,67 @@ The condition is placed at the end to match the semantics: the body always execu
 
 ---
 
+## Dictionary Iteration
+
+Use `§EACHKV` to iterate over key-value pairs in a dictionary.
+
+### Syntax
+
+```
+§EACHKV{id:keyVar:valueVar} dictName
+  // body uses keyVar and valueVar
+§/EACHKV{id}
+```
+
+| Part | Description |
+|:-----|:------------|
+| `id` | Unique loop identifier |
+| `keyVar` | Variable name for the current key |
+| `valueVar` | Variable name for the current value |
+| `dictName` | Name of the dictionary to iterate |
+
+### Examples
+
+**Print all entries:**
+```
+§DICT{ages:str:i32}
+  §KV "alice" 30
+  §KV "bob" 25
+§/DICT{ages}
+
+§EACHKV{e1:name:age} ages
+  §P name
+  §P age
+§/EACHKV{e1}
+```
+
+**Sum all values:**
+```
+§B{total} 0
+§EACHKV{e1:k:v} scores
+  §ASSIGN total (+ total v)
+§/EACHKV{e1}
+```
+
+**Conditional processing:**
+```
+§EACHKV{e1:key:val} data
+  §IF{if1} (> val 100)
+    §P key
+  §/I{if1}
+§/EACHKV{e1}
+```
+
+### Comparison with §FOREACH
+
+| Loop Type | Use Case |
+|:----------|:---------|
+| `§L{id:var:from:to:step}` | Numeric ranges |
+| `§FOREACH{id:var} collection` | Lists, arrays, sets |
+| `§EACHKV{id:k:v} dict` | Dictionaries (key-value pairs) |
+
+---
+
 ## Conditionals
 
 ### Single Line (Arrow Syntax)
@@ -296,6 +357,142 @@ Use conditionals with return for early exit:
   §EL → §R (* n §C{Factorial} §A (- n 1) §/C)
   §/I{if1}
 §/F{f001}
+```
+
+---
+
+## Pattern Matching
+
+Pattern matching provides concise multi-way branching with C# switch expression semantics.
+
+### Switch Expression Syntax
+
+```
+§W{id} expression
+  §K pattern1 → result1
+  §K pattern2 → result2
+  §K _ → default
+§/W{id}
+```
+
+| Part | Description |
+|:-----|:------------|
+| `§W{id}` | Switch expression with unique ID |
+| `expression` | Value to match against |
+| `§K` | Case keyword |
+| `pattern` | Pattern to match |
+| `→` | Arrow to result (single expression) |
+| `_` | Wildcard (matches anything) |
+| `§/W{id}` | Closing tag |
+
+### Literal Patterns
+
+Match exact values:
+
+```
+§B{day} §W{sw1} dayNum
+  §K 0 → "Sunday"
+  §K 1 → "Monday"
+  §K 2 → "Tuesday"
+  §K _ → "Other"
+§/W{sw1}
+```
+
+### Relational Patterns (`§PREL`)
+
+Match value ranges using relational operators:
+
+| Syntax | Meaning | C# Equivalent |
+|:-------|:--------|:--------------|
+| `§PREL{gte} value` | Greater than or equal | `>= value` |
+| `§PREL{gt} value` | Greater than | `> value` |
+| `§PREL{lte} value` | Less than or equal | `<= value` |
+| `§PREL{lt} value` | Less than | `< value` |
+
+**Example - Grade calculation:**
+```
+§B{grade} §W{sw1} score
+  §K §PREL{gte} 90 → "A"
+  §K §PREL{gte} 80 → "B"
+  §K §PREL{gte} 70 → "C"
+  §K §PREL{gte} 60 → "D"
+  §K _ → "F"
+§/W{sw1}
+```
+
+### Variable Patterns with Guards (`§VAR`, `§WHEN`)
+
+Capture the matched value and add conditions:
+
+```
+§B{desc} §W{sw1} value
+  §K §VAR{n} §WHEN (> n 100) → "large positive"
+  §K §VAR{n} §WHEN (> n 0) → "small positive"
+  §K 0 → "zero"
+  §K §VAR{n} §WHEN (> n -100) → "small negative"
+  §K _ → "large negative"
+§/W{sw1}
+```
+
+| Part | Description |
+|:-----|:------------|
+| `§VAR{name}` | Captures value into variable `name` |
+| `§WHEN condition` | Guard condition (pattern matches only if true) |
+
+### Option Patterns (`§SM`, `§NN`)
+
+Match Option types:
+
+```
+§R §W{sw1} maybeValue
+  §K §SM §VAR{v} → v        // Some(v) - extract value
+  §K §NN → 0                 // None - default
+§/W{sw1}
+```
+
+### Result Patterns (`§OK`, `§ERR`)
+
+Match Result types:
+
+```
+§R §W{sw1} result
+  §K §OK §VAR{v} → (+ "Success: " v)
+  §K §ERR §VAR{e} → (+ "Error: " e)
+§/W{sw1}
+```
+
+### Block Syntax (`§/K`)
+
+For cases with multiple statements, use block syntax:
+
+```
+§W{sw1} x
+  §K 1 → "one"              // Arrow syntax (single expression)
+  §K 2
+    §P "matched two"         // Block syntax (multiple statements)
+    §R "two"
+  §/K
+  §K _ → "other"
+§/W{sw1}
+```
+
+### Complete Example
+
+```
+§M{m001:HttpStatus}
+§F{f001:GetStatusMessage:pub}
+  §I{i32:code}
+  §O{str}
+  §R §W{sw1} code
+    §K 200 → "OK"
+    §K 201 → "Created"
+    §K 400 → "Bad Request"
+    §K 404 → "Not Found"
+    §K 500 → "Server Error"
+    §K _ → "Unknown Status"
+  §/W{sw1}
+§/F{f001}
+§/M{m001}
 ```
 
 ---

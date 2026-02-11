@@ -46,6 +46,7 @@ public sealed class Lexer
         ["/I"] = TokenKind.EndIf,           // §/I
         ["/L"] = TokenKind.EndFor,          // §/L
         ["/W"] = TokenKind.EndMatch,        // §/W
+        ["/K"] = TokenKind.EndCase,         // §/K - closing case tag
         ["/T"] = TokenKind.EndType,         // §/T
         ["/D"] = TokenKind.EndRecord,       // §/D
 
@@ -79,6 +80,27 @@ public sealed class Lexer
         ["LEN"] = TokenKind.Length,
         ["EACH"] = TokenKind.Foreach,
         ["/EACH"] = TokenKind.EndForeach,
+
+        // Collections (List, Dictionary, HashSet)
+        ["LIST"] = TokenKind.List,
+        ["/LIST"] = TokenKind.EndList,
+        ["DICT"] = TokenKind.Dict,
+        ["/DICT"] = TokenKind.EndDict,
+        ["HSET"] = TokenKind.HashSet,
+        ["/HSET"] = TokenKind.EndHashSet,
+        ["KV"] = TokenKind.KeyValue,
+        ["PUSH"] = TokenKind.Push,
+        ["PUT"] = TokenKind.Put,
+        ["REM"] = TokenKind.Remove,
+        ["SETIDX"] = TokenKind.SetIndex,
+        ["CLR"] = TokenKind.Clear,
+        ["INS"] = TokenKind.Insert,
+        ["HAS"] = TokenKind.Has,
+        ["KEY"] = TokenKind.Key,
+        ["VAL"] = TokenKind.Val,
+        ["EACHKV"] = TokenKind.EachKV,
+        ["/EACHKV"] = TokenKind.EndEachKV,
+        ["CNT"] = TokenKind.Count,
 
         // Generics
         // Old syntax removed: ["TP"] = TokenKind.TypeParam (use <T> suffix instead)

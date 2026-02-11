@@ -1,6 +1,7 @@
 using System.Text;
 using Calor.Compiler.Ast;
 using Calor.Compiler.Migration;
+using Calor.Compiler.Verification;
 using Calor.Compiler.Verification.Z3;
 
 // Import ContractMode from Program.cs
@@ -41,6 +42,7 @@ public sealed class CSharpEmitter : IAstVisitor<string>
     private string? _currentFilePath;
     private readonly EmitContractMode _contractMode;
     private readonly ModuleVerificationResult? _verificationResults;
+    private readonly ModuleInheritanceResult? _inheritanceResult;
 
     // Track current indices for contract emission
     private int _currentPreconditionIndex;
@@ -50,11 +52,16 @@ public sealed class CSharpEmitter : IAstVisitor<string>
     {
     }
 
-    public CSharpEmitter(ContractMode contractMode) : this(contractMode, null)
+    public CSharpEmitter(ContractMode contractMode) : this(contractMode, null, null)
     {
     }
 
     public CSharpEmitter(ContractMode contractMode, ModuleVerificationResult? verificationResults)
+        : this(contractMode, verificationResults, null)
+    {
+    }
+
+    public CSharpEmitter(ContractMode contractMode, ModuleVerificationResult? verificationResults, ModuleInheritanceResult? inheritanceResult)
     {
         _contractMode = contractMode switch
         {
@@ -63,6 +70,7 @@ public sealed class CSharpEmitter : IAstVisitor<string>
             _ => EmitContractMode.Debug
         };
         _verificationResults = verificationResults;
+        _inheritanceResult = inheritanceResult;
     }
 
     public CSharpEmitter(EmitContractMode contractMode)
@@ -1164,6 +1172,152 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         return "";
     }
 
+    // Phase 6 Extended: Collections (List, Dictionary, HashSet)
+
+    public string Visit(ListCreationNode node)
+    {
+        var elementType = MapTypeName(node.ElementType);
+
+        if (node.Elements.Count > 0)
+        {
+            var elements = string.Join(", ", node.Elements.Select(e => e.Accept(this)));
+            return $"new List<{elementType}>() {{ {elements} }}";
+        }
+        else
+        {
+            return $"new List<{elementType}>()";
+        }
+    }
+
+    public string Visit(DictionaryCreationNode node)
+    {
+        var keyType = MapTypeName(node.KeyType);
+        var valueType = MapTypeName(node.ValueType);
+
+        if (node.Entries.Count > 0)
+        {
+            var entries = string.Join(", ", node.Entries.Select(e =>
+            {
+                var key = e.Key.Accept(this);
+                var value = e.Value.Accept(this);
+                return $"{{ {key}, {value} }}";
+            }));
+            return $"new Dictionary<{keyType}, {valueType}>() {{ {entries} }}";
+        }
+        else
+        {
+            return $"new Dictionary<{keyType}, {valueType}>()";
+        }
+    }
+
+    public string Visit(KeyValuePairNode node)
+    {
+        var key = node.Key.Accept(this);
+        var value = node.Value.Accept(this);
+        return $"{{ {key}, {value} }}";
+    }
+
+    public string Visit(SetCreationNode node)
+    {
+        var elementType = MapTypeName(node.ElementType);
+
+        if (node.Elements.Count > 0)
+        {
+            var elements = string.Join(", ", node.Elements.Select(e => e.Accept(this)));
+            return $"new HashSet<{elementType}>() {{ {elements} }}";
+        }
+        else
+        {
+            return $"new HashSet<{elementType}>()";
+        }
+    }
+
+    public string Visit(CollectionPushNode node)
+    {
+        var collectionName = SanitizeIdentifier(node.CollectionName);
+        var value = node.Value.Accept(this);
+        return $"{collectionName}.Add({value});";
+    }
+
+    public string Visit(DictionaryPutNode node)
+    {
+        var dictionaryName = SanitizeIdentifier(node.DictionaryName);
+        var key = node.Key.Accept(this);
+        var value = node.Value.Accept(this);
+        return $"{dictionaryName}[{key}] = {value};";
+    }
+
+    public string Visit(CollectionRemoveNode node)
+    {
+        var collectionName = SanitizeIdentifier(node.CollectionName);
+        var keyOrValue = node.KeyOrValue.Accept(this);
+        return $"{collectionName}.Remove({keyOrValue});";
+    }
+
+    public string Visit(CollectionSetIndexNode node)
+    {
+        var collectionName = SanitizeIdentifier(node.CollectionName);
+        var index = node.Index.Accept(this);
+        var value = node.Value.Accept(this);
+        return $"{collectionName}[{index}] = {value};";
+    }
+
+    public string Visit(CollectionClearNode node)
+    {
+        var collectionName = SanitizeIdentifier(node.CollectionName);
+        return $"{collectionName}.Clear();";
+    }
+
+    public string Visit(CollectionInsertNode node)
+    {
+        var collectionName = SanitizeIdentifier(node.CollectionName);
+        var index = node.Index.Accept(this);
+        var value = node.Value.Accept(this);
+        return $"{collectionName}.Insert({index}, {value});";
+    }
+
+    public string Visit(CollectionContainsNode node)
+    {
+        var collectionName = SanitizeIdentifier(node.CollectionName);
+        var keyOrValue = node.KeyOrValue.Accept(this);
+
+        return node.Mode switch
+        {
+            ContainsMode.Key => $"{collectionName}.ContainsKey({keyOrValue})",
+            ContainsMode.DictValue => $"{collectionName}.ContainsValue({keyOrValue})",
+            ContainsMode.Value => $"{collectionName}.Contains({keyOrValue})",
+            _ => $"{collectionName}.Contains({keyOrValue})"
+        };
+    }
+
+    public string Visit(DictionaryForeachNode node)
+    {
+        var keyName = SanitizeIdentifier(node.KeyName);
+        var valueName = SanitizeIdentifier(node.ValueName);
+        var dictionary = node.Dictionary.Accept(this);
+
+        AppendLine($"foreach (var ({keyName}, {valueName}) in {dictionary})");
+        AppendLine("{");
+        Indent();
+
+        foreach (var stmt in node.Body)
+        {
+            var stmtCode = stmt.Accept(this);
+            AppendLine(stmtCode);
+        }
+
+        Dedent();
+        AppendLine("}");
+
+        return "";
+    }
+
+    public string Visit(CollectionCountNode node)
+    {
+        var collection = node.Collection.Accept(this);
+        return $"{collection}.Count";
+    }
+
     // Phase 7: Generics
 
     public string Visit(TypeParameterNode node)
@@ -1255,6 +1409,26 @@ public sealed class CSharpEmitter : IAstVisitor<string>
 
     public string Visit(MethodSignatureNode node)
     {
+        // Emit XML comments for contracts
+        if (node.HasContracts)
+        {
+            AppendLine("/// <summary>");
+            AppendLine($"/// Interface method with contracts.");
+            AppendLine("/// </summary>");
+
+            foreach (var requires in node.Preconditions)
+            {
+                var condition = requires.Condition.Accept(this);
+                AppendLine($"/// <remarks>Requires: {condition}</remarks>");
+            }
+
+            foreach (var ensures in node.Postconditions)
+            {
+                var condition = ensures.Condition.Accept(this);
+                AppendLine($"/// <remarks>Ensures: {condition}</remarks>");
+            }
+        }
+
         EmitCSharpAttributes(node.CSharpAttributes);
 
         var returnType = node.Output?.TypeName ?? "void";
@@ -1474,15 +1648,37 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         AppendLine("{");
         Indent();
 
-        // Emit preconditions
+        // Check for inherited contracts
+        var inheritedContracts = _currentClassName != null && _inheritanceResult != null
+            ? _inheritanceResult.GetInheritedContracts(_currentClassName, node.Name)
+            : null;
+
+        // Emit explicit preconditions
         foreach (var requires in node.Preconditions)
         {
             var check = Visit(requires);
             AppendLine(check);
         }
 
+        // Emit inherited preconditions (only if method has no explicit contracts)
+        if (!node.HasContracts && inheritedContracts != null)
+        {
+            foreach (var requires in inheritedContracts.Preconditions)
+            {
+                AppendLine($"// Inherited from {inheritedContracts.InterfaceName}.{inheritedContracts.MethodName}");
+                var check = Visit(requires);
+                AppendLine(check);
+            }
+        }
+
+        // Calculate effective postconditions
+        var effectivePostconditions = node.Postconditions.Count > 0
+            ? node.Postconditions
+            : (inheritedContracts?.Postconditions ?? Array.Empty<EnsuresNode>());
+        var hasInheritedPostconditions = !node.HasContracts && inheritedContracts != null && inheritedContracts.Postconditions.Count > 0;
+
         // Handle postconditions similar to FunctionNode
-        if (node.Postconditions.Count > 0 && hasReturnValue)
+        if (effectivePostconditions.Count > 0 && hasReturnValue)
         {
             AppendLine($"{mappedReturnType} __result__ = default;");
             AppendLine();
@@ -1502,10 +1698,23 @@ public sealed class CSharpEmitter : IAstVisitor<string>
             }
 
             AppendLine();
+
+            // Emit explicit postconditions
             foreach (var ensures in node.Postconditions)
             {
                 var check = Visit(ensures).Replace("result", "__result__");
                 AppendLine(check);
+            }
+
+            // Emit inherited postconditions (only if method has no explicit contracts)
+            if (hasInheritedPostconditions)
+            {
+                foreach (var ensures in inheritedContracts!.Postconditions)
+                {
+                    AppendLine($"// Inherited from {inheritedContracts.InterfaceName}.{inheritedContracts.MethodName}");
+                    var check = Visit(ensures).Replace("result", "__result__");
+                    AppendLine(check);
+                }
             }
 
             AppendLine("return __result__;");
@@ -1522,6 +1731,17 @@ public sealed class CSharpEmitter : IAstVisitor<string>
             {
                 var check = Visit(ensures);
                 AppendLine(check);
+            }
+
+            // Emit inherited postconditions for void methods
+            if (hasInheritedPostconditions)
+            {
+                foreach (var ensures in inheritedContracts!.Postconditions)
+                {
+                    AppendLine($"// Inherited from {inheritedContracts.InterfaceName}.{inheritedContracts.MethodName}");
+                    var check = Visit(ensures);
+                    AppendLine(check);
+                }
             }
         }
 
