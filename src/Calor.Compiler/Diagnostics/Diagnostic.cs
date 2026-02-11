@@ -43,6 +43,37 @@ public static class DiagnosticCode
     public const string InvalidPostcondition = "Calor0301";
     public const string ContractViolation = "Calor0302";
 
+    // Quantifier diagnostics (Calor0320-0329)
+    /// <summary>
+    /// Error: Quantifier has no bound variables.
+    /// </summary>
+    public const string QuantifierNoBoundVars = "Calor0320";
+
+    /// <summary>
+    /// Warning: Quantifier over infinite range cannot be checked at runtime.
+    /// </summary>
+    public const string QuantifierInfiniteRange = "Calor0321";
+
+    /// <summary>
+    /// Error: Bound variable shadows an outer variable.
+    /// </summary>
+    public const string QuantifierVariableShadowing = "Calor0322";
+
+    /// <summary>
+    /// Info: Quantifier is static-only (Z3 verification, no runtime check).
+    /// </summary>
+    public const string QuantifierStaticOnly = "Calor0323";
+
+    /// <summary>
+    /// Warning: Quantifier variable has non-integer type, which may not support finite range iteration.
+    /// </summary>
+    public const string QuantifierNonIntegerType = "Calor0324";
+
+    /// <summary>
+    /// Info: Nested or multi-variable quantifier may result in O(n^k) runtime complexity.
+    /// </summary>
+    public const string QuantifierNestedComplexity = "Calor0325";
+
     // Effect errors (Calor0400-0499)
     public const string UndeclaredEffect = "Calor0400";
     public const string UnusedEffectDeclaration = "Calor0401";

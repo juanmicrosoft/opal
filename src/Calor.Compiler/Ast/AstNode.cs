@@ -170,6 +170,11 @@ public interface IAstVisitor
     void Visit(TaskRefNode node);
     // C# Attribute Support
     void Visit(CalorAttributeNode node);
+    // Quantified Contracts
+    void Visit(QuantifierVariableNode node);
+    void Visit(ForallExpressionNode node);
+    void Visit(ExistsExpressionNode node);
+    void Visit(ImplicationExpressionNode node);
 }
 
 /// <summary>
@@ -324,6 +329,11 @@ public interface IAstVisitor<T>
     T Visit(TaskRefNode node);
     // C# Attribute Support
     T Visit(CalorAttributeNode node);
+    // Quantified Contracts
+    T Visit(QuantifierVariableNode node);
+    T Visit(ForallExpressionNode node);
+    T Visit(ExistsExpressionNode node);
+    T Visit(ImplicationExpressionNode node);
 }
 
 /// <summary>
