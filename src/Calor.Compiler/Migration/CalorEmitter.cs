@@ -1978,4 +1978,32 @@ public sealed class CalorEmitter : IAstVisitor<string>
         }
         return value;
     }
+
+    // Quantified Contracts
+
+    public string Visit(QuantifierVariableNode node)
+    {
+        return $"({node.Name} {node.TypeName})";
+    }
+
+    public string Visit(ForallExpressionNode node)
+    {
+        var vars = string.Join(" ", node.BoundVariables.Select(v => v.Accept(this)));
+        var body = node.Body.Accept(this);
+        return $"(forall ({vars}) {body})";
+    }
+
+    public string Visit(ExistsExpressionNode node)
+    {
+        var vars = string.Join(" ", node.BoundVariables.Select(v => v.Accept(this)));
+        var body = node.Body.Accept(this);
+        return $"(exists ({vars}) {body})";
+    }
+
+    public string Visit(ImplicationExpressionNode node)
+    {
+        var ante = node.Antecedent.Accept(this);
+        var cons = node.Consequent.Accept(this);
+        return $"(-> {ante} {cons})";
+    }
 }
