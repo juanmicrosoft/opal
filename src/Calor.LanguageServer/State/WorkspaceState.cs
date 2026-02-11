@@ -101,6 +101,67 @@ public sealed class WorkspaceState
     }
 
     /// <summary>
+    /// Find a member (field, property, method) on a type across all open documents.
+    /// </summary>
+    public (DocumentState? Doc, Calor.Compiler.Ast.AstNode? Node) FindMemberAcrossFiles(string typeName, string memberName)
+    {
+        foreach (var doc in _documents.Values)
+        {
+            if (doc.Ast == null) continue;
+
+            // Check classes
+            var cls = doc.Ast.Classes.FirstOrDefault(c => c.Name == typeName);
+            if (cls != null)
+            {
+                // Check fields
+                var field = cls.Fields.FirstOrDefault(f => f.Name == memberName);
+                if (field != null) return (doc, field);
+
+                // Check properties
+                var prop = cls.Properties.FirstOrDefault(p => p.Name == memberName);
+                if (prop != null) return (doc, prop);
+
+                // Check methods
+                var method = cls.Methods.FirstOrDefault(m => m.Name == memberName);
+                if (method != null) return (doc, method);
+
+                // Check base class (recursively)
+                if (!string.IsNullOrEmpty(cls.BaseClass))
+                {
+                    var baseResult = FindMemberAcrossFiles(cls.BaseClass, memberName);
+                    if (baseResult.Node != null) return baseResult;
+                }
+            }
+
+            // Check interfaces
+            var iface = doc.Ast.Interfaces.FirstOrDefault(i => i.Name == typeName);
+            if (iface != null)
+            {
+                var method = iface.Methods.FirstOrDefault(m => m.Name == memberName);
+                if (method != null) return (doc, method);
+            }
+
+            // Check enums for enum members
+            var enumDef = doc.Ast.Enums.FirstOrDefault(e => e.Name == typeName);
+            if (enumDef != null)
+            {
+                var member = enumDef.Members.FirstOrDefault(m => m.Name == memberName);
+                if (member != null) return (doc, member);
+            }
+
+            // Check enum extensions
+            var enumExt = doc.Ast.EnumExtensions.FirstOrDefault(e => e.EnumName == typeName);
+            if (enumExt != null)
+            {
+                var method = enumExt.Methods.FirstOrDefault(m => m.Name == memberName);
+                if (method != null) return (doc, method);
+            }
+        }
+
+        return (null, null);
+    }
+
+    /// <summary>
     /// Get all public symbols from all open documents.
     /// </summary>
     public IEnumerable<(DocumentState Doc, string Name, string Kind, string? Type)> GetAllPublicSymbols()

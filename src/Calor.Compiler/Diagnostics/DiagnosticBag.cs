@@ -158,6 +158,45 @@ public sealed class DiagnosticBag : IEnumerable<Diagnostic>
         ReportErrorWithFix(span, DiagnosticCode.ExpectedClosingTag, message, fix);
     }
 
+    /// <summary>
+    /// Reports an error when a function is used where a variable is expected,
+    /// with a fix to call the function.
+    /// </summary>
+    public void ReportNotAVariableWithFix(TextSpan span, string name, bool isFunction)
+    {
+        if (isFunction)
+        {
+            var message = $"'{name}' is a function, not a variable. Did you mean to call it?";
+            var filePath = _currentFilePath ?? "";
+
+            // Create fix to add parentheses to call the function
+            var fix = new SuggestedFix(
+                $"Call '{name}()'",
+                TextEdit.Replace(filePath, span.Line, span.Column, span.Line, span.Column + name.Length, $"§C{{{name}}} §/C"));
+
+            ReportErrorWithFix(span, DiagnosticCode.TypeMismatch, message, fix);
+        }
+        else
+        {
+            ReportError(span, DiagnosticCode.TypeMismatch, $"'{name}' is not a variable");
+        }
+    }
+
+    /// <summary>
+    /// Reports a duplicate definition error with a fix to rename the symbol.
+    /// </summary>
+    public void ReportDuplicateDefinitionWithFix(TextSpan span, string name, string suggestedName)
+    {
+        var message = $"'{name}' is already defined. Consider using a different name.";
+        var filePath = _currentFilePath ?? "";
+
+        var fix = new SuggestedFix(
+            $"Rename to '{suggestedName}'",
+            TextEdit.Replace(filePath, span.Line, span.Column, span.Line, span.Column + name.Length, suggestedName));
+
+        ReportErrorWithFix(span, DiagnosticCode.DuplicateDefinition, message, fix);
+    }
+
     public void AddRange(IEnumerable<Diagnostic> diagnostics)
     {
         _diagnostics.AddRange(diagnostics);

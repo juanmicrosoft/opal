@@ -220,7 +220,7 @@ public class SignatureHelpHandlerTests
             §R x
             §EL
             §R -x
-            §/IF{if001}
+            §/I{if001}
             §/F{f001}
             §/M{m001}
             """;

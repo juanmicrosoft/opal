@@ -54,6 +54,26 @@ public sealed class DefinitionHandler : DefinitionHandlerBase
         }
 
         // Try to find the definition in other open documents
+        // First, check if this is a member access with a known containing type
+        if (!string.IsNullOrEmpty(result.ContainingTypeName))
+        {
+            var (memberDoc, memberNode) = _workspace.FindMemberAcrossFiles(result.ContainingTypeName, result.Name);
+            if (memberDoc != null && memberNode != null)
+            {
+                var memberRange = PositionConverter.ToLspRange(memberNode.Span, memberDoc.Source);
+
+                var memberLocation = new Location
+                {
+                    Uri = OmniSharp.Extensions.LanguageServer.Protocol.DocumentUri.From(memberDoc.Uri),
+                    Range = memberRange
+                };
+
+                return Task.FromResult<LocationOrLocationLinks?>(
+                    new LocationOrLocationLinks(new[] { new LocationOrLocationLink(memberLocation) }));
+            }
+        }
+
+        // Fall back to top-level symbol lookup
         var (crossDoc, crossNode) = _workspace.FindDefinitionAcrossFiles(result.Name);
         if (crossDoc != null && crossNode != null)
         {

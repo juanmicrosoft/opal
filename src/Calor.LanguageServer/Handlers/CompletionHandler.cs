@@ -406,16 +406,17 @@ public sealed class CompletionHandler : CompletionHandlerBase
         if (dotIndex < 0 || source[dotIndex] != '.')
             return null;
 
-        // Extract the identifier before the dot
+        // Extract the full chained expression before the dot (e.g., "a.b.c" from "a.b.c.")
         var end = dotIndex;
         var start = end - 1;
 
-        // Handle potential closing characters (for expressions like arr[0]. or func(). )
-        if (start >= 0)
+        // Work backwards through the chained expression
+        while (start >= 0)
         {
+            // Handle potential closing characters (for expressions like arr[0]. or func(). )
             if (source[start] == ']' || source[start] == ')')
             {
-                // For complex expressions, just get the base identifier
+                // Skip over bracketed/parenthesized expression
                 var bracketCount = 1;
                 var bracket = source[start];
                 var openBracket = bracket == ']' ? '[' : '(';
@@ -426,22 +427,61 @@ public sealed class CompletionHandler : CompletionHandlerBase
                     else if (source[start] == openBracket) bracketCount--;
                     start--;
                 }
+                // Continue to get the identifier before the bracket
+                continue;
             }
 
-            // Now extract the identifier
-            while (start >= 0 && (char.IsLetterOrDigit(source[start]) || source[start] == '_'))
+            // Extract identifier characters
+            if (char.IsLetterOrDigit(source[start]) || source[start] == '_')
+            {
                 start--;
+                continue;
+            }
 
-            start++; // Move back to the first character of the identifier
+            // Handle dot for chained access - continue backwards
+            if (source[start] == '.')
+            {
+                start--;
+                continue;
+            }
+
+            // Stop at any other character
+            break;
         }
+
+        start++; // Move back to the first character of the expression
 
         if (start >= end)
             return null;
 
-        return source.Substring(start, end - start).Trim();
+        var result = source.Substring(start, end - start).Trim();
+
+        // Remove any leading dots
+        return result.TrimStart('.');
     }
 
     private static string? ResolveExpressionType(string expression, ModuleNode ast, int offset, WorkspaceState workspace)
+    {
+        // Handle chained expressions like "a.b.c"
+        if (expression.Contains('.'))
+        {
+            return ResolveChainedExpressionType(expression, ast, offset, workspace);
+        }
+
+        // Handle method call expressions like "GetName()"
+        if (expression.EndsWith(")"))
+        {
+            var methodName = ExtractMethodNameFromCall(expression);
+            if (methodName != null)
+            {
+                return ResolveMethodReturnType(methodName, ast, offset, workspace, null);
+            }
+        }
+
+        return ResolveSingleIdentifierType(expression, ast, offset, workspace);
+    }
+
+    private static string? ResolveSingleIdentifierType(string expression, ModuleNode ast, int offset, WorkspaceState workspace)
     {
         // Handle 'this' keyword
         if (expression == "this")
@@ -514,20 +554,479 @@ public sealed class CompletionHandler : CompletionHandlerBase
         return null;
     }
 
+    private static string? ResolveChainedExpressionType(string expression, ModuleNode ast, int offset, WorkspaceState workspace)
+    {
+        // Split into parts, handling potential method calls
+        var parts = SplitChainedExpression(expression);
+        if (parts.Count == 0)
+            return null;
+
+        // Resolve the first part
+        var currentType = ResolveSingleIdentifierType(parts[0].Name, ast, offset, workspace);
+
+        // If first part is a method call, get its return type
+        if (parts[0].IsMethodCall && currentType == null)
+        {
+            currentType = ResolveMethodReturnType(parts[0].Name, ast, offset, workspace, null);
+        }
+
+        if (currentType == null)
+        {
+            // Maybe the first part is a type name for static access
+            currentType = parts[0].Name;
+        }
+
+        // Handle index access on first part
+        if (parts[0].IsIndexAccess && currentType != null)
+        {
+            currentType = ResolveIndexAccessType(currentType);
+        }
+
+        // Resolve each subsequent part
+        for (int i = 1; i < parts.Count; i++)
+        {
+            if (currentType == null)
+                return null;
+
+            var part = parts[i];
+            var nextType = ResolveMemberType(currentType, part.Name, part.IsMethodCall, ast, workspace);
+
+            if (nextType == null)
+                return currentType; // Return what we have so far
+
+            currentType = nextType;
+
+            // Handle index access on this part
+            if (part.IsIndexAccess && currentType != null)
+            {
+                currentType = ResolveIndexAccessType(currentType);
+            }
+        }
+
+        return currentType;
+    }
+
+    /// <summary>
+    /// Resolves the element type when accessing a collection by index.
+    /// For List&lt;Person&gt;[0], returns Person.
+    /// </summary>
+    private static string? ResolveIndexAccessType(string collectionType)
+    {
+        var (baseType, typeArgs) = ParseGenericType(collectionType);
+
+        // Handle generic collections
+        if (baseType is "List" or "LIST" or "list" or "Array" or "ARRAY")
+        {
+            return typeArgs.Count > 0 ? typeArgs[0] : "object";
+        }
+
+        // Handle array syntax: Person[]
+        if (collectionType.EndsWith("[]"))
+        {
+            return collectionType.Substring(0, collectionType.Length - 2);
+        }
+
+        // Handle dictionaries - index access returns value type
+        if (baseType is "Dict" or "DICT" or "dict")
+        {
+            return typeArgs.Count > 1 ? typeArgs[1] : "object";
+        }
+
+        // Handle strings - index access returns char
+        if (baseType is "str" or "STRING" or "string")
+        {
+            return "char";
+        }
+
+        return null;
+    }
+
+    private static List<(string Name, bool IsMethodCall, bool IsIndexAccess)> SplitChainedExpression(string expression)
+    {
+        var parts = new List<(string Name, bool IsMethodCall, bool IsIndexAccess)>();
+        var current = new System.Text.StringBuilder();
+        var parenDepth = 0;
+        var bracketDepth = 0;
+
+        for (int i = 0; i < expression.Length; i++)
+        {
+            var c = expression[i];
+
+            if (c == '(') parenDepth++;
+            else if (c == ')') parenDepth--;
+            else if (c == '[') bracketDepth++;
+            else if (c == ']') bracketDepth--;
+
+            if (c == '.' && parenDepth == 0 && bracketDepth == 0)
+            {
+                if (current.Length > 0)
+                {
+                    var part = current.ToString();
+                    var isMethod = part.Contains('(');
+                    var isIndex = part.Contains('[');
+                    parts.Add((ExtractIdentifier(part), isMethod, isIndex));
+                    current.Clear();
+                }
+            }
+            else
+            {
+                current.Append(c);
+            }
+        }
+
+        // Add the last part
+        if (current.Length > 0)
+        {
+            var part = current.ToString();
+            var isMethod = part.Contains('(');
+            var isIndex = part.Contains('[');
+            parts.Add((ExtractIdentifier(part), isMethod, isIndex));
+        }
+
+        return parts;
+    }
+
+    private static string ExtractIdentifier(string part)
+    {
+        // Remove method call parentheses and index access brackets
+        var parenIndex = part.IndexOf('(');
+        var bracketIndex = part.IndexOf('[');
+
+        if (parenIndex >= 0 && (bracketIndex < 0 || parenIndex < bracketIndex))
+            return part.Substring(0, parenIndex);
+        if (bracketIndex >= 0)
+            return part.Substring(0, bracketIndex);
+        return part;
+    }
+
+    private static string? ExtractMethodNameFromCall(string expression)
+    {
+        var parenIndex = expression.LastIndexOf('(');
+        if (parenIndex > 0)
+            return expression.Substring(0, parenIndex);
+        return null;
+    }
+
+    private static string? ResolveMemberType(string typeName, string memberName, bool isMethodCall, ModuleNode ast, WorkspaceState workspace)
+    {
+        // Handle generic types - extract base type name
+        var (baseTypeName, typeArgs) = ParseGenericType(typeName);
+
+        // Check local classes with inheritance chain
+        var cls = FindClassByName(baseTypeName, ast, workspace);
+        if (cls != null)
+        {
+            var result = ResolveMemberTypeInClassHierarchy(cls, memberName, isMethodCall, ast, workspace);
+            if (result != null)
+                return result;
+        }
+
+        // Check interfaces
+        var iface = FindInterfaceByName(baseTypeName, ast, workspace);
+        if (iface != null && isMethodCall)
+        {
+            var method = iface.Methods.FirstOrDefault(m => m.Name == memberName);
+            if (method != null)
+                return method.Output?.TypeName;
+        }
+
+        // Handle built-in types
+        if (baseTypeName is "str" or "STRING" or "string")
+        {
+            return ResolveBuiltInStringMember(memberName, isMethodCall);
+        }
+
+        if (baseTypeName is "List" or "LIST" or "list" ||
+            typeName.StartsWith("List<") || typeName.StartsWith("LIST<") || typeName.StartsWith("list<"))
+        {
+            return ResolveBuiltInListMember(typeName, memberName, isMethodCall, typeArgs);
+        }
+
+        if (baseTypeName is "Dict" or "DICT" or "dict" ||
+            typeName.StartsWith("Dict<") || typeName.StartsWith("DICT<") || typeName.StartsWith("dict<"))
+        {
+            return ResolveBuiltInDictMember(typeName, memberName, isMethodCall, typeArgs);
+        }
+
+        if (baseTypeName is "Array" or "ARRAY" or "array" ||
+            typeName.EndsWith("[]"))
+        {
+            return ResolveBuiltInArrayMember(typeName, memberName, isMethodCall, typeArgs);
+        }
+
+        return null;
+    }
+
+    private static string? ResolveMemberTypeInClassHierarchy(ClassDefinitionNode cls, string memberName, bool isMethodCall, ModuleNode ast, WorkspaceState workspace)
+    {
+        // Check current class
+        if (isMethodCall)
+        {
+            var method = cls.Methods.FirstOrDefault(m => m.Name == memberName);
+            if (method != null)
+                return method.Output?.TypeName;
+        }
+        else
+        {
+            var field = cls.Fields.FirstOrDefault(f => f.Name == memberName);
+            if (field != null)
+                return field.TypeName;
+
+            var prop = cls.Properties.FirstOrDefault(p => p.Name == memberName);
+            if (prop != null)
+                return prop.TypeName;
+        }
+
+        // Check base class if exists
+        if (!string.IsNullOrEmpty(cls.BaseClass))
+        {
+            var baseClass = FindClassByName(cls.BaseClass, ast, workspace);
+            if (baseClass != null)
+            {
+                return ResolveMemberTypeInClassHierarchy(baseClass, memberName, isMethodCall, ast, workspace);
+            }
+        }
+
+        // Check implemented interfaces for method signatures
+        if (isMethodCall)
+        {
+            foreach (var ifaceName in cls.ImplementedInterfaces)
+            {
+                var iface = FindInterfaceByName(ifaceName, ast, workspace);
+                if (iface != null)
+                {
+                    var method = iface.Methods.FirstOrDefault(m => m.Name == memberName);
+                    if (method != null)
+                        return method.Output?.TypeName;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static ClassDefinitionNode? FindClassByName(string name, ModuleNode ast, WorkspaceState workspace)
+    {
+        // Check local AST
+        var cls = ast.Classes.FirstOrDefault(c => c.Name == name);
+        if (cls != null)
+            return cls;
+
+        // Check other documents
+        foreach (var doc in workspace.GetAllDocuments())
+        {
+            if (doc.Ast == null) continue;
+            cls = doc.Ast.Classes.FirstOrDefault(c => c.Name == name);
+            if (cls != null)
+                return cls;
+        }
+
+        return null;
+    }
+
+    private static InterfaceDefinitionNode? FindInterfaceByName(string name, ModuleNode ast, WorkspaceState workspace)
+    {
+        // Check local AST
+        var iface = ast.Interfaces.FirstOrDefault(i => i.Name == name);
+        if (iface != null)
+            return iface;
+
+        // Check other documents
+        foreach (var doc in workspace.GetAllDocuments())
+        {
+            if (doc.Ast == null) continue;
+            iface = doc.Ast.Interfaces.FirstOrDefault(i => i.Name == name);
+            if (iface != null)
+                return iface;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Parses a generic type like "List&lt;Person&gt;" into base type "List" and type args ["Person"].
+    /// </summary>
+    private static (string BaseType, List<string> TypeArgs) ParseGenericType(string typeName)
+    {
+        if (string.IsNullOrEmpty(typeName))
+            return (typeName ?? "", new List<string>());
+
+        // Handle array syntax: Person[] -> (Array, [Person])
+        if (typeName.EndsWith("[]"))
+        {
+            var elementType = typeName.Substring(0, typeName.Length - 2);
+            return ("Array", new List<string> { elementType });
+        }
+
+        var angleBracketIndex = typeName.IndexOf('<');
+        if (angleBracketIndex < 0)
+            return (typeName, new List<string>());
+
+        var baseType = typeName.Substring(0, angleBracketIndex);
+        var argsString = typeName.Substring(angleBracketIndex + 1);
+
+        // Remove trailing '>'
+        if (argsString.EndsWith(">"))
+            argsString = argsString.Substring(0, argsString.Length - 1);
+
+        // Parse comma-separated type arguments, handling nested generics
+        var typeArgs = new List<string>();
+        var depth = 0;
+        var currentArg = new System.Text.StringBuilder();
+
+        foreach (var c in argsString)
+        {
+            if (c == '<') depth++;
+            else if (c == '>') depth--;
+
+            if (c == ',' && depth == 0)
+            {
+                typeArgs.Add(currentArg.ToString().Trim());
+                currentArg.Clear();
+            }
+            else
+            {
+                currentArg.Append(c);
+            }
+        }
+
+        if (currentArg.Length > 0)
+            typeArgs.Add(currentArg.ToString().Trim());
+
+        return (baseType, typeArgs);
+    }
+
+    private static string? ResolveBuiltInStringMember(string memberName, bool isMethodCall)
+    {
+        if (!isMethodCall && memberName == "Length")
+            return "i32";
+
+        if (isMethodCall)
+        {
+            return memberName switch
+            {
+                "ToUpper" or "ToLower" or "Trim" or "Substring" or "Replace" => "str",
+                "Contains" or "StartsWith" or "EndsWith" => "bool",
+                "IndexOf" => "i32",
+                "Split" => "List<str>",
+                _ => null
+            };
+        }
+
+        return null;
+    }
+
+    private static string? ResolveBuiltInListMember(string listType, string memberName, bool isMethodCall, List<string> typeArgs)
+    {
+        var elementType = typeArgs.Count > 0 ? typeArgs[0] : "object";
+
+        if (!isMethodCall)
+        {
+            return memberName switch
+            {
+                "Count" => "i32",
+                _ => null
+            };
+        }
+
+        return memberName switch
+        {
+            "Contains" => "bool",
+            "IndexOf" => "i32",
+            "Remove" => "bool",
+            "First" or "Last" or "FirstOrDefault" or "LastOrDefault" => elementType,
+            "Find" or "FindLast" => elementType,
+            _ => null
+        };
+    }
+
+    private static string? ResolveBuiltInDictMember(string dictType, string memberName, bool isMethodCall, List<string> typeArgs)
+    {
+        var keyType = typeArgs.Count > 0 ? typeArgs[0] : "object";
+        var valueType = typeArgs.Count > 1 ? typeArgs[1] : "object";
+
+        if (!isMethodCall)
+        {
+            return memberName switch
+            {
+                "Count" => "i32",
+                "Keys" => $"List<{keyType}>",
+                "Values" => $"List<{valueType}>",
+                _ => null
+            };
+        }
+
+        return memberName switch
+        {
+            "ContainsKey" or "ContainsValue" or "Remove" or "TryGetValue" => "bool",
+            "GetValueOrDefault" => valueType,
+            _ => null
+        };
+    }
+
+    private static string? ResolveBuiltInArrayMember(string arrayType, string memberName, bool isMethodCall, List<string> typeArgs)
+    {
+        var elementType = typeArgs.Count > 0 ? typeArgs[0] : "object";
+
+        if (!isMethodCall)
+        {
+            return memberName switch
+            {
+                "Length" => "i32",
+                _ => null
+            };
+        }
+
+        return memberName switch
+        {
+            "First" or "Last" => elementType,
+            _ => null
+        };
+    }
+
+    private static string? ResolveMethodReturnType(string methodName, ModuleNode ast, int offset, WorkspaceState workspace, string? containingType)
+    {
+        // If we have a containing type, search for methods on that type
+        if (containingType != null)
+        {
+            return ResolveMemberType(containingType, methodName, true, ast, workspace);
+        }
+
+        // Search for standalone functions
+        var func = ast.Functions.FirstOrDefault(f => f.Name == methodName);
+        if (func != null)
+            return func.Output?.TypeName;
+
+        // Search for methods in the containing class
+        var containingMethod = FindContainingMethod(ast, offset);
+        if (containingMethod.HasValue)
+        {
+            var (cls, _) = containingMethod.Value;
+            var method = cls.Methods.FirstOrDefault(m => m.Name == methodName);
+            if (method != null)
+                return method.Output?.TypeName;
+        }
+
+        return null;
+    }
+
     private static IEnumerable<CompletionItem> GetMembersForType(string typeName, ModuleNode ast, WorkspaceState workspace, DocumentState currentDoc)
     {
         var items = new List<CompletionItem>();
 
-        // Check local classes
-        var cls = ast.Classes.FirstOrDefault(c => c.Name == typeName);
+        // Parse generic type to get base type name
+        var (baseTypeName, typeArgs) = ParseGenericType(typeName);
+
+        // Check for classes with inheritance
+        var cls = FindClassByName(baseTypeName, ast, workspace);
         if (cls != null)
         {
-            items.AddRange(GetClassMembers(cls));
+            items.AddRange(GetClassMembersWithInheritance(cls, ast, workspace));
             return items;
         }
 
         // Check local interfaces
-        var iface = ast.Interfaces.FirstOrDefault(i => i.Name == typeName);
+        var iface = FindInterfaceByName(baseTypeName, ast, workspace);
         if (iface != null)
         {
             items.AddRange(GetInterfaceMembers(iface));
@@ -535,13 +1034,13 @@ public sealed class CompletionHandler : CompletionHandlerBase
         }
 
         // Check local enums
-        var en = ast.Enums.FirstOrDefault(e => e.Name == typeName);
+        var en = ast.Enums.FirstOrDefault(e => e.Name == baseTypeName);
         if (en != null)
         {
             items.AddRange(GetEnumMembers(en));
 
             // Also include extension methods for enums
-            var ext = ast.EnumExtensions.FirstOrDefault(e => e.EnumName == typeName);
+            var ext = ast.EnumExtensions.FirstOrDefault(e => e.EnumName == baseTypeName);
             if (ext != null)
             {
                 items.AddRange(GetExtensionMethods(ext));
@@ -549,38 +1048,12 @@ public sealed class CompletionHandler : CompletionHandlerBase
             return items;
         }
 
-        // Check other open documents
+        // Check other documents for enums
         foreach (var doc in workspace.GetAllDocuments())
         {
             if (doc.Uri == currentDoc.Uri || doc.Ast == null) continue;
 
-            var otherCls = doc.Ast.Classes.FirstOrDefault(c => c.Name == typeName);
-            if (otherCls != null)
-            {
-                items.AddRange(GetClassMembers(otherCls).Select(i => new CompletionItem
-                {
-                    Label = i.Label,
-                    Kind = i.Kind,
-                    Detail = $"[{GetFileName(doc.Uri)}] {i.Detail}",
-                    InsertText = i.InsertText
-                }));
-                return items;
-            }
-
-            var otherIface = doc.Ast.Interfaces.FirstOrDefault(i => i.Name == typeName);
-            if (otherIface != null)
-            {
-                items.AddRange(GetInterfaceMembers(otherIface).Select(i => new CompletionItem
-                {
-                    Label = i.Label,
-                    Kind = i.Kind,
-                    Detail = $"[{GetFileName(doc.Uri)}] {i.Detail}",
-                    InsertText = i.InsertText
-                }));
-                return items;
-            }
-
-            var otherEnum = doc.Ast.Enums.FirstOrDefault(e => e.Name == typeName);
+            var otherEnum = doc.Ast.Enums.FirstOrDefault(e => e.Name == baseTypeName);
             if (otherEnum != null)
             {
                 items.AddRange(GetEnumMembers(otherEnum).Select(i => new CompletionItem
@@ -595,37 +1068,63 @@ public sealed class CompletionHandler : CompletionHandlerBase
         }
 
         // Built-in string methods
-        if (typeName is "str" or "STRING" or "string")
+        if (baseTypeName is "str" or "STRING" or "string")
         {
             items.AddRange(GetStringMembers());
         }
 
         // Built-in collection methods
-        if (typeName != null && (typeName.StartsWith("List<") || typeName.StartsWith("LIST<") || typeName.StartsWith("list<")))
+        if (baseTypeName is "List" or "LIST" or "list" ||
+            typeName.StartsWith("List<") || typeName.StartsWith("LIST<") || typeName.StartsWith("list<"))
         {
             items.AddRange(GetListMembers());
         }
 
-        if (typeName != null && (typeName.StartsWith("Dict<") || typeName.StartsWith("DICT<") || typeName.StartsWith("dict<")))
+        if (baseTypeName is "Dict" or "DICT" or "dict" ||
+            typeName.StartsWith("Dict<") || typeName.StartsWith("DICT<") || typeName.StartsWith("dict<"))
         {
             items.AddRange(GetDictMembers());
+        }
+
+        if (baseTypeName is "Array" or "ARRAY" || typeName.EndsWith("[]"))
+        {
+            items.AddRange(GetArrayMembers());
         }
 
         return items;
     }
 
-    private static IEnumerable<CompletionItem> GetClassMembers(ClassDefinitionNode cls)
+    private static IEnumerable<CompletionItem> GetClassMembersWithInheritance(ClassDefinitionNode cls, ModuleNode ast, WorkspaceState workspace)
     {
         var items = new List<CompletionItem>();
+        var visitedClasses = new HashSet<string>();
+
+        CollectClassMembersRecursive(cls, ast, workspace, items, visitedClasses, isInherited: false);
+
+        return items;
+    }
+
+    private static void CollectClassMembersRecursive(ClassDefinitionNode cls, ModuleNode ast, WorkspaceState workspace,
+        List<CompletionItem> items, HashSet<string> visitedClasses, bool isInherited)
+    {
+        if (visitedClasses.Contains(cls.Name))
+            return;
+        visitedClasses.Add(cls.Name);
+
+        var inheritedPrefix = isInherited ? "(inherited) " : "";
 
         // Fields
         foreach (var field in cls.Fields)
         {
+            // Skip if already added (override scenario)
+            if (items.Any(i => i.Label == field.Name))
+                continue;
+
             items.Add(new CompletionItem
             {
                 Label = field.Name,
                 Kind = CompletionItemKind.Field,
-                Detail = $"(field) {field.Name}: {field.TypeName}",
+                Detail = $"{inheritedPrefix}(field) {field.Name}: {field.TypeName}",
                 InsertText = field.Name
             });
         }
@@ -633,11 +1132,14 @@ public sealed class CompletionHandler : CompletionHandlerBase
         // Properties
         foreach (var prop in cls.Properties)
         {
+            if (items.Any(i => i.Label == prop.Name))
+                continue;
+
             items.Add(new CompletionItem
             {
                 Label = prop.Name,
                 Kind = CompletionItemKind.Property,
-                Detail = $"(property) {prop.Name}: {prop.TypeName}",
+                Detail = $"{inheritedPrefix}(property) {prop.Name}: {prop.TypeName}",
                 InsertText = prop.Name
             });
         }
@@ -645,17 +1147,61 @@ public sealed class CompletionHandler : CompletionHandlerBase
         // Methods
         foreach (var method in cls.Methods)
         {
+            if (items.Any(i => i.Label == method.Name))
+                continue;
+
             var paramList = string.Join(", ", method.Parameters.Select(p => $"{p.Name}: {p.TypeName}"));
             items.Add(new CompletionItem
             {
                 Label = method.Name,
                 Kind = CompletionItemKind.Method,
-                Detail = $"(method) {method.Name}({paramList}): {method.Output?.TypeName ?? "void"}",
+                Detail = $"{inheritedPrefix}(method) {method.Name}({paramList}): {method.Output?.TypeName ?? "void"}",
                 InsertText = method.Name
             });
         }
 
-        return items;
+        // Recurse into base class
+        if (!string.IsNullOrEmpty(cls.BaseClass))
+        {
+            var baseClass = FindClassByName(cls.BaseClass, ast, workspace);
+            if (baseClass != null)
+            {
+                CollectClassMembersRecursive(baseClass, ast, workspace, items, visitedClasses, isInherited: true);
+            }
+        }
+
+        // Add interface methods (for reference/documentation)
+        foreach (var ifaceName in cls.ImplementedInterfaces)
+        {
+            var iface = FindInterfaceByName(ifaceName, ast, workspace);
+            if (iface != null)
+            {
+                foreach (var method in iface.Methods)
+                {
+                    if (items.Any(i => i.Label == method.Name))
+                        continue;
+
+                    var paramList = string.Join(", ", method.Parameters.Select(p => $"{p.Name}: {p.TypeName}"));
+                    items.Add(new CompletionItem
+                    {
+                        Label = method.Name,
+                        Kind = CompletionItemKind.Method,
+                        Detail = $"(interface {ifaceName}) {method.Name}({paramList}): {method.Output?.TypeName ?? "void"}",
+                        InsertText = method.Name
+                    });
+                }
+            }
+        }
+    }
+
+    private static IEnumerable<CompletionItem> GetArrayMembers()
+    {
+        return new[]
+        {
+            new CompletionItem { Label = "Length", Kind = CompletionItemKind.Property, Detail = "(property) Length: INT", InsertText = "Length" },
+            new CompletionItem { Label = "Clone", Kind = CompletionItemKind.Method, Detail = "(method) Clone(): Array", InsertText = "Clone" },
+            new CompletionItem { Label = "CopyTo", Kind = CompletionItemKind.Method, Detail = "(method) CopyTo(dest: Array, index: INT): void", InsertText = "CopyTo" },
+        };
     }
 
     private static IEnumerable<CompletionItem> GetInterfaceMembers(InterfaceDefinitionNode iface)
@@ -823,16 +1369,25 @@ public sealed class CompletionHandler : CompletionHandlerBase
             });
         }
 
-        // Walk statements before cursor to collect bindings
-        foreach (var binding in CollectVisibleBindings(containingFunc.Body, offset))
+        // Walk statements before cursor to collect all visible variables (bindings, loops, catch)
+        foreach (var variable in CollectVisibleVariables(containingFunc.Body, offset))
         {
+            var kindLabel = variable.Kind switch
+            {
+                "binding" => variable.IsMutable ? "var" : "let",
+                "loop" => "for",
+                "foreach" => "foreach",
+                "catch" => "catch",
+                _ => "var"
+            };
+
             items.Add(new CompletionItem
             {
-                Label = binding.Name,
-                Kind = binding.IsMutable ? CompletionItemKind.Variable : CompletionItemKind.Constant,
-                Detail = $"({(binding.IsMutable ? "var" : "let")}) {binding.Name}: {binding.TypeName ?? "inferred"}",
-                InsertText = binding.Name,
-                SortText = "1" + binding.Name // Sort local variables after parameters
+                Label = variable.Name,
+                Kind = variable.IsMutable ? CompletionItemKind.Variable : CompletionItemKind.Constant,
+                Detail = $"({kindLabel}) {variable.Name}: {variable.TypeName ?? "inferred"}",
+                InsertText = variable.Name,
+                SortText = "1" + variable.Name // Sort local variables after parameters
             });
         }
 
@@ -919,25 +1474,49 @@ public sealed class CompletionHandler : CompletionHandlerBase
             });
         }
 
-        // Add local bindings
-        foreach (var binding in CollectVisibleBindings(method.Body, offset))
+        // Add local variables (bindings, loops, catch variables)
+        foreach (var variable in CollectVisibleVariables(method.Body, offset))
         {
+            var kindLabel = variable.Kind switch
+            {
+                "binding" => variable.IsMutable ? "var" : "let",
+                "loop" => "for",
+                "foreach" => "foreach",
+                "catch" => "catch",
+                _ => "var"
+            };
+
             items.Add(new CompletionItem
             {
-                Label = binding.Name,
-                Kind = binding.IsMutable ? CompletionItemKind.Variable : CompletionItemKind.Constant,
-                Detail = $"({(binding.IsMutable ? "var" : "let")}) {binding.Name}: {binding.TypeName ?? "inferred"}",
-                InsertText = binding.Name,
-                SortText = "2" + binding.Name
+                Label = variable.Name,
+                Kind = variable.IsMutable ? CompletionItemKind.Variable : CompletionItemKind.Constant,
+                Detail = $"({kindLabel}) {variable.Name}: {variable.TypeName ?? "inferred"}",
+                InsertText = variable.Name,
+                SortText = "2" + variable.Name
             });
         }
 
         return items;
     }
 
+    /// <summary>
+    /// Represents a variable visible in scope (either from a binding, loop, or catch).
+    /// </summary>
+    private sealed record ScopeVariable(string Name, string? TypeName, bool IsMutable, string Kind);
+
     private static IEnumerable<BindStatementNode> CollectVisibleBindings(IReadOnlyList<StatementNode> statements, int offset)
     {
-        var bindings = new List<BindStatementNode>();
+        return CollectVisibleVariables(statements, offset)
+            .Where(v => v.Kind == "binding")
+            .Select(v => statements
+                .OfType<BindStatementNode>()
+                .FirstOrDefault(b => b.Name == v.Name))
+            .Where(b => b != null)!;
+    }
+
+    private static IEnumerable<ScopeVariable> CollectVisibleVariables(IReadOnlyList<StatementNode> statements, int offset)
+    {
+        var variables = new List<ScopeVariable>();
 
         foreach (var stmt in statements)
         {
@@ -947,17 +1526,17 @@ public sealed class CompletionHandler : CompletionHandlerBase
 
             if (stmt is BindStatementNode bind)
             {
-                bindings.Add(bind);
+                variables.Add(new ScopeVariable(bind.Name, bind.TypeName, bind.IsMutable, "binding"));
             }
             else if (stmt is ForStatementNode forStmt && offset >= forStmt.Span.Start && offset < forStmt.Span.End)
             {
-                // Add loop variable and recurse into body
-                // Note: ForStatementNode doesn't inherit BindStatementNode, but we can handle it specially
-                bindings.AddRange(CollectVisibleBindings(forStmt.Body, offset));
+                // Add loop variable
+                variables.Add(new ScopeVariable(forStmt.VariableName, "i32", false, "loop"));
+                variables.AddRange(CollectVisibleVariables(forStmt.Body, offset));
             }
             else if (stmt is WhileStatementNode whileStmt && offset >= whileStmt.Span.Start && offset < whileStmt.Span.End)
             {
-                bindings.AddRange(CollectVisibleBindings(whileStmt.Body, offset));
+                variables.AddRange(CollectVisibleVariables(whileStmt.Body, offset));
             }
             else if (stmt is IfStatementNode ifStmt && offset >= ifStmt.Span.Start && offset < ifStmt.Span.End)
             {
@@ -965,29 +1544,49 @@ public sealed class CompletionHandler : CompletionHandlerBase
                 var inThen = ifStmt.ThenBody.Any(s => offset >= s.Span.Start && offset < s.Span.End);
                 if (inThen)
                 {
-                    bindings.AddRange(CollectVisibleBindings(ifStmt.ThenBody, offset));
+                    variables.AddRange(CollectVisibleVariables(ifStmt.ThenBody, offset));
                 }
                 else if (ifStmt.ElseBody != null)
                 {
                     var inElse = ifStmt.ElseBody.Any(s => offset >= s.Span.Start && offset < s.Span.End);
                     if (inElse)
                     {
-                        bindings.AddRange(CollectVisibleBindings(ifStmt.ElseBody, offset));
+                        variables.AddRange(CollectVisibleVariables(ifStmt.ElseBody, offset));
                     }
                 }
             }
             else if (stmt is ForeachStatementNode foreachStmt && offset >= foreachStmt.Span.Start && offset < foreachStmt.Span.End)
             {
-                bindings.AddRange(CollectVisibleBindings(foreachStmt.Body, offset));
+                // Add foreach iteration variable
+                variables.Add(new ScopeVariable(foreachStmt.VariableName, foreachStmt.VariableType, false, "foreach"));
+                variables.AddRange(CollectVisibleVariables(foreachStmt.Body, offset));
             }
             else if (stmt is TryStatementNode tryStmt && offset >= tryStmt.Span.Start && offset < tryStmt.Span.End)
             {
-                bindings.AddRange(CollectVisibleBindings(tryStmt.TryBody, offset));
-                // Note: catch variables are scoped to their catch block
+                // Check if we're in a catch clause
+                var inCatch = false;
+                foreach (var catchClause in tryStmt.CatchClauses)
+                {
+                    if (offset >= catchClause.Span.Start && offset < catchClause.Span.End)
+                    {
+                        inCatch = true;
+                        // Add catch variable
+                        if (!string.IsNullOrEmpty(catchClause.VariableName))
+                        {
+                            variables.Add(new ScopeVariable(catchClause.VariableName, catchClause.ExceptionType, false, "catch"));
+                        }
+                        variables.AddRange(CollectVisibleVariables(catchClause.Body, offset));
+                        break;
+                    }
+                }
+                if (!inCatch)
+                {
+                    variables.AddRange(CollectVisibleVariables(tryStmt.TryBody, offset));
+                }
             }
         }
 
-        return bindings;
+        return variables;
     }
 
     protected override CompletionRegistrationOptions CreateRegistrationOptions(

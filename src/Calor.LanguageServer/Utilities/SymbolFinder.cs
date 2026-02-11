@@ -15,7 +15,13 @@ public sealed class SymbolLookupResult
     public TextSpan? DefinitionSpan { get; }
     public AstNode? Node { get; }
 
-    public SymbolLookupResult(string name, string kind, string? type, TextSpan span, TextSpan? definitionSpan = null, AstNode? node = null)
+    /// <summary>
+    /// For member access (e.g., person.name), this contains the type name of the target (e.g., "Person").
+    /// Used for cross-file definition lookup.
+    /// </summary>
+    public string? ContainingTypeName { get; }
+
+    public SymbolLookupResult(string name, string kind, string? type, TextSpan span, TextSpan? definitionSpan = null, AstNode? node = null, string? containingTypeName = null)
     {
         Name = name;
         Kind = kind;
@@ -23,6 +29,7 @@ public sealed class SymbolLookupResult
         Span = span;
         DefinitionSpan = definitionSpan;
         Node = node;
+        ContainingTypeName = containingTypeName;
     }
 }
 
@@ -39,6 +46,15 @@ public static class SymbolFinder
     {
         var offset = GetOffset(source, line, column);
 
+        // Try the enhanced visitor-based lookup first for better coverage
+        var visitor = new SymbolFinderVisitor(offset, source);
+        var visitorResult = visitor.FindSymbol(ast);
+        if (visitorResult != null)
+        {
+            return visitorResult;
+        }
+
+        // Fall back to the original approach for cases the visitor doesn't handle
         // Check for literals first (before identifier extraction)
         var literalResult = FindLiteralOrKeywordAtPosition(source, offset, line, ast);
         if (literalResult != null)
@@ -59,6 +75,16 @@ public static class SymbolFinder
 
         // Search for the identifier in the context
         return FindIdentifierInContext(identifier, context, ast, line, source);
+    }
+
+    /// <summary>
+    /// Get all symbols visible at a given position (for completions).
+    /// </summary>
+    public static IReadOnlyList<VisibleSymbol> GetVisibleSymbolsAtPosition(ModuleNode ast, int line, int column, string source)
+    {
+        var offset = GetOffset(source, line, column);
+        var visitor = new SymbolFinderVisitor(offset, source);
+        return visitor.GetVisibleSymbols(ast);
     }
 
     /// <summary>
