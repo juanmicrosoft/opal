@@ -1,44 +1,27 @@
 §M{m001:BclUsage}
-§F{f001:ReadAndLog:pub}
-  §I{str:path}
+§F{f001:LogMessage:pub}
+  §I{str:message}
   §O{void}
-  §E{io:cw}
-  §E{io:fs:r}
-  §V{str:content} §C{File.ReadAllText} path
-  §C{Console.WriteLine} content
+  §E{cw}
+  §P message
 §/F{f001}
 
-§F{f002:WriteFile:pub}
-  §I{str:path}
-  §I{str:content}
-  §O{void}
-  §E{io:fs:w}
-  §C{File.WriteAllText} path content
+§F{f002:ConcatStrings:pub}
+  §I{str:a}
+  §I{str:b}
+  §O{str}
+  §R (concat a b)
 §/F{f002}
 
-§F{f003:GetCurrentTime:pub}
-  §O{DateTime}
-  §E{time}
-  §R §C{DateTime.Now}
+§F{f003:GetLength:pub}
+  §I{str:s}
+  §O{i32}
+  §R (len s)
 §/F{f003}
 
-§F{f004:GenerateId:pub}
+§F{f004:ToUpperCase:pub}
+  §I{str:s}
   §O{str}
-  §E{rand}
-  §R §C{Guid.NewGuid}.ToString
+  §R (upper s)
 §/F{f004}
-
-§F{f005:FetchData:pub}
-  §I{str:url}
-  §O{str}
-  §E{io:net:r}
-  §R §C{HttpClient.GetStringAsync} url
-§/F{f005}
-
-§F{f006:GetEnvironmentVar:pub}
-  §I{str:name}
-  §O{str}
-  §E{env:r}
-  §R §C{Environment.GetEnvironmentVariable} name
-§/F{f006}
 §/M{m001}

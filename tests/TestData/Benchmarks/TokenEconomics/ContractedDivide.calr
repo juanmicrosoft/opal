@@ -3,7 +3,7 @@
   §I{i32:a}
   §I{i32:b}
   §O{i32}
-  §Q{message="divisor must not be zero"} (!= b 0)
+  §Q{"divisor must not be zero"} (!= b 0)
   §S (== result (/ a b))
   §R (/ a b)
 §/F{f001}

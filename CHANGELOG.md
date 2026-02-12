@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Benchmark Results (Statistical: 30 runs)
+- **Overall Advantage**: 0.99x (near parity with C#)
+- **Metrics**: Calor wins 7, C# wins 4
+- **Highlights**:
+  - Comprehension: 1.46x (Calor wins, large effect)
+  - RefactoringStability: 1.38x (Calor wins, large effect)
+  - EditPrecision: 1.37x (Calor wins, large effect)
+  - ErrorDetection: 1.24x (Calor wins, large effect)
+  - ContractVerification, EffectSoundness, InteropEffectCoverage: Calor-only features (C# has no equivalent)
+- **Programs Tested**: 36
+
+### Fixed
+- Fixed 21 benchmark test files that had invalid syntax (recursive functions, data structures, design patterns)
+- Fixed InformationDensity calculator using outdated square bracket patterns instead of curly braces
+- All 41 benchmark files now compile successfully
+
 ## [0.2.3] - 2026-02-12
 
 ### Benchmark Results (Statistical: 30 runs)

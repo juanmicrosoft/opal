@@ -3,9 +3,13 @@
   §I{i32:a}
   §I{i32:b}
   §O{i32}
-  §IF{if1} (== b 0) → §R a
-  §EL
-    §R §C{GCD} §A b §A (% a b) §/C
-  §/I{if1}
+  §B{~x} a
+  §B{~y} b
+  §WH{w1} (!= y 0)
+    §B{temp} y
+    §B{~y} (% x y)
+    §B{~x} temp
+  §/WH{w1}
+  §R x
 §/F{f001}
 §/M{m001}

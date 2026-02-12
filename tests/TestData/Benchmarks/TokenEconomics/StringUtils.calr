@@ -2,22 +2,22 @@
 §F{f001:GetLength:pub}
   §I{str:s}
   §O{i32}
-  §R §C{String.Length} §A s §/C
+  §R (len s)
 §/F{f001}
 §F{f002:ToUpper:pub}
   §I{str:s}
   §O{str}
-  §R §C{String.ToUpper} §A s §/C
+  §R (upper s)
 §/F{f002}
 §F{f003:ToLower:pub}
   §I{str:s}
   §O{str}
-  §R §C{String.ToLower} §A s §/C
+  §R (lower s)
 §/F{f003}
 §F{f004:Concat:pub}
   §I{str:a}
   §I{str:b}
   §O{str}
-  §R §C{String.Concat} §A a §A b §/C
+  §R (concat a b)
 §/F{f004}
 §/M{m001}

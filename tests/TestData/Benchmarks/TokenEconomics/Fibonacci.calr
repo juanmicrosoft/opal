@@ -4,9 +4,16 @@
   §O{i32}
   §IF{if1} (<= n 1) → §R n
   §EL
-    §B{a} §C{Calculate} §A (- n 1) §/C
-    §B{b} §C{Calculate} §A (- n 2) §/C
-    §R (+ a b)
+    §B{~a} 0
+    §B{~b} 1
+    §B{~i} 2
+    §WH{w1} (<= i n)
+      §B{temp} (+ a b)
+      §B{~a} b
+      §B{~b} temp
+      §B{~i} (+ i 1)
+    §/WH{w1}
+    §R b
   §/I{if1}
 §/F{f001}
 §/M{m001}
