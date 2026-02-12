@@ -82,6 +82,68 @@ const comparisons = [
       },
     ],
   },
+  {
+    title: 'vs LEAN / Isabelle / Rocq',
+    subtitle: 'Proof assistants for theorem proving',
+    rows: [
+      {
+        feature: 'Primary Purpose',
+        calor: 'Verified software engineering',
+        others: 'Mathematical theorem proving',
+      },
+      {
+        feature: 'Developer Effort',
+        calor: 'Write contracts, Z3 verifies automatically',
+        others: 'Write proofs (tactics, lemmas, induction)',
+      },
+      {
+        feature: 'Target Domain',
+        calor: 'Business logic, APIs, .NET apps',
+        others: 'Math libraries, cryptography, compilers',
+      },
+      {
+        feature: 'When Verification Fails',
+        calor: 'Falls back to runtime check (safe)',
+        others: 'Blocks compilation until proof complete',
+      },
+      {
+        feature: 'Learning Curve',
+        calor: 'Familiar .NET concepts',
+        others: 'Type theory, proof tactics',
+      },
+    ],
+  },
+  {
+    title: 'vs Constrained Decoding (LLGuidance)',
+    subtitle: 'Grammar-based generation vs semantic verification',
+    rows: [
+      {
+        feature: 'Output Guarantee',
+        calor: 'Syntactically and semantically correct',
+        others: 'Syntactically correct only',
+      },
+      {
+        feature: 'Contract Verification',
+        calor: 'Z3 proves contracts at compile time',
+        others: 'No contract awareness',
+      },
+      {
+        feature: 'Effect Tracking',
+        calor: 'Side effects declared and enforced',
+        others: 'Side effects implicit',
+      },
+      {
+        feature: 'Division by Zero',
+        calor: 'Caught at compile time via §Q',
+        others: 'Runtime crash',
+      },
+      {
+        feature: 'Invariant Violations',
+        calor: 'Counterexample from Z3',
+        others: 'Silent bug in production',
+      },
+    ],
+  },
 ];
 
 export function CompetitivePositioning() {
