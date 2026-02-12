@@ -108,14 +108,15 @@ public class InformationDensityCalculator : IMetricCalculator
         var counts = new SemanticElementCounts();
 
         // Count from source patterns (backup if compilation fails)
-        counts.Modules = CountPattern(source, @"§M\[");
-        counts.Functions = CountPattern(source, @"§F\[");
-        counts.Variables = CountPattern(source, @"§V\[");
-        counts.TypeAnnotations = CountPattern(source, @"§I\[") + CountPattern(source, @"§O\[");
-        counts.Contracts = CountPattern(source, @"§REQ") + CountPattern(source, @"§ENS") + CountPattern(source, @"§INV");
-        counts.Effects = CountPattern(source, @"§E\[");
-        counts.ControlFlow = CountPattern(source, @"§IF") + CountPattern(source, @"§LOOP") + CountPattern(source, @"§MATCH");
-        counts.Expressions = CountPattern(source, @"§C\[") + CountPattern(source, @"\([\+\-\*/]");
+        // Note: Calor uses curly brace syntax: §M{id:name}, §F{id:name:vis}, etc.
+        counts.Modules = CountPattern(source, @"§M\{");
+        counts.Functions = CountPattern(source, @"§F\{") + CountPattern(source, @"§AF\{") + CountPattern(source, @"§MT\{") + CountPattern(source, @"§AMT\{");
+        counts.Variables = CountPattern(source, @"§B\{");
+        counts.TypeAnnotations = CountPattern(source, @"§I\{") + CountPattern(source, @"§O\{");
+        counts.Contracts = CountPattern(source, @"§Q\s") + CountPattern(source, @"§S\s");
+        counts.Effects = CountPattern(source, @"§E\{");
+        counts.ControlFlow = CountPattern(source, @"§IF") + CountPattern(source, @"§L\{") + CountPattern(source, @"§WH\{") + CountPattern(source, @"§W\{");
+        counts.Expressions = CountPattern(source, @"§C\{") + CountPattern(source, @"\([\+\-\*/]");
 
         // If compilation succeeded, use AST for more accurate counts
         if (compilation.Success && compilation.Module != null)

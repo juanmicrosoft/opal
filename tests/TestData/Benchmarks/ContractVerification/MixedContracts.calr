@@ -17,7 +17,7 @@
   §I{i32:a}
   §I{i32:b}
   §O{i32}
-  §Q{message="divisor must not be zero"} (!= b 0)
+  §Q{"divisor must not be zero"} (!= b 0)
   §S (== result (/ a b))
   §R (/ a b)
 §/F{f003}
@@ -26,8 +26,8 @@
   §I{i32:x}
   §I{i32:y}
   §O{i32}
-  §Q{message="x must be positive"} (> x 0)
-  §Q{message="y must be positive"} (> y 0)
+  §Q{"x must be positive"} (> x 0)
+  §Q{"y must be positive"} (> y 0)
   §S (> result 0)
   §R (+ x y)
 §/F{f004}

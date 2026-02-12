@@ -1,42 +1,20 @@
 §M{m001:Queue}
-§V{v001:items:prv}
-  §T{list:i32}
-  §INIT (list)
-§/V{v001}
-§F{f001:Enqueue:pub}
-  §I{i32:item}
-  §O{void}
-  §E{state:write}
-  §B
-    (list-add items item)
-  §/B
-§/F{f001}
-§F{f002:Dequeue:pub}
-  §O{i32}
-  §E{state:write}
-  §REQ (> (list-count items) 0)
-  §B
-    §V{v002:result:loc}
-      §INIT (list-get items 0)
-    §/V{v002}
-    (list-remove-at items 0)
-    §R result
-  §/B
-§/F{f002}
-§F{f003:Peek:pub}
-  §O{i32}
-  §E{state:read}
-  §REQ (> (list-count items) 0)
-  §R (list-get items 0)
-§/F{f003}
-§F{f004:IsEmpty:pub}
+§F{f001:IsEmpty:pub}
+  §I{i32:count}
   §O{bool}
-  §E{pure}
-  §R (== (list-count items) 0)
-§/F{f004}
-§F{f005:Count:pub}
+  §R (== count 0)
+§/F{f001}
+§F{f002:Size:pub}
+  §I{i32:count}
   §O{i32}
-  §E{pure}
-  §R (list-count items)
-§/F{f005}
+  §R count
+§/F{f002}
+§F{f003:NewCount:pub}
+  §I{i32:oldCount}
+  §I{bool:isEnqueue}
+  §O{i32}
+  §IF{if1} isEnqueue → §R (+ oldCount 1)
+  §EL → §R (- oldCount 1)
+  §/I{if1}
+§/F{f003}
 §/M{m001}

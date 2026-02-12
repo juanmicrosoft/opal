@@ -4,11 +4,12 @@
   §I{i32:exp}
   §O{i32}
   §Q (>= exp 0)
-  §IF{if1} (== exp 0) → §R 1
-  §EI (== exp 1) → §R base
-  §EL
-    §B{prev} §C{Power} §A base §A (- exp 1) §/C
-    §R (* base prev)
-  §/I{if1}
+  §B{~result} 1
+  §B{~i} 0
+  §WH{w1} (< i exp)
+    §B{~result} (* result base)
+    §B{~i} (+ i 1)
+  §/WH{w1}
+  §R result
 §/F{f001}
 §/M{m001}
