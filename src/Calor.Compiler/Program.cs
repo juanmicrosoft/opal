@@ -72,6 +72,10 @@ public class Program
             aliases: ["--no-telemetry"],
             description: "Disable anonymous usage telemetry");
 
+        var analyzeOption = new Option<bool>(
+            aliases: ["--analyze"],
+            description: "Enable advanced verification analyses (dataflow, bug patterns, taint tracking)");
+
         var rootCommand = new RootCommand("Calor Compiler - Compiles Calor source to C# and migrates between languages")
         {
             inputOption,
@@ -85,7 +89,8 @@ public class Program
             verifyOption,
             noCacheOption,
             clearCacheOption,
-            noTelemetryOption
+            noTelemetryOption,
+            analyzeOption
         };
 
         // Legacy compile handler (when --input is provided)
@@ -113,6 +118,7 @@ public class Program
             var verify = ctx.ParseResult.GetValueForOption(verifyOption);
             var noCache = ctx.ParseResult.GetValueForOption(noCacheOption);
             var clearCache = ctx.ParseResult.GetValueForOption(clearCacheOption);
+            var analyze = ctx.ParseResult.GetValueForOption(analyzeOption);
 
             telemetry?.TrackEvent("CompileOptions", new Dictionary<string, string>
             {
@@ -122,12 +128,13 @@ public class Program
                 ["strictEffects"] = strictEffects.ToString(),
                 ["contractMode"] = contractMode,
                 ["verify"] = verify.ToString(),
-                ["noCache"] = noCache.ToString()
+                ["noCache"] = noCache.ToString(),
+                ["analyze"] = analyze.ToString()
             });
 
             try
             {
-                await CompileAsync(input, output, verbose, strictApi, requireDocs, enforceEffects, strictEffects, contractMode, verify, noCache, clearCache);
+                await CompileAsync(input, output, verbose, strictApi, requireDocs, enforceEffects, strictEffects, contractMode, verify, noCache, clearCache, analyze);
             }
             catch (Exception ex)
             {
@@ -183,7 +190,7 @@ public class Program
         return result;
     }
 
-    private static async Task CompileAsync(FileInfo? input, FileInfo? output, bool verbose, bool strictApi, bool requireDocs, bool enforceEffects, bool strictEffects, string contractMode, bool verify, bool noCache, bool clearCache)
+    private static async Task CompileAsync(FileInfo? input, FileInfo? output, bool verbose, bool strictApi, bool requireDocs, bool enforceEffects, bool strictEffects, string contractMode, bool verify, bool noCache, bool clearCache, bool analyze)
     {
         try
         {
@@ -208,6 +215,7 @@ public class Program
                 Console.WriteLine("  --strict-effects  Promote unknown external call warnings to errors");
                 Console.WriteLine("  --contract-mode   Contract mode: off, debug, release (default: debug)");
                 Console.WriteLine("  --verify          Enable static contract verification with Z3");
+                Console.WriteLine("  --analyze         Enable advanced analyses (dataflow, bugs, taint)");
                 Console.WriteLine("  --no-cache        Disable verification result caching");
                 Console.WriteLine("  --clear-cache     Clear verification cache before compiling");
                 Console.WriteLine();
@@ -250,7 +258,8 @@ public class Program
                 ContractMode = parsedContractMode,
                 VerifyContracts = verify,
                 ProjectDirectory = Path.GetDirectoryName(input.FullName),
-                VerificationCacheOptions = cacheOptions
+                VerificationCacheOptions = cacheOptions,
+                EnableVerificationAnalyses = analyze
             };
             var result = Compile(source, input.FullName, options);
 
@@ -463,6 +472,30 @@ public class Program
             }
         }
 
+        // Advanced verification analyses (dataflow, bug patterns, taint tracking)
+        if (options.EnableVerificationAnalyses)
+        {
+            phaseSw.Restart();
+            var analysisOptions = options.VerificationAnalysisOptions ?? Analysis.VerificationAnalysisOptions.Default;
+            var analysisPass = new Analysis.VerificationAnalysisPass(diagnostics, analysisOptions);
+            options.VerificationAnalysisResult = analysisPass.Analyze(ast);
+            phaseSw.Stop();
+            telemetry?.TrackPhase("VerificationAnalyses", phaseSw.ElapsedMilliseconds, !diagnostics.HasErrors,
+                new Dictionary<string, string>
+                {
+                    ["functionsAnalyzed"] = options.VerificationAnalysisResult.FunctionsAnalyzed.ToString(),
+                    ["bugPatternsFound"] = options.VerificationAnalysisResult.BugPatternsFound.ToString(),
+                    ["taintVulnerabilities"] = options.VerificationAnalysisResult.TaintVulnerabilities.ToString()
+                });
+
+            if (options.Verbose)
+            {
+                Console.WriteLine($"Verification analyses completed: {options.VerificationAnalysisResult.FunctionsAnalyzed} functions, " +
+                    $"{options.VerificationAnalysisResult.BugPatternsFound} bug patterns, " +
+                    $"{options.VerificationAnalysisResult.TaintVulnerabilities} taint issues");
+            }
+        }
+
         // Code generation
         phaseSw.Restart();
         var emitter = new CSharpEmitter(options.ContractMode, options.VerificationResults, inheritanceResult);
@@ -555,6 +588,21 @@ public sealed class CompilationOptions
     /// Verification results populated after running verification pass.
     /// </summary>
     public ModuleVerificationResult? VerificationResults { get; internal set; }
+
+    /// <summary>
+    /// Enable advanced verification analyses (dataflow, bug patterns, taint tracking).
+    /// </summary>
+    public bool EnableVerificationAnalyses { get; init; }
+
+    /// <summary>
+    /// Options for verification analyses.
+    /// </summary>
+    public Analysis.VerificationAnalysisOptions? VerificationAnalysisOptions { get; init; }
+
+    /// <summary>
+    /// Results from verification analyses.
+    /// </summary>
+    public Analysis.VerificationAnalysisResult? VerificationAnalysisResult { get; internal set; }
 }
 
 /// <summary>

@@ -58,13 +58,24 @@ public sealed class BoundFunction : BoundNode
     public FunctionSymbol Symbol { get; }
     public IReadOnlyList<BoundStatement> Body { get; }
     public Scope Scope { get; }
+    /// <summary>
+    /// Declared effects for this function (e.g., "db:w", "fs:rw").
+    /// Used by taint analysis for effect-based sink detection.
+    /// </summary>
+    public IReadOnlyList<string> DeclaredEffects { get; }
 
     public BoundFunction(TextSpan span, FunctionSymbol symbol, IReadOnlyList<BoundStatement> body, Scope scope)
+        : this(span, symbol, body, scope, Array.Empty<string>())
+    {
+    }
+
+    public BoundFunction(TextSpan span, FunctionSymbol symbol, IReadOnlyList<BoundStatement> body, Scope scope, IReadOnlyList<string> declaredEffects)
         : base(span)
     {
         Symbol = symbol;
         Body = body;
         Scope = scope;
+        DeclaredEffects = declaredEffects ?? Array.Empty<string>();
     }
 }
 
@@ -332,5 +343,142 @@ public sealed class BoundCallExpression : BoundExpression
         Target = target;
         Arguments = arguments;
         TypeName = resultType;
+    }
+}
+
+/// <summary>
+/// Bound break statement (exits the enclosing loop).
+/// </summary>
+public sealed class BoundBreakStatement : BoundStatement
+{
+    public BoundBreakStatement(TextSpan span) : base(span) { }
+}
+
+/// <summary>
+/// Bound continue statement (jumps to next loop iteration).
+/// </summary>
+public sealed class BoundContinueStatement : BoundStatement
+{
+    public BoundContinueStatement(TextSpan span) : base(span) { }
+}
+
+/// <summary>
+/// Bound try statement with catch clauses and optional finally.
+/// </summary>
+public sealed class BoundTryStatement : BoundStatement
+{
+    public IReadOnlyList<BoundStatement> TryBody { get; }
+    public IReadOnlyList<BoundCatchClause> CatchClauses { get; }
+    public IReadOnlyList<BoundStatement>? FinallyBody { get; }
+
+    public BoundTryStatement(
+        TextSpan span,
+        IReadOnlyList<BoundStatement> tryBody,
+        IReadOnlyList<BoundCatchClause> catchClauses,
+        IReadOnlyList<BoundStatement>? finallyBody)
+        : base(span)
+    {
+        TryBody = tryBody;
+        CatchClauses = catchClauses;
+        FinallyBody = finallyBody;
+    }
+}
+
+/// <summary>
+/// Bound catch clause for exception handling.
+/// </summary>
+public sealed class BoundCatchClause : BoundNode
+{
+    /// <summary>
+    /// The exception type to catch (null for catch-all).
+    /// </summary>
+    public string? ExceptionTypeName { get; }
+
+    /// <summary>
+    /// The variable to bind the caught exception to (null if not binding).
+    /// </summary>
+    public VariableSymbol? ExceptionVariable { get; }
+
+    /// <summary>
+    /// The body of the catch clause.
+    /// </summary>
+    public IReadOnlyList<BoundStatement> Body { get; }
+
+    public BoundCatchClause(
+        TextSpan span,
+        string? exceptionTypeName,
+        VariableSymbol? exceptionVariable,
+        IReadOnlyList<BoundStatement> body)
+        : base(span)
+    {
+        ExceptionTypeName = exceptionTypeName;
+        ExceptionVariable = exceptionVariable;
+        Body = body;
+    }
+}
+
+/// <summary>
+/// Bound match statement (pattern matching).
+/// </summary>
+public sealed class BoundMatchStatement : BoundStatement
+{
+    /// <summary>
+    /// The expression being matched against.
+    /// </summary>
+    public BoundExpression Target { get; }
+
+    /// <summary>
+    /// The match cases.
+    /// </summary>
+    public IReadOnlyList<BoundMatchCase> Cases { get; }
+
+    public BoundMatchStatement(
+        TextSpan span,
+        BoundExpression target,
+        IReadOnlyList<BoundMatchCase> cases)
+        : base(span)
+    {
+        Target = target;
+        Cases = cases;
+    }
+}
+
+/// <summary>
+/// A case in a match statement.
+/// </summary>
+public sealed class BoundMatchCase : BoundNode
+{
+    /// <summary>
+    /// The pattern to match (as an expression for now - could be expanded).
+    /// </summary>
+    public BoundExpression? Pattern { get; }
+
+    /// <summary>
+    /// Whether this is a wildcard/default case.
+    /// </summary>
+    public bool IsDefault { get; }
+
+    /// <summary>
+    /// Optional guard condition.
+    /// </summary>
+    public BoundExpression? Guard { get; }
+
+    /// <summary>
+    /// The body to execute if the pattern matches.
+    /// </summary>
+    public IReadOnlyList<BoundStatement> Body { get; }
+
+    public BoundMatchCase(
+        TextSpan span,
+        BoundExpression? pattern,
+        bool isDefault,
+        BoundExpression? guard,
+        IReadOnlyList<BoundStatement> body)
+        : base(span)
+    {
+        Pattern = pattern;
+        IsDefault = isDefault;
+        Guard = guard;
+        Body = body;
     }
 }
