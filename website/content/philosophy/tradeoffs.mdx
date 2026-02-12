@@ -143,6 +143,10 @@ if (x > 0) return x;
 
 Calor compiles to C#, so interop is possible, but native library support doesn't exist.
 
+### 4. You Need Full Formal Methods
+
+If you need to prove arbitrary mathematical properties—cryptographic protocols, compiler correctness, or complex algorithms—use a proof assistant like LEAN, Isabelle, or Rocq. Calor provides lightweight verification for software contracts, not a theorem prover. It targets software engineers writing business logic, not mathematicians writing proofs.
+
 ---
 
 ## Measuring the Tradeoff
