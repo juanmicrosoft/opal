@@ -86,8 +86,8 @@ public class ComprehensionCalculator : IMetricCalculator
         if (source.Contains("§O{")) score += 0.10;  // Output type
         if (source.Contains("§R")) score += 0.10;   // Return statement
         if (source.Contains("§E{")) score += 0.15;  // Effect declaration
-        if (source.Contains("§REQ")) score += 0.15; // Requires contract
-        if (source.Contains("§ENS")) score += 0.10; // Ensures contract
+        if (source.Contains("§Q ")) score += 0.15;  // Requires contract (precondition)
+        if (source.Contains("§S ")) score += 0.10;  // Ensures contract (postcondition)
 
         // Explicit closing tags aid comprehension
         if (source.Contains("§/F{")) score += 0.05;
@@ -134,7 +134,7 @@ public class ComprehensionCalculator : IMetricCalculator
             ["hasInputParameters"] = source.Contains("§I{"),
             ["hasOutputType"] = source.Contains("§O{"),
             ["hasEffects"] = source.Contains("§E{"),
-            ["hasContracts"] = source.Contains("§REQ") || source.Contains("§ENS"),
+            ["hasContracts"] = source.Contains("§Q ") || source.Contains("§S "),
             ["hasClosingTags"] = source.Contains("§/")
         };
     }
