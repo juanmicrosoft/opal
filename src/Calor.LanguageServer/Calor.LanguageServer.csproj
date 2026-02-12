@@ -15,4 +15,12 @@
     <ProjectReference Include="..\Calor.Compiler\Calor.Compiler.csproj" />
   </ItemGroup>
 
+  <!-- Exclude Z3 native libraries from publish - LSP doesn't use verification features -->
+  <!-- The runtimes/ directory in Calor.Compiler contains only Z3 native libs (libz3.*) -->
+  <Target Name="ExcludeZ3FromPublish" BeforeTargets="ComputeResolvedFilesToPublishList">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="$([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').Contains('libz3'))" />
+    </ItemGroup>
+  </Target>
+
 </Project>

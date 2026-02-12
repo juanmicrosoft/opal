@@ -56,8 +56,8 @@
     <Exec Command="powershell -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)scripts\download-z3.ps1&quot;" Condition="'$(OS)' == 'Windows_NT'" />
   </Target>
 
-  <!-- Copy Microsoft.Z3.dll to output -->
-  <ItemGroup>
+  <!-- Copy Microsoft.Z3.dll to output (skip during publish since Reference already includes it) -->
+  <ItemGroup Condition="'$(PublishSingleFile)' != 'true'">
     <None Include="$(Z3Dir)\Microsoft.Z3.dll" CopyToOutputDirectory="PreserveNewest" Link="Microsoft.Z3.dll" Condition="Exists('$(Z3Dir)\Microsoft.Z3.dll')" />
   </ItemGroup>
 
