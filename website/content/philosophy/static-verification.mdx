@@ -184,6 +184,50 @@ Static verification complements runtime checking—it doesn't replace it. Unprov
 
 ---
 
+## What Calor Is Not
+
+Calor is **not** a proof assistant like LEAN, Isabelle, or Rocq. The distinction matters:
+
+| Aspect | Proof Assistants | Calor |
+|:-------|:-----------------|:------|
+| You write | Proofs (tactics, lemmas) | Contracts (§Q, §S) |
+| Verification | Must complete to compile | Falls back to runtime if unproven |
+| Scope | Arbitrary mathematical properties | Practical software contracts |
+| Expertise | Type theory, proof tactics | Software engineering |
+
+### No Proofs Required
+
+In LEAN, proving a function returns a positive number requires explicit proof:
+
+```lean
+theorem sqrt_positive (x : ℝ) (h : x ≥ 0) : √x ≥ 0 := by
+  exact Real.sqrt_nonneg x
+```
+
+In Calor, you declare the contract and Z3 handles verification automatically:
+
+```calor
+§F{f001:Sqrt}(x: f64) -> f64
+  §Q (>= x 0.0)
+  §S (>= result 0.0)
+  (* x x)
+§/F{}
+```
+
+If Z3 can't prove it, the runtime check remains. Your code compiles and runs safely.
+
+### Lightweight by Design
+
+Calor's verification is deliberately bounded:
+
+- **5-second timeout** per contract (configurable via `--verification-timeout`)
+- **Arithmetic and boolean logic** (not arbitrary math)
+- **Graceful degradation** to runtime checks
+
+This is a feature, not a limitation. Verification never blocks your build indefinitely, and you don't need expertise in formal methods to benefit from it.
+
+---
+
 ## Z3 Installation
 
 Z3 is bundled with the Calor compiler via the `Microsoft.Z3` NuGet package. No separate installation is required.
