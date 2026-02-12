@@ -205,6 +205,119 @@ public static class DiagnosticCode
     /// Info: Contract expression was simplified.
     /// </summary>
     public const string ContractSimplified = "Calor0332";
+
+    // Dataflow analysis (Calor0900-0919)
+
+    /// <summary>
+    /// Error/Warning: Variable is used before initialization.
+    /// </summary>
+    public const string UninitializedVariable = "Calor0900";
+
+    /// <summary>
+    /// Warning: Dead code detected (unreachable statement).
+    /// </summary>
+    public const string DeadCode = "Calor0901";
+
+    /// <summary>
+    /// Warning: Assignment to variable that is never read (dead store).
+    /// </summary>
+    public const string DeadStore = "Calor0902";
+
+    /// <summary>
+    /// Info: Variable is redefined without being used.
+    /// </summary>
+    public const string RedefinedWithoutUse = "Calor0903";
+
+    // Bug pattern detection (Calor0920-0949)
+
+    /// <summary>
+    /// Error: Potential division by zero.
+    /// </summary>
+    public const string DivisionByZero = "Calor0920";
+
+    /// <summary>
+    /// Error: Potential array index out of bounds.
+    /// </summary>
+    public const string IndexOutOfBounds = "Calor0921";
+
+    /// <summary>
+    /// Error: Potential null/None dereference.
+    /// </summary>
+    public const string NullDereference = "Calor0922";
+
+    /// <summary>
+    /// Warning: Potential integer overflow.
+    /// </summary>
+    public const string IntegerOverflow = "Calor0923";
+
+    /// <summary>
+    /// Warning: Result of operation discarded (potential logic error).
+    /// </summary>
+    public const string DiscardedResult = "Calor0924";
+
+    /// <summary>
+    /// Error: Unwrap on Option/Result without prior check.
+    /// </summary>
+    public const string UnsafeUnwrap = "Calor0925";
+
+    // K-induction / loop analysis (Calor0950-0979)
+
+    /// <summary>
+    /// Info: Loop invariant successfully synthesized.
+    /// </summary>
+    public const string LoopInvariantSynthesized = "Calor0950";
+
+    /// <summary>
+    /// Warning: Loop invariant could not be synthesized.
+    /// </summary>
+    public const string LoopInvariantUnknown = "Calor0951";
+
+    /// <summary>
+    /// Error: Loop may not terminate (potential infinite loop).
+    /// </summary>
+    public const string PotentialInfiniteLoop = "Calor0952";
+
+    /// <summary>
+    /// Info: Loop bound proven by k-induction.
+    /// </summary>
+    public const string LoopBoundProven = "Calor0953";
+
+    // Taint tracking / security (Calor0980-0999)
+
+    /// <summary>
+    /// Error: Tainted data flows to security-sensitive sink (e.g., SQL injection).
+    /// </summary>
+    public const string TaintedSink = "Calor0980";
+
+    /// <summary>
+    /// Warning: Potential SQL injection vulnerability.
+    /// </summary>
+    public const string SqlInjection = "Calor0981";
+
+    /// <summary>
+    /// Warning: Potential command injection vulnerability.
+    /// </summary>
+    public const string CommandInjection = "Calor0982";
+
+    /// <summary>
+    /// Warning: Potential path traversal vulnerability.
+    /// </summary>
+    public const string PathTraversal = "Calor0983";
+
+    /// <summary>
+    /// Warning: Potential cross-site scripting (XSS) vulnerability.
+    /// </summary>
+    public const string CrossSiteScripting = "Calor0984";
+
+    /// <summary>
+    /// Info: Taint source identified.
+    /// </summary>
+    public const string TaintSource = "Calor0985";
+
+    /// <summary>
+    /// Info: Sanitizer applied to tainted data.
+    /// </summary>
+    public const string TaintSanitized = "Calor0986";
 }
 
 /// <summary>

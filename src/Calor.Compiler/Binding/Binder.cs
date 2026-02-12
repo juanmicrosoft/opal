@@ -68,7 +68,10 @@ public sealed class Binder
             // Bind body
             var boundBody = BindStatements(func.Body);
 
-            return new BoundFunction(func.Span, functionSymbol, boundBody, functionScope);
+            // Extract declared effects for taint analysis
+            var declaredEffects = ExtractEffects(func);
+
+            return new BoundFunction(func.Span, functionSymbol, boundBody, functionScope, declaredEffects);
         }
         finally
         {
@@ -100,6 +103,10 @@ public sealed class Binder
             WhileStatementNode whileStmt => BindWhileStatement(whileStmt),
             IfStatementNode ifStmt => BindIfStatement(ifStmt),
             BindStatementNode bind => BindBindStatement(bind),
+            BreakStatementNode breakStmt => new BoundBreakStatement(breakStmt.Span),
+            ContinueStatementNode continueStmt => new BoundContinueStatement(continueStmt.Span),
+            TryStatementNode tryStmt => BindTryStatement(tryStmt),
+            MatchStatementNode matchStmt => BindMatchStatement(matchStmt),
             _ => throw new InvalidOperationException($"Unknown statement type: {stmt.GetType().Name}")
         };
     }
@@ -380,5 +387,126 @@ public sealed class Binder
             candidate = $"{baseName}{suffix}";
         }
         return candidate;
+    }
+
+    private BoundTryStatement BindTryStatement(TryStatementNode tryStmt)
+    {
+        // Bind try body in its own scope
+        var tryScope = _scope.CreateChild();
+        var previousScope = _scope;
+        _scope = tryScope;
+        var tryBody = BindStatements(tryStmt.TryBody);
+        _scope = previousScope;
+
+        // Bind catch clauses
+        var catchClauses = new List<BoundCatchClause>();
+        foreach (var catchClause in tryStmt.CatchClauses)
+        {
+            var catchScope = _scope.CreateChild();
+            _scope = catchScope;
+
+            VariableSymbol? exceptionVar = null;
+            if (catchClause.VariableName != null)
+            {
+                var typeName = catchClause.ExceptionType ?? "Exception";
+                exceptionVar = new VariableSymbol(catchClause.VariableName, typeName, isMutable: false);
+                _scope.TryDeclare(exceptionVar);
+            }
+
+            var catchBody = BindStatements(catchClause.Body);
+            _scope = previousScope;
+
+            catchClauses.Add(new BoundCatchClause(
+                catchClause.Span,
+                catchClause.ExceptionType,
+                exceptionVar,
+                catchBody));
+        }
+
+        // Bind finally body if present
+        IReadOnlyList<BoundStatement>? finallyBody = null;
+        if (tryStmt.FinallyBody != null && tryStmt.FinallyBody.Count > 0)
+        {
+            var finallyScope = _scope.CreateChild();
+            _scope = finallyScope;
+            finallyBody = BindStatements(tryStmt.FinallyBody);
+            _scope = previousScope;
+        }
+
+        return new BoundTryStatement(tryStmt.Span, tryBody, catchClauses, finallyBody);
+    }
+
+    private BoundMatchStatement BindMatchStatement(MatchStatementNode matchStmt)
+    {
+        var target = BindExpression(matchStmt.Target);
+
+        var cases = new List<BoundMatchCase>();
+        foreach (var matchCase in matchStmt.Cases)
+        {
+            var caseScope = _scope.CreateChild();
+            var previousScope = _scope;
+            _scope = caseScope;
+
+            // Bind pattern (if not a wildcard)
+            BoundExpression? pattern = null;
+            var isDefault = false;
+
+            // Check for wildcard pattern
+            if (matchCase.Pattern is WildcardPatternNode)
+            {
+                isDefault = true;
+            }
+            else if (matchCase.Pattern is LiteralPatternNode literalPattern)
+            {
+                pattern = BindExpression(literalPattern.Literal);
+            }
+            else if (matchCase.Pattern is ConstantPatternNode constantPattern)
+            {
+                pattern = BindExpression(constantPattern.Value);
+            }
+            else if (matchCase.Pattern is VariablePatternNode varPattern)
+            {
+                // Variable pattern captures a value - treat as default for now
+                // TODO: Add variable binding to scope
+                isDefault = true;
+            }
+            else
+            {
+                // For other pattern types, mark as default for now
+                isDefault = true;
+            }
+
+            // Bind guard if present
+            BoundExpression? guard = null;
+            if (matchCase.Guard != null)
+            {
+                guard = BindExpression(matchCase.Guard);
+            }
+
+            var body = BindStatements(matchCase.Body);
+            _scope = previousScope;
+
+            cases.Add(new BoundMatchCase(matchCase.Span, pattern, isDefault, guard, body));
+        }
+
+        return new BoundMatchStatement(matchStmt.Span, target, cases);
+    }
+
+    /// <summary>
+    /// Extracts effect declarations from a function node.
+    /// Returns effects in "category:value" format (e.g., "io:database_write").
+    /// </summary>
+    private static IReadOnlyList<string> ExtractEffects(FunctionNode func)
+    {
+        if (func.Effects?.Effects == null || func.Effects.Effects.Count == 0)
+            return Array.Empty<string>();
+
+        var effects = new List<string>();
+        foreach (var (category, value) in func.Effects.Effects)
+        {
+            // Store as "category:value" - TaintAnalysis will parse this
+            effects.Add($"{category.ToLowerInvariant()}:{value.ToLowerInvariant()}");
+        }
+        return effects;
     }
 }
