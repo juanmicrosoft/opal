@@ -395,8 +395,8 @@ public class VerificationCacheTests : IDisposable
 
         var result = new ContractVerificationResult(
             ContractVerificationStatus.Disproven,
-            "x = -1",
-            TimeSpan.FromMilliseconds(100));
+            CounterexampleDescription: "x = -1",
+            Duration: TimeSpan.FromMilliseconds(100));
 
         // Write with one instance
         using (var cache = new VerificationCache(options))

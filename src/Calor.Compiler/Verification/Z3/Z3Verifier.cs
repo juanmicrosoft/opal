@@ -8,6 +8,15 @@ namespace Calor.Compiler.Verification.Z3;
 /// <summary>
 /// Core Z3 verification logic for Calor contracts.
 /// </summary>
+/// <remarks>
+/// <para>
+/// <b>Thread Safety:</b> This class is NOT thread-safe. Each verification operation creates
+/// and uses a new <see cref="ContractTranslator"/> instance internally, but the Z3
+/// <see cref="Microsoft.Z3.Context"/> is shared and Z3 contexts are not thread-safe by default.
+/// For concurrent verification, either create separate Z3Verifier instances with separate
+/// Z3 contexts, or synchronize access externally.
+/// </para>
+/// </remarks>
 public sealed class Z3Verifier : IDisposable
 {
     private readonly Context _ctx;
@@ -38,9 +47,9 @@ public sealed class Z3Verifier : IDisposable
         {
             if (!translator.DeclareVariable(name, type))
             {
-                // Unsupported parameter type
                 return new ContractVerificationResult(
                     ContractVerificationStatus.Unsupported,
+                    CounterexampleDescription: ContractTranslator.DiagnoseUnsupportedType(type),
                     Duration: sw.Elapsed);
             }
         }
@@ -49,33 +58,51 @@ public sealed class Z3Verifier : IDisposable
         var preconditionExpr = translator.TranslateBoolExpr(precondition.Condition);
         if (preconditionExpr == null)
         {
+            var diagnostic = translator.DiagnoseBoolExprFailure(precondition.Condition)
+                ?? translator.DiagnoseTranslationFailure(precondition.Condition)
+                ?? "Unknown translation failure in precondition";
             return new ContractVerificationResult(
                 ContractVerificationStatus.Unsupported,
+                CounterexampleDescription: diagnostic,
                 Duration: sw.Elapsed);
         }
 
         // For preconditions, we just check if they're satisfiable
         // (i.e., there exists some input that satisfies them)
         // This is informational - preconditions are always kept as runtime checks
-        var solver = _ctx.MkSolver();
-        solver.Set("timeout", _timeoutMs);
-        solver.Assert(preconditionExpr);
-
-        var status = solver.Check();
-
-        return status switch
+        try
         {
-            Status.SATISFIABLE => new ContractVerificationResult(
-                ContractVerificationStatus.Proven,
-                Duration: sw.Elapsed),
-            Status.UNSATISFIABLE => new ContractVerificationResult(
-                ContractVerificationStatus.Disproven,
-                CounterexampleDescription: "Precondition is never satisfiable - function can never be called correctly",
-                Duration: sw.Elapsed),
-            _ => new ContractVerificationResult(
+            var solver = _ctx.MkSolver();
+            solver.Set("timeout", _timeoutMs);
+            solver.Assert(preconditionExpr);
+
+            var status = solver.Check();
+            var warnings = translator.Warnings.Count > 0 ? translator.Warnings.ToList() : null;
+
+            return status switch
+            {
+                Status.SATISFIABLE => new ContractVerificationResult(
+                    ContractVerificationStatus.Proven,
+                    Warnings: warnings,
+                    Duration: sw.Elapsed),
+                Status.UNSATISFIABLE => new ContractVerificationResult(
+                    ContractVerificationStatus.Disproven,
+                    CounterexampleDescription: "Precondition is never satisfiable - function can never be called correctly",
+                    Warnings: warnings,
+                    Duration: sw.Elapsed),
+                _ => new ContractVerificationResult(
+                    ContractVerificationStatus.Unproven,
+                    Warnings: warnings,
+                    Duration: sw.Elapsed)
+            };
+        }
+        catch (Z3Exception ex)
+        {
+            return new ContractVerificationResult(
                 ContractVerificationStatus.Unproven,
-                Duration: sw.Elapsed)
-        };
+                CounterexampleDescription: $"Z3 solver error: {ex.Message}",
+                Duration: sw.Elapsed);
+        }
     }
 
     /// <summary>
@@ -106,6 +133,7 @@ public sealed class Z3Verifier : IDisposable
             {
                 return new ContractVerificationResult(
                     ContractVerificationStatus.Unsupported,
+                    CounterexampleDescription: ContractTranslator.DiagnoseUnsupportedType(type),
                     Duration: sw.Elapsed);
             }
         }
@@ -117,6 +145,7 @@ public sealed class Z3Verifier : IDisposable
             {
                 return new ContractVerificationResult(
                     ContractVerificationStatus.Unsupported,
+                    CounterexampleDescription: ContractTranslator.DiagnoseUnsupportedType(outputType),
                     Duration: sw.Elapsed);
             }
         }
@@ -128,9 +157,12 @@ public sealed class Z3Verifier : IDisposable
             var preExpr = translator.TranslateBoolExpr(pre.Condition);
             if (preExpr == null)
             {
-                // If we can't translate a precondition, we can't verify the postcondition
+                var diagnostic = translator.DiagnoseBoolExprFailure(pre.Condition)
+                    ?? translator.DiagnoseTranslationFailure(pre.Condition)
+                    ?? "Unknown translation failure in precondition";
                 return new ContractVerificationResult(
                     ContractVerificationStatus.Unsupported,
+                    CounterexampleDescription: diagnostic,
                     Duration: sw.Elapsed);
             }
             preconditionExprs.Add(preExpr);
@@ -140,40 +172,58 @@ public sealed class Z3Verifier : IDisposable
         var postconditionExpr = translator.TranslateBoolExpr(postcondition.Condition);
         if (postconditionExpr == null)
         {
+            var diagnostic = translator.DiagnoseBoolExprFailure(postcondition.Condition)
+                ?? translator.DiagnoseTranslationFailure(postcondition.Condition)
+                ?? "Unknown translation failure in postcondition";
             return new ContractVerificationResult(
                 ContractVerificationStatus.Unsupported,
+                CounterexampleDescription: diagnostic,
                 Duration: sw.Elapsed);
         }
 
-        // Create solver
-        var solver = _ctx.MkSolver();
-        solver.Set("timeout", _timeoutMs);
-
-        // Assert all preconditions
-        foreach (var preExpr in preconditionExprs)
+        // Create solver and perform verification
+        try
         {
-            solver.Assert(preExpr);
+            var solver = _ctx.MkSolver();
+            solver.Set("timeout", _timeoutMs);
+
+            // Assert all preconditions
+            foreach (var preExpr in preconditionExprs)
+            {
+                solver.Assert(preExpr);
+            }
+
+            // Assert the negation of the postcondition
+            // If this is UNSAT, the postcondition always holds when preconditions hold
+            solver.Assert(_ctx.MkNot(postconditionExpr));
+
+            var status = solver.Check();
+            var warnings = translator.Warnings.Count > 0 ? translator.Warnings.ToList() : null;
+
+            return status switch
+            {
+                Status.UNSATISFIABLE => new ContractVerificationResult(
+                    ContractVerificationStatus.Proven,
+                    Warnings: warnings,
+                    Duration: sw.Elapsed),
+                Status.SATISFIABLE => new ContractVerificationResult(
+                    ContractVerificationStatus.Disproven,
+                    CounterexampleDescription: ExtractCounterexample(solver.Model, translator.Variables),
+                    Warnings: warnings,
+                    Duration: sw.Elapsed),
+                _ => new ContractVerificationResult(
+                    ContractVerificationStatus.Unproven,
+                    Warnings: warnings,
+                    Duration: sw.Elapsed)
+            };
         }
-
-        // Assert the negation of the postcondition
-        // If this is UNSAT, the postcondition always holds when preconditions hold
-        solver.Assert(_ctx.MkNot(postconditionExpr));
-
-        var status = solver.Check();
-
-        return status switch
+        catch (Z3Exception ex)
         {
-            Status.UNSATISFIABLE => new ContractVerificationResult(
-                ContractVerificationStatus.Proven,
-                Duration: sw.Elapsed),
-            Status.SATISFIABLE => new ContractVerificationResult(
-                ContractVerificationStatus.Disproven,
-                CounterexampleDescription: ExtractCounterexample(solver.Model, translator.Variables),
-                Duration: sw.Elapsed),
-            _ => new ContractVerificationResult(
+            return new ContractVerificationResult(
                 ContractVerificationStatus.Unproven,
-                Duration: sw.Elapsed)
-        };
+                CounterexampleDescription: $"Z3 solver error: {ex.Message}",
+                Duration: sw.Elapsed);
+        }
     }
 
     private static string ExtractCounterexample(Model model, IReadOnlyDictionary<string, (Expr Expr, string Type)> variables)
