@@ -1,0 +1,12 @@
+{
+  "id": "coll-004",
+  "name": "Push/Put operations",
+  "category": "collections",
+  "fixture": "collections-project",
+  "prompt": "Add a public function called BuildCollection to Collections.calr that demonstrates both PUSH for lists and PUT for dictionaries. The function takes no parameters and returns i32 (the total count of items across both collections).\n\nUse this exact pattern:\n§F{f001:BuildCollection:pub}\n  §O{i32}\n  §LIST{numbers:i32}\n  §PUSH{numbers} 1\n  §PUSH{numbers} 2\n  §DICT{names:i32:str}\n  §PUT{names} 1 \"one\"\n  §PUT{names} 2 \"two\"\n  §PUT{names} 3 \"three\"\n  §R (+ §CNT{numbers} §CNT{names})\n§/F{f001}\n\nThe syntax:\n- §PUSH{listId} value - adds to a list\n- §PUT{dictId} key value - adds to a dictionary\n- §CNT{id} - gets the count",
+  "verification": {
+    "compilation": { "mustSucceed": true },
+    "z3": { "enabled": false }
+  },
+  "timeout": 120
+}

@@ -796,7 +796,7 @@ public sealed class Parser
         {
             return ParseSetCreationStatement();
         }
-        else if (Check(TokenKind.Push))
+        else if (Check(TokenKind.Push) || Check(TokenKind.Add))
         {
             return ParseCollectionPush();
         }
@@ -3265,16 +3265,19 @@ public sealed class Parser
     /// <summary>
     /// Parses collection push (add).
     /// §PUSH{list1} value      // list.Add(value)
+    /// §ADD{set1} value        // set.Add(value) - alias for PUSH, idiomatic for HashSet
     /// </summary>
     private CollectionPushNode ParseCollectionPush()
     {
-        var startToken = Expect(TokenKind.Push);
+        // Accept either PUSH or ADD token
+        var startToken = Check(TokenKind.Push) ? Expect(TokenKind.Push) : Expect(TokenKind.Add);
+        var tokenName = startToken.Kind == TokenKind.Push ? "PUSH" : "ADD";
         var attrs = ParseAttributes();
         var collectionName = attrs["_pos0"] ?? "";
 
         if (string.IsNullOrEmpty(collectionName))
         {
-            _diagnostics.ReportMissingRequiredAttribute(startToken.Span, "PUSH", "collection name");
+            _diagnostics.ReportMissingRequiredAttribute(startToken.Span, tokenName, "collection name");
         }
 
         var value = ParseExpression();
