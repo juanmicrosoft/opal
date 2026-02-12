@@ -35,11 +35,13 @@ public enum ContractVerificationStatus
 /// Result of verifying a single contract.
 /// </summary>
 /// <param name="Status">The verification status.</param>
-/// <param name="CounterexampleDescription">Description of counterexample if Disproven.</param>
+/// <param name="CounterexampleDescription">Description of counterexample if Disproven, or diagnostic message if Unsupported.</param>
+/// <param name="Warnings">Non-fatal warnings about features that were silently handled differently than expected.</param>
 /// <param name="Duration">Time taken to verify.</param>
 public record ContractVerificationResult(
     ContractVerificationStatus Status,
     string? CounterexampleDescription = null,
+    IReadOnlyList<string>? Warnings = null,
     TimeSpan? Duration = null);
 
 /// <summary>

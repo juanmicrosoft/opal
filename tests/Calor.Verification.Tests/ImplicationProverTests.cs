@@ -394,19 +394,20 @@ public class ImplicationProverTests
     #region Unsupported Construct Tests
 
     [SkippableFact]
-    public void Returns_Unsupported_ForStrings()
+    public void ProvesStringImplication()
     {
         Skip.IfNot(Z3ContextFactory.IsAvailable, "Z3 not available");
-        Returns_Unsupported_ForStrings_Core();
+        ProvesStringImplication_Core();
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private void Returns_Unsupported_ForStrings_Core()
+    private void ProvesStringImplication_Core()
     {
         using var ctx = Z3ContextFactory.Create();
         using var prover = new Z3ImplicationProver(ctx);
 
-        // String contracts are unsupported
+        // String contracts are now supported via Z3's string theory
+        // s != "" -> s != "" is a tautology
         var parameters = new List<(string Name, string Type)> { ("s", "string") };
 
         var antecedent = new BinaryOperationNode(
@@ -423,7 +424,7 @@ public class ImplicationProverTests
 
         var result = prover.ProveImplication(parameters, antecedent, consequent);
 
-        Assert.Equal(ImplicationStatus.Unsupported, result.Status);
+        Assert.Equal(ImplicationStatus.Proven, result.Status);
     }
 
     [SkippableFact]

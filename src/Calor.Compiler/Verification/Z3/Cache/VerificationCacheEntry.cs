@@ -54,8 +54,9 @@ public sealed class VerificationCacheEntry
     {
         return new ContractVerificationResult(
             Status,
-            CounterexampleDescription,
-            TimeSpan.FromMilliseconds(OriginalDurationMs));
+            CounterexampleDescription: CounterexampleDescription,
+            Warnings: null, // Warnings are not cached
+            Duration: TimeSpan.FromMilliseconds(OriginalDurationMs));
     }
 
     /// <summary>
