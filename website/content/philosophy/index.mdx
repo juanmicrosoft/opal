@@ -150,7 +150,7 @@ Think of it this way: you don't need to learn assembly language to write softwar
 
 ### "Do I still need to do code reviews?"
 
-**Not in the traditional sense.** Instead of reviewing implementation details line-by-line, you focus on:
+**No.** Instead of reviewing implementation details line-by-line, you focus on:
 - **Defining outcomes**: What should this function guarantee? What preconditions must callers satisfy?
 - **Specifying contracts**: The AI writes the code, but you approve the contracts (`§Q` preconditions, `§S` postconditions)
 - **Reviewing verification results**: Did Z3 prove the contracts? Are there counterexamples?
@@ -159,7 +159,7 @@ The compiler and verifier do the tedious work of checking implementation correct
 
 ### "What if I want to understand the code?"
 
-Calor compiles to readable C# code. If you need to inspect implementation details, look at the generated `.cs` files—they're standard, idiomatic C# that any .NET developer can understand. The Calor source is the "agent-facing" representation; the C# output is the "human-facing" representation.
+Calor compiles to readable C# code. For debugging or auditing purposes, you can inspect the generated `.cs` files—they're standard, idiomatic C# that any .NET developer can understand. But this is the exception, not the workflow: normally you review contracts and verification results, not implementation. The Calor source is the "agent-facing" representation; the C# output exists for tooling compatibility and the rare cases when you need to investigate behavior.
 
 ### "This seems verbose compared to C#"
 
@@ -171,7 +171,7 @@ Adoption is gradual and low-risk:
 1. **Start with AI-generated modules**—let your coding agent write Calor for new features
 2. **Review contracts, not code**—approve what the software should do, not how it does it
 3. **Interoperate seamlessly**—Calor compiles to standard .NET assemblies that work with existing C# code
-4. **Fall back anytime**—the generated C# is always available if you need to maintain it manually
+4. **Organizational flexibility**—the generated C# is always available if your organization requires it for compliance, auditing, or legacy integration
 
 ### "What about tooling? IDE support?"
 
