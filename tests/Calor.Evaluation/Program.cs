@@ -1,6 +1,10 @@
 using System.CommandLine;
+using System.Text.Json;
 using Calor.Evaluation.Benchmarks;
 using Calor.Evaluation.Core;
+using Calor.Evaluation.LlmTasks;
+using Calor.Evaluation.LlmTasks.Caching;
+using Calor.Evaluation.LlmTasks.Providers;
 using Calor.Evaluation.Reports;
 
 namespace Calor.Evaluation;
@@ -114,6 +118,90 @@ public static class Program
         }, dirOption, discoverOutputOption);
 
         rootCommand.AddCommand(discoverCommand);
+
+        // LLM tasks command
+        var llmTasksCommand = new Command("llm-tasks", "Run LLM-based task completion benchmarks");
+
+        var providerOption = new Option<string>(
+            aliases: new[] { "--provider", "-p" },
+            description: "LLM provider to use (claude, mock)",
+            getDefaultValue: () => "claude");
+
+        var modelOption = new Option<string?>(
+            aliases: new[] { "--model" },
+            description: "Specific model to use (e.g., claude-opus-4-5-20251101, claude-sonnet-4-20250514)");
+
+        var budgetOption = new Option<decimal>(
+            aliases: new[] { "--budget", "-b" },
+            description: "Maximum budget in USD",
+            getDefaultValue: () => 5.00m);
+
+        var llmOutputOption = new Option<string>(
+            aliases: new[] { "--output", "-o" },
+            description: "Output file for results",
+            getDefaultValue: () => "llm-results.json");
+
+        var dryRunOption = new Option<bool>(
+            aliases: new[] { "--dry-run" },
+            description: "Estimate costs without making API calls");
+
+        var refreshCacheOption = new Option<bool>(
+            aliases: new[] { "--refresh-cache" },
+            description: "Refresh cached responses");
+
+        var tasksOption = new Option<string[]>(
+            aliases: new[] { "--tasks", "-t" },
+            description: "Specific task IDs to run (comma-separated)")
+        {
+            AllowMultipleArgumentsPerToken = true
+        };
+
+        var llmCategoryOption = new Option<string>(
+            aliases: new[] { "--category", "-c" },
+            description: "Run only tasks in this category");
+
+        var sampleOption = new Option<int?>(
+            aliases: new[] { "--sample", "-s" },
+            description: "Number of tasks to sample");
+
+        var llmManifestOption = new Option<string>(
+            aliases: new[] { "--manifest", "-m" },
+            description: "Path to task manifest file");
+
+        var llmVerboseOption = new Option<bool>(
+            aliases: new[] { "--verbose", "-v" },
+            description: "Enable verbose output");
+
+        llmTasksCommand.AddOption(providerOption);
+        llmTasksCommand.AddOption(modelOption);
+        llmTasksCommand.AddOption(budgetOption);
+        llmTasksCommand.AddOption(llmOutputOption);
+        llmTasksCommand.AddOption(dryRunOption);
+        llmTasksCommand.AddOption(refreshCacheOption);
+        llmTasksCommand.AddOption(tasksOption);
+        llmTasksCommand.AddOption(llmCategoryOption);
+        llmTasksCommand.AddOption(sampleOption);
+        llmTasksCommand.AddOption(llmManifestOption);
+        llmTasksCommand.AddOption(llmVerboseOption);
+
+        llmTasksCommand.SetHandler(async (context) =>
+        {
+            var provider = context.ParseResult.GetValueForOption(providerOption)!;
+            var model = context.ParseResult.GetValueForOption(modelOption);
+            var budget = context.ParseResult.GetValueForOption(budgetOption);
+            var llmOutput = context.ParseResult.GetValueForOption(llmOutputOption)!;
+            var dryRun = context.ParseResult.GetValueForOption(dryRunOption);
+            var refreshCache = context.ParseResult.GetValueForOption(refreshCacheOption);
+            var tasks = context.ParseResult.GetValueForOption(tasksOption) ?? Array.Empty<string>();
+            var llmCategory = context.ParseResult.GetValueForOption(llmCategoryOption);
+            var sample = context.ParseResult.GetValueForOption(sampleOption);
+            var llmManifest = context.ParseResult.GetValueForOption(llmManifestOption);
+            var llmVerbose = context.ParseResult.GetValueForOption(llmVerboseOption);
+
+            await RunLlmTasksAsync(provider, model, budget, llmOutput, dryRun, refreshCache, tasks, llmCategory, sample, llmManifest, llmVerbose);
+        });
+
+        rootCommand.AddCommand(llmTasksCommand);
 
         // Default: run benchmarks if no command specified
         rootCommand.SetHandler(async () =>
@@ -517,5 +605,216 @@ public static class Program
         }
 
         return rows.ToString();
+    }
+
+    private static async Task RunLlmTasksAsync(
+        string provider,
+        string? model,
+        decimal budget,
+        string output,
+        bool dryRun,
+        bool refreshCache,
+        string[] tasks,
+        string? category,
+        int? sample,
+        string? manifestPath,
+        bool verbose)
+    {
+        Console.WriteLine("LLM Task Completion Benchmark");
+        Console.WriteLine("=============================");
+        Console.WriteLine();
+
+        // Load manifest
+        LlmTaskManifest manifest;
+        if (!string.IsNullOrEmpty(manifestPath) && File.Exists(manifestPath))
+        {
+            Console.WriteLine($"Loading manifest: {manifestPath}");
+            manifest = await LlmTaskManifest.LoadAsync(manifestPath);
+        }
+        else
+        {
+            // Try default location
+            var defaultPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Tasks", "task-manifest.json");
+            if (!File.Exists(defaultPath))
+            {
+                // Try relative to working directory
+                defaultPath = Path.Combine("Tasks", "task-manifest.json");
+            }
+
+            if (File.Exists(defaultPath))
+            {
+                Console.WriteLine($"Loading default manifest: {defaultPath}");
+                manifest = await LlmTaskManifest.LoadAsync(defaultPath);
+            }
+            else
+            {
+                Console.Error.WriteLine("No task manifest found. Use --manifest to specify a path.");
+                Console.Error.WriteLine("Expected locations:");
+                Console.Error.WriteLine($"  - {Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Tasks", "task-manifest.json")}");
+                Console.Error.WriteLine($"  - {Path.Combine(Directory.GetCurrentDirectory(), "Tasks", "task-manifest.json")}");
+                return;
+            }
+        }
+
+        Console.WriteLine($"Loaded {manifest.Tasks.Count} task definitions");
+        Console.WriteLine();
+
+        // Create provider
+        ILlmProvider llmProvider;
+        switch (provider.ToLowerInvariant())
+        {
+            case "claude":
+                var claudeProvider = new ClaudeProvider();
+                if (!claudeProvider.IsAvailable)
+                {
+                    Console.Error.WriteLine($"Claude provider unavailable: {claudeProvider.UnavailabilityReason}");
+                    Console.Error.WriteLine("Set the ANTHROPIC_API_KEY environment variable or use --provider mock");
+                    return;
+                }
+                llmProvider = claudeProvider;
+                break;
+
+            case "mock":
+                llmProvider = MockProvider.WithWorkingImplementations();
+                Console.WriteLine("Using mock provider (no actual API calls)");
+                break;
+
+            default:
+                Console.Error.WriteLine($"Unknown provider: {provider}");
+                Console.Error.WriteLine("Available providers: claude, mock");
+                return;
+        }
+
+        // Create runner options
+        var options = new LlmTaskRunnerOptions
+        {
+            BudgetLimit = budget,
+            UseCache = true,
+            RefreshCache = refreshCache,
+            DryRun = dryRun,
+            Verbose = verbose,
+            TaskFilter = tasks.Length > 0 ? tasks.ToList() : null,
+            CategoryFilter = category,
+            SampleSize = sample,
+            Model = model
+        };
+
+        // Create cache
+        var cache = new LlmResponseCache();
+        var cacheStats = cache.GetStatistics();
+        Console.WriteLine($"Cache: {cacheStats.EntryCount} entries ({cacheStats.TotalSizeFormatted})");
+        Console.WriteLine();
+
+        // Create runner
+        using var runner = new LlmTaskRunner(llmProvider, cache);
+
+        // Estimate cost first
+        var estimate = runner.EstimateCost(manifest, options);
+
+        Console.WriteLine("Cost Estimate:");
+        Console.WriteLine($"  Tasks to run: {estimate.TaskCount}");
+        Console.WriteLine($"  Cached responses: {estimate.CachedResponses}");
+        Console.WriteLine($"  Estimated cost: ${estimate.EstimatedCost:F4}");
+        Console.WriteLine($"  Cost with cache: ${estimate.CostWithCache:F4}");
+        Console.WriteLine($"  Budget: ${estimate.BudgetLimit:F2}");
+
+        if (estimate.ExceedsBudget)
+        {
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine($"Warning: Estimated cost exceeds budget!");
+            Console.ResetColor();
+        }
+
+        Console.WriteLine();
+
+        if (dryRun)
+        {
+            Console.WriteLine("Dry run - no API calls made");
+            Console.WriteLine();
+            Console.WriteLine("Category breakdown:");
+            foreach (var (cat, cost) in estimate.ByCategory.OrderByDescending(kv => kv.Value))
+            {
+                Console.WriteLine($"  {cat}: ${cost:F4}");
+            }
+            return;
+        }
+
+        // Run tasks
+        Console.WriteLine("Running tasks...");
+        Console.WriteLine();
+
+        var results = await runner.RunAllAsync(manifest, options);
+
+        // Save results
+        var jsonOptions = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        };
+        var json = JsonSerializer.Serialize(results, jsonOptions);
+        await File.WriteAllTextAsync(output, json);
+        Console.WriteLine($"Results saved to: {output}");
+        Console.WriteLine();
+
+        // Print summary
+        var summary = results.Summary;
+
+        Console.WriteLine("Results Summary");
+        Console.WriteLine("---------------");
+        Console.WriteLine($"Total tasks:           {summary.TotalTasks}");
+        Console.WriteLine($"Calor wins:            {summary.CalorWins}");
+        Console.WriteLine($"C# wins:               {summary.CSharpWins}");
+        Console.WriteLine($"Ties:                  {summary.Ties}");
+        Console.WriteLine();
+
+        Console.WriteLine("Scores:");
+        Console.WriteLine($"  Average Calor score:   {summary.AverageCalorScore:F3}");
+        Console.WriteLine($"  Average C# score:      {summary.AverageCSharpScore:F3}");
+        Console.WriteLine($"  Advantage ratio:       {summary.OverallAdvantageRatio:F2}x");
+        Console.WriteLine();
+
+        Console.WriteLine("Compilation Rates:");
+        Console.WriteLine($"  Calor:                 {summary.CalorCompilationRate:P1}");
+        Console.WriteLine($"  C#:                    {summary.CSharpCompilationRate:P1}");
+        Console.WriteLine();
+
+        Console.WriteLine("Test Pass Rates:");
+        Console.WriteLine($"  Calor:                 {summary.CalorTestPassRate:P1}");
+        Console.WriteLine($"  C#:                    {summary.CSharpTestPassRate:P1}");
+        Console.WriteLine();
+
+        Console.WriteLine($"Total cost:            ${results.TotalCost:F4}");
+        Console.WriteLine($"Remaining budget:      ${runner.RemainingBudget:F2}");
+        Console.WriteLine();
+
+        if (summary.ByCategory.Count > 0)
+        {
+            Console.WriteLine("By Category:");
+            foreach (var (cat, catSummary) in summary.ByCategory.OrderByDescending(kv => kv.Value.AdvantageRatio))
+            {
+                var indicator = catSummary.AdvantageRatio > 1.0 ? "+" : (catSummary.AdvantageRatio < 1.0 ? "-" : "=");
+                Console.WriteLine($"  {indicator} {cat}: {catSummary.AdvantageRatio:F2}x (Calor={catSummary.AverageCalorScore:F2}, C#={catSummary.AverageCSharpScore:F2})");
+            }
+        }
+
+        // Highlight the winner
+        Console.WriteLine();
+        if (summary.OverallAdvantageRatio > 1.05)
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"Calor shows {(summary.OverallAdvantageRatio - 1) * 100:F1}% advantage in LLM task completion!");
+        }
+        else if (summary.OverallAdvantageRatio < 0.95)
+        {
+            Console.ForegroundColor = ConsoleColor.Blue;
+            Console.WriteLine($"C# shows {(1 - summary.OverallAdvantageRatio) * 100:F1}% advantage in LLM task completion.");
+        }
+        else
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("Results are roughly equivalent between Calor and C#.");
+        }
+        Console.ResetColor();
     }
 }
