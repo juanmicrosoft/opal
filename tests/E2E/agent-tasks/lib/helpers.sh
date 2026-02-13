@@ -362,6 +362,51 @@ External method calls use §C (call) sections:
 ```
 This returns -1 if x<0, 0 if x==0, 1 otherwise.
 
+### Option Type (for nullable/optional values)
+Return type: `§O{Option<i32>}` for Option<int>
+
+Constructors:
+- `§SM value` = Some(value) - wrap value
+- `§NN` = None - no value
+
+Example:
+```
+§F{f001:TryDouble:pub}
+  §I{i32:x}
+  §O{Option<i32>}
+  §IF{if1} (> x 0) → §R §SM (* x 2)
+  §EL → §R §NN
+  §/I{if1}
+§/F{f001}
+```
+
+### Result Type (for success/error returns)
+Return type: `§O{Result<i32,str>}` for Result<int, string>
+
+Constructors:
+- `§OK value` = Ok(value) - success with value
+- `§ERR "message"` = Err(message) - error with message
+
+Example:
+```
+§F{f001:SafeDivide:pub}
+  §I{i32:a}
+  §I{i32:b}
+  §O{Result<i32,str>}
+  §IF{if1} (!= b 0) → §R §OK (/ a b)
+  §EL → §R §ERR "Division by zero"
+  §/I{if1}
+§/F{f001}
+```
+
+### Control Flow (If/Else with arrow syntax)
+```
+§IF{id} condition → action
+§EI condition → action
+§EL → action
+§/I{id}
+```
+
 CALOR_REFERENCE
 
     log_debug "Created CLAUDE.md in workspace"
