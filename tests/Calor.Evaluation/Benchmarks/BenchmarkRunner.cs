@@ -34,7 +34,9 @@ public class BenchmarkRunner
             // Calor-only metrics (C# score always 0)
             new ContractVerificationCalculator(),
             new EffectSoundnessCalculator(),
-            new InteropEffectCoverageCalculator()
+            new InteropEffectCoverageCalculator(),
+            // LLM-based task completion (uses estimation mode by default)
+            new LlmTaskCompletionCalculator()
         };
     }
 

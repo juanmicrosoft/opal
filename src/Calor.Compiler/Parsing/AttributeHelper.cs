@@ -97,26 +97,65 @@ public static class AttributeHelper
     }
 
     /// <summary>
-    /// Interprets attributes for BIND/§B: {name} or {~name} or {name:type}
-    /// The ~ prefix indicates mutability. Type is optional second positional.
+    /// Interprets attributes for BIND/§B. Supports multiple formats:
+    /// - {name}           - name only, immutable
+    /// - {~name}          - name only, mutable (~ prefix)
+    /// - {~name:type}     - mutable with type (original format)
+    /// - {type:name}      - type first, then name, immutable (skill file format)
+    /// - {type:name:mut}  - type first, then name, mutable (skill file format)
     /// </summary>
     public static (string Name, bool Mutable, string? TypeName) InterpretBindAttributes(AttributeCollection attrs)
     {
-        var name = attrs["_pos0"] ?? "";
-        var isMutable = name.StartsWith('~');
-        if (isMutable)
+        var pos0 = attrs["_pos0"] ?? "";
+        var pos1 = attrs["_pos1"];
+        var pos2 = attrs["_pos2"];
+
+        // Check for skill file format: {type:name:mut}
+        if (pos2 == "mut" && !string.IsNullOrEmpty(pos1))
         {
-            name = name[1..]; // Remove the ~ prefix
+            // Format: {type:name:mut}
+            return (pos1, true, ExpandType(pos0));
         }
 
-        // Type is in second positional
-        var typeName = attrs["_pos1"];
-        if (!string.IsNullOrEmpty(typeName))
+        // Check for ~ prefix (original mutable format)
+        if (pos0.StartsWith('~'))
         {
-            typeName = ExpandType(typeName);
+            // Format: {~name} or {~name:type}
+            var name = pos0[1..];
+            var typeName = !string.IsNullOrEmpty(pos1) ? ExpandType(pos1) : null;
+            return (name, true, typeName);
         }
 
-        return (name, isMutable, typeName);
+        // Detect if pos0 is a type and pos1 is a name (skill file format: {type:name})
+        // Known primitive types that would indicate type-first format
+        if (!string.IsNullOrEmpty(pos1) && IsLikelyType(pos0))
+        {
+            // Format: {type:name} - immutable
+            return (pos1, false, ExpandType(pos0));
+        }
+
+        // Original format: {name} or {name:type}
+        var typeName2 = !string.IsNullOrEmpty(pos1) ? ExpandType(pos1) : null;
+        return (pos0, false, typeName2);
+    }
+
+    /// <summary>
+    /// Checks if a string is likely a type name (for format detection).
+    /// </summary>
+    private static bool IsLikelyType(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return false;
+
+        var lower = value.ToLowerInvariant();
+        return lower switch
+        {
+            "i8" or "i16" or "i32" or "i64" => true,
+            "u8" or "u16" or "u32" or "u64" => true,
+            "f32" or "f64" => true,
+            "int" or "float" or "str" or "string" or "bool" or "void" or "char" => true,
+            _ => value.StartsWith('?') || value.Contains('!') || value.Contains('<')
+        };
     }
 
     /// <summary>

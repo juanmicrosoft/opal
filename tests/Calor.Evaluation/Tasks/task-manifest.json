@@ -1,0 +1,1219 @@
+{
+  "version": "1.0",
+  "description": "LLM task completion benchmark tasks for comparing Calor vs C#",
+  "tasks": [
+    {
+      "id": "algo-001",
+      "name": "Factorial Function",
+      "category": "basic-algorithms",
+      "difficulty": 1,
+      "description": "Compute the factorial of a non-negative integer",
+      "prompts": {
+        "calor": "Write a Calor function named Factorial that computes the factorial of a non-negative integer n. Include a precondition §Q that n >= 0 and a postcondition §S that result >= 1. Use i32 types. The function should be public (pub) and use proper Calor syntax with §M, §F, §I, §O, §Q, §S, §IF, §R markers and S-expression math like (* n (Factorial (- n 1))).",
+        "csharp": "Write a C# public static method named Factorial in a public static class that computes the factorial of a non-negative integer n. The method should take an int parameter and return an int."
+      },
+      "testCases": [
+        { "input": [0], "expected": 1 },
+        { "input": [1], "expected": 1 },
+        { "input": [5], "expected": 120 },
+        { "input": [10], "expected": 3628800 }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.5, "contracts": 0.2 },
+      "expectedSignature": {
+        "functionName": "Factorial",
+        "parameterTypes": ["int"],
+        "returnType": "int"
+      },
+      "tags": ["recursion", "math", "contracts"]
+    },
+    {
+      "id": "algo-002",
+      "name": "Fibonacci Number",
+      "category": "basic-algorithms",
+      "difficulty": 1,
+      "description": "Compute the nth Fibonacci number",
+      "prompts": {
+        "calor": "Write a Calor function named Fibonacci that computes the nth Fibonacci number (0, 1, 1, 2, 3, 5, 8...). Include a precondition §Q that n >= 0. Use i32 types and proper Calor syntax with §M, §F, §I, §O, §Q, §IF, §R markers.",
+        "csharp": "Write a C# public static method named Fibonacci in a public static class that computes the nth Fibonacci number. The method should take an int parameter n and return an int."
+      },
+      "testCases": [
+        { "input": [0], "expected": 0 },
+        { "input": [1], "expected": 1 },
+        { "input": [2], "expected": 1 },
+        { "input": [10], "expected": 55 },
+        { "input": [15], "expected": 610 }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.5, "contracts": 0.2 },
+      "expectedSignature": {
+        "functionName": "Fibonacci",
+        "parameterTypes": ["int"],
+        "returnType": "int"
+      },
+      "tags": ["recursion", "math", "contracts"]
+    },
+    {
+      "id": "algo-003",
+      "name": "Is Prime",
+      "category": "basic-algorithms",
+      "difficulty": 2,
+      "description": "Check if a number is prime",
+      "prompts": {
+        "calor": "Write a Calor function named IsPrime that returns true if a given positive integer n is prime, false otherwise. Include a precondition §Q that n > 0. Use i32 for input and bool for output. Use proper Calor syntax with §M, §F, §I, §O, §Q, §IF, §L (loop), §R markers and S-expression comparisons like (== (% n i) 0).",
+        "csharp": "Write a C# public static method named IsPrime in a public static class that returns true if a given positive integer is prime, false otherwise. The method should take an int parameter and return a bool."
+      },
+      "testCases": [
+        { "input": [1], "expected": false },
+        { "input": [2], "expected": true },
+        { "input": [3], "expected": true },
+        { "input": [4], "expected": false },
+        { "input": [17], "expected": true },
+        { "input": [25], "expected": false },
+        { "input": [97], "expected": true }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.5, "contracts": 0.2 },
+      "expectedSignature": {
+        "functionName": "IsPrime",
+        "parameterTypes": ["int"],
+        "returnType": "bool"
+      },
+      "tags": ["math", "loops", "contracts"]
+    },
+    {
+      "id": "algo-004",
+      "name": "Greatest Common Divisor",
+      "category": "basic-algorithms",
+      "difficulty": 2,
+      "description": "Compute the GCD of two positive integers using Euclidean algorithm",
+      "prompts": {
+        "calor": "Write a Calor function named Gcd that computes the greatest common divisor of two positive integers a and b using the Euclidean algorithm. Include preconditions §Q that a > 0 and b > 0, and a postcondition §S that result > 0. Use i32 types and proper Calor syntax.",
+        "csharp": "Write a C# public static method named Gcd in a public static class that computes the greatest common divisor of two positive integers using the Euclidean algorithm. The method should take two int parameters and return an int."
+      },
+      "testCases": [
+        { "input": [12, 8], "expected": 4 },
+        { "input": [17, 13], "expected": 1 },
+        { "input": [100, 25], "expected": 25 },
+        { "input": [48, 18], "expected": 6 },
+        { "input": [7, 7], "expected": 7 }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.5, "contracts": 0.2 },
+      "expectedSignature": {
+        "functionName": "Gcd",
+        "parameterTypes": ["int", "int"],
+        "returnType": "int"
+      },
+      "tags": ["recursion", "math", "contracts"]
+    },
+    {
+      "id": "algo-005",
+      "name": "Absolute Value",
+      "category": "basic-algorithms",
+      "difficulty": 1,
+      "description": "Return the absolute value of an integer",
+      "prompts": {
+        "calor": "Write a Calor function named Abs that returns the absolute value of an integer n. Include a postcondition §S that result >= 0. Use i32 types and proper Calor syntax with §IF for the conditional.",
+        "csharp": "Write a C# public static method named Abs in a public static class that returns the absolute value of an integer. The method should take an int parameter and return an int."
+      },
+      "testCases": [
+        { "input": [5], "expected": 5 },
+        { "input": [-5], "expected": 5 },
+        { "input": [0], "expected": 0 },
+        { "input": [-100], "expected": 100 }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.5, "contracts": 0.2 },
+      "expectedSignature": {
+        "functionName": "Abs",
+        "parameterTypes": ["int"],
+        "returnType": "int"
+      },
+      "tags": ["math", "conditionals", "contracts"]
+    },
+    {
+      "id": "algo-006",
+      "name": "Power Function",
+      "category": "basic-algorithms",
+      "difficulty": 2,
+      "description": "Compute base raised to exponent power",
+      "prompts": {
+        "calor": "Write a Calor function named Power that computes base^exp for non-negative exponent. Include a precondition §Q that exp >= 0. Use i32 types and proper Calor syntax.",
+        "csharp": "Write a C# public static method named Power in a public static class that computes base raised to the power of exp. The method should take two int parameters and return an int."
+      },
+      "testCases": [
+        { "input": [2, 0], "expected": 1 },
+        { "input": [2, 3], "expected": 8 },
+        { "input": [3, 2], "expected": 9 },
+        { "input": [5, 3], "expected": 125 },
+        { "input": [10, 2], "expected": 100 }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.5, "contracts": 0.2 },
+      "expectedSignature": {
+        "functionName": "Power",
+        "parameterTypes": ["int", "int"],
+        "returnType": "int"
+      },
+      "tags": ["math", "loops"]
+    },
+    {
+      "id": "algo-007",
+      "name": "Is Even",
+      "category": "basic-algorithms",
+      "difficulty": 1,
+      "description": "Check if a number is even",
+      "prompts": {
+        "calor": "Write a Calor function named IsEven that returns true if n is even. Use i32 for input and bool for output. Use S-expression (== (% n 2) 0).",
+        "csharp": "Write a C# public static method named IsEven in a public static class that returns true if the given integer is even. The method should take an int parameter and return a bool."
+      },
+      "testCases": [
+        { "input": [0], "expected": true },
+        { "input": [1], "expected": false },
+        { "input": [2], "expected": true },
+        { "input": [7], "expected": false },
+        { "input": [-4], "expected": true }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.5, "contracts": 0.2 },
+      "expectedSignature": {
+        "functionName": "IsEven",
+        "parameterTypes": ["int"],
+        "returnType": "bool"
+      },
+      "tags": ["math", "boolean"]
+    },
+    {
+      "id": "algo-008",
+      "name": "Is Odd",
+      "category": "basic-algorithms",
+      "difficulty": 1,
+      "description": "Check if a number is odd",
+      "prompts": {
+        "calor": "Write a Calor function named IsOdd that returns true if n is odd. Use i32 for input and bool for output. Use S-expression (!= (% n 2) 0).",
+        "csharp": "Write a C# public static method named IsOdd in a public static class that returns true if the given integer is odd. The method should take an int parameter and return a bool."
+      },
+      "testCases": [
+        { "input": [0], "expected": false },
+        { "input": [1], "expected": true },
+        { "input": [2], "expected": false },
+        { "input": [7], "expected": true },
+        { "input": [-3], "expected": true }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.5, "contracts": 0.2 },
+      "expectedSignature": {
+        "functionName": "IsOdd",
+        "parameterTypes": ["int"],
+        "returnType": "bool"
+      },
+      "tags": ["math", "boolean"]
+    },
+    {
+      "id": "algo-009",
+      "name": "Sign",
+      "category": "basic-algorithms",
+      "difficulty": 1,
+      "description": "Return the sign of a number (-1, 0, or 1)",
+      "prompts": {
+        "calor": "Write a Calor function named Sign that returns -1 if n < 0, 0 if n == 0, 1 if n > 0. Use i32 types and §IF/§EI/§EL conditionals.",
+        "csharp": "Write a C# public static method named Sign in a public static class that returns -1 if n < 0, 0 if n == 0, 1 if n > 0. The method should take an int parameter and return an int."
+      },
+      "testCases": [
+        { "input": [5], "expected": 1 },
+        { "input": [-5], "expected": -1 },
+        { "input": [0], "expected": 0 },
+        { "input": [100], "expected": 1 },
+        { "input": [-100], "expected": -1 }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.5, "contracts": 0.2 },
+      "expectedSignature": {
+        "functionName": "Sign",
+        "parameterTypes": ["int"],
+        "returnType": "int"
+      },
+      "tags": ["math", "conditionals"]
+    },
+    {
+      "id": "algo-010",
+      "name": "Square",
+      "category": "basic-algorithms",
+      "difficulty": 1,
+      "description": "Return the square of a number",
+      "prompts": {
+        "calor": "Write a Calor function named Square that returns n squared. Use i32 types and S-expression (* n n).",
+        "csharp": "Write a C# public static method named Square in a public static class that returns the square of a number. The method should take an int parameter and return an int."
+      },
+      "testCases": [
+        { "input": [0], "expected": 0 },
+        { "input": [2], "expected": 4 },
+        { "input": [5], "expected": 25 },
+        { "input": [-3], "expected": 9 },
+        { "input": [10], "expected": 100 }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.5, "contracts": 0.2 },
+      "expectedSignature": {
+        "functionName": "Square",
+        "parameterTypes": ["int"],
+        "returnType": "int"
+      },
+      "tags": ["math"]
+    },
+    {
+      "id": "algo-011",
+      "name": "Cube",
+      "category": "basic-algorithms",
+      "difficulty": 1,
+      "description": "Return the cube of a number",
+      "prompts": {
+        "calor": "Write a Calor function named Cube that returns n cubed. Use i32 types and S-expression (* n (* n n)).",
+        "csharp": "Write a C# public static method named Cube in a public static class that returns the cube of a number. The method should take an int parameter and return an int."
+      },
+      "testCases": [
+        { "input": [0], "expected": 0 },
+        { "input": [2], "expected": 8 },
+        { "input": [3], "expected": 27 },
+        { "input": [-2], "expected": -8 },
+        { "input": [5], "expected": 125 }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.5, "contracts": 0.2 },
+      "expectedSignature": {
+        "functionName": "Cube",
+        "parameterTypes": ["int"],
+        "returnType": "int"
+      },
+      "tags": ["math"]
+    },
+    {
+      "id": "algo-012",
+      "name": "Double",
+      "category": "basic-algorithms",
+      "difficulty": 1,
+      "description": "Return double the value",
+      "prompts": {
+        "calor": "Write a Calor function named Double that returns n * 2. Use i32 types and S-expression (* n 2).",
+        "csharp": "Write a C# public static method named Double in a public static class that returns double the input value. The method should take an int parameter and return an int."
+      },
+      "testCases": [
+        { "input": [0], "expected": 0 },
+        { "input": [1], "expected": 2 },
+        { "input": [5], "expected": 10 },
+        { "input": [-3], "expected": -6 },
+        { "input": [50], "expected": 100 }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.5, "contracts": 0.2 },
+      "expectedSignature": {
+        "functionName": "Double",
+        "parameterTypes": ["int"],
+        "returnType": "int"
+      },
+      "tags": ["math"]
+    },
+    {
+      "id": "algo-013",
+      "name": "Negate",
+      "category": "basic-algorithms",
+      "difficulty": 1,
+      "description": "Return the negation of a number",
+      "prompts": {
+        "calor": "Write a Calor function named Negate that returns -n. Use i32 types and S-expression (- 0 n) for negation.",
+        "csharp": "Write a C# public static method named Negate in a public static class that returns the negation of a number. The method should take an int parameter and return an int."
+      },
+      "testCases": [
+        { "input": [0], "expected": 0 },
+        { "input": [5], "expected": -5 },
+        { "input": [-5], "expected": 5 },
+        { "input": [100], "expected": -100 },
+        { "input": [-1], "expected": 1 }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.5, "contracts": 0.2 },
+      "expectedSignature": {
+        "functionName": "Negate",
+        "parameterTypes": ["int"],
+        "returnType": "int"
+      },
+      "tags": ["math"]
+    },
+    {
+      "id": "algo-014",
+      "name": "Is Positive",
+      "category": "basic-algorithms",
+      "difficulty": 1,
+      "description": "Check if a number is positive",
+      "prompts": {
+        "calor": "Write a Calor function named IsPositive that returns true if n > 0. Use i32 for input and bool for output.",
+        "csharp": "Write a C# public static method named IsPositive in a public static class that returns true if the number is positive. The method should take an int parameter and return a bool."
+      },
+      "testCases": [
+        { "input": [5], "expected": true },
+        { "input": [0], "expected": false },
+        { "input": [-1], "expected": false },
+        { "input": [1], "expected": true },
+        { "input": [-100], "expected": false }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.5, "contracts": 0.2 },
+      "expectedSignature": {
+        "functionName": "IsPositive",
+        "parameterTypes": ["int"],
+        "returnType": "bool"
+      },
+      "tags": ["boolean", "conditionals"]
+    },
+    {
+      "id": "algo-015",
+      "name": "Is Negative",
+      "category": "basic-algorithms",
+      "difficulty": 1,
+      "description": "Check if a number is negative",
+      "prompts": {
+        "calor": "Write a Calor function named IsNegative that returns true if n < 0. Use i32 for input and bool for output.",
+        "csharp": "Write a C# public static method named IsNegative in a public static class that returns true if the number is negative. The method should take an int parameter and return a bool."
+      },
+      "testCases": [
+        { "input": [-5], "expected": true },
+        { "input": [0], "expected": false },
+        { "input": [1], "expected": false },
+        { "input": [-1], "expected": true },
+        { "input": [100], "expected": false }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.5, "contracts": 0.2 },
+      "expectedSignature": {
+        "functionName": "IsNegative",
+        "parameterTypes": ["int"],
+        "returnType": "bool"
+      },
+      "tags": ["boolean", "conditionals"]
+    },
+    {
+      "id": "contract-001",
+      "name": "Safe Division",
+      "category": "contracts",
+      "difficulty": 1,
+      "description": "Divide two integers with contract preventing division by zero",
+      "prompts": {
+        "calor": "Write a Calor function named SafeDivide that divides integer a by integer b. Include a precondition §Q that b != 0 (use (!= b 0)) to prevent division by zero. Use i32 types and proper Calor syntax.",
+        "csharp": "Write a C# public static method named SafeDivide in a public static class that divides integer a by integer b. Throw an ArgumentException if b is 0. The method should take two int parameters and return an int."
+      },
+      "testCases": [
+        { "input": [10, 2], "expected": 5 },
+        { "input": [15, 3], "expected": 5 },
+        { "input": [100, 10], "expected": 10 },
+        { "input": [7, 2], "expected": 3 }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.4, "contracts": 0.3 },
+      "expectedSignature": {
+        "functionName": "SafeDivide",
+        "parameterTypes": ["int", "int"],
+        "returnType": "int"
+      },
+      "tags": ["contracts", "validation", "safety"]
+    },
+    {
+      "id": "contract-002",
+      "name": "Clamp Value",
+      "category": "contracts",
+      "difficulty": 2,
+      "description": "Clamp a value between min and max with contracts",
+      "prompts": {
+        "calor": "Write a Calor function named Clamp that returns value clamped between min and max. Include a precondition §Q that min <= max (use (<= min max)). Include a postcondition §S that result >= min and result <= max. Use i32 types and proper Calor syntax with §IF conditionals.",
+        "csharp": "Write a C# public static method named Clamp in a public static class that returns value clamped between min and max. Throw ArgumentException if min > max. The method should take three int parameters (value, min, max) and return an int."
+      },
+      "testCases": [
+        { "input": [5, 0, 10], "expected": 5 },
+        { "input": [-5, 0, 10], "expected": 0 },
+        { "input": [15, 0, 10], "expected": 10 },
+        { "input": [0, 0, 0], "expected": 0 }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.4, "contracts": 0.3 },
+      "expectedSignature": {
+        "functionName": "Clamp",
+        "parameterTypes": ["int", "int", "int"],
+        "returnType": "int"
+      },
+      "tags": ["contracts", "bounds-checking"]
+    },
+    {
+      "id": "contract-003",
+      "name": "Safe Modulo",
+      "category": "contracts",
+      "difficulty": 1,
+      "description": "Compute modulo with contract preventing division by zero",
+      "prompts": {
+        "calor": "Write a Calor function named SafeModulo that returns a % b. Include a precondition §Q that b != 0. Use i32 types.",
+        "csharp": "Write a C# public static method named SafeModulo in a public static class that returns a % b. Throw ArgumentException if b is 0. The method should take two int parameters and return an int."
+      },
+      "testCases": [
+        { "input": [10, 3], "expected": 1 },
+        { "input": [15, 5], "expected": 0 },
+        { "input": [7, 4], "expected": 3 },
+        { "input": [100, 7], "expected": 2 }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.4, "contracts": 0.3 },
+      "expectedSignature": {
+        "functionName": "SafeModulo",
+        "parameterTypes": ["int", "int"],
+        "returnType": "int"
+      },
+      "tags": ["contracts", "safety"]
+    },
+    {
+      "id": "contract-004",
+      "name": "Percentage",
+      "category": "contracts",
+      "difficulty": 2,
+      "description": "Calculate percentage with valid range contracts",
+      "prompts": {
+        "calor": "Write a Calor function named Percentage that returns (value * percent) / 100. Include preconditions §Q that percent >= 0 and percent <= 100. Use i32 types.",
+        "csharp": "Write a C# public static method named Percentage in a public static class that returns (value * percent) / 100. Throw ArgumentException if percent is not between 0 and 100. The method should take two int parameters and return an int."
+      },
+      "testCases": [
+        { "input": [100, 50], "expected": 50 },
+        { "input": [200, 25], "expected": 50 },
+        { "input": [50, 100], "expected": 50 },
+        { "input": [80, 10], "expected": 8 }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.4, "contracts": 0.3 },
+      "expectedSignature": {
+        "functionName": "Percentage",
+        "parameterTypes": ["int", "int"],
+        "returnType": "int"
+      },
+      "tags": ["contracts", "math"]
+    },
+    {
+      "id": "contract-005",
+      "name": "Safe Array Index",
+      "category": "contracts",
+      "difficulty": 2,
+      "description": "Validate array index with contracts",
+      "prompts": {
+        "calor": "Write a Calor function named ValidIndex that returns true if index is valid for an array of given size. Include precondition §Q that size > 0. Use i32 for inputs and bool for output.",
+        "csharp": "Write a C# public static method named ValidIndex in a public static class that returns true if index is valid for an array of given size. The method should take two int parameters (index, size) and return a bool."
+      },
+      "testCases": [
+        { "input": [0, 5], "expected": true },
+        { "input": [4, 5], "expected": true },
+        { "input": [5, 5], "expected": false },
+        { "input": [-1, 5], "expected": false }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.4, "contracts": 0.3 },
+      "expectedSignature": {
+        "functionName": "ValidIndex",
+        "parameterTypes": ["int", "int"],
+        "returnType": "bool"
+      },
+      "tags": ["contracts", "bounds"]
+    },
+    {
+      "id": "contract-006",
+      "name": "In Range",
+      "category": "contracts",
+      "difficulty": 2,
+      "description": "Check if value is in range with contracts",
+      "prompts": {
+        "calor": "Write a Calor function named InRange that returns true if value is between min and max (inclusive). Include precondition §Q that min <= max. Use i32 for inputs and bool for output.",
+        "csharp": "Write a C# public static method named InRange in a public static class that returns true if value is between min and max (inclusive). The method should take three int parameters (value, min, max) and return a bool."
+      },
+      "testCases": [
+        { "input": [5, 0, 10], "expected": true },
+        { "input": [0, 0, 10], "expected": true },
+        { "input": [10, 0, 10], "expected": true },
+        { "input": [11, 0, 10], "expected": false },
+        { "input": [-1, 0, 10], "expected": false }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.4, "contracts": 0.3 },
+      "expectedSignature": {
+        "functionName": "InRange",
+        "parameterTypes": ["int", "int", "int"],
+        "returnType": "bool"
+      },
+      "tags": ["contracts", "bounds"]
+    },
+    {
+      "id": "contract-007",
+      "name": "Positive Difference",
+      "category": "contracts",
+      "difficulty": 1,
+      "description": "Return positive difference between two numbers",
+      "prompts": {
+        "calor": "Write a Calor function named PositiveDiff that returns the positive difference between a and b. Include postcondition §S that result >= 0. Use i32 types.",
+        "csharp": "Write a C# public static method named PositiveDiff in a public static class that returns the absolute difference between two numbers. The method should take two int parameters and return an int."
+      },
+      "testCases": [
+        { "input": [10, 3], "expected": 7 },
+        { "input": [3, 10], "expected": 7 },
+        { "input": [5, 5], "expected": 0 },
+        { "input": [-5, 5], "expected": 10 }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.4, "contracts": 0.3 },
+      "expectedSignature": {
+        "functionName": "PositiveDiff",
+        "parameterTypes": ["int", "int"],
+        "returnType": "int"
+      },
+      "tags": ["contracts", "math"]
+    },
+    {
+      "id": "contract-008",
+      "name": "Half Value",
+      "category": "contracts",
+      "difficulty": 1,
+      "description": "Return half of an even number",
+      "prompts": {
+        "calor": "Write a Calor function named HalfEven that returns n / 2 for even n. Include precondition §Q that n is even (== (% n 2) 0). Use i32 types.",
+        "csharp": "Write a C# public static method named HalfEven in a public static class that returns n / 2. Throw ArgumentException if n is odd. The method should take an int parameter and return an int."
+      },
+      "testCases": [
+        { "input": [10], "expected": 5 },
+        { "input": [0], "expected": 0 },
+        { "input": [100], "expected": 50 },
+        { "input": [-4], "expected": -2 }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.4, "contracts": 0.3 },
+      "expectedSignature": {
+        "functionName": "HalfEven",
+        "parameterTypes": ["int"],
+        "returnType": "int"
+      },
+      "tags": ["contracts", "math"]
+    },
+    {
+      "id": "contract-009",
+      "name": "Score Normalize",
+      "category": "contracts",
+      "difficulty": 2,
+      "description": "Normalize a score to 0-100 range",
+      "prompts": {
+        "calor": "Write a Calor function named NormalizeScore that normalizes a score from a given max to 0-100. Formula: (score * 100) / maxScore. Include preconditions §Q that maxScore > 0 and score >= 0 and score <= maxScore. Use i32 types.",
+        "csharp": "Write a C# public static method named NormalizeScore in a public static class that normalizes a score to 0-100 range. Formula: (score * 100) / maxScore. The method should take two int parameters (score, maxScore) and return an int."
+      },
+      "testCases": [
+        { "input": [50, 100], "expected": 50 },
+        { "input": [25, 50], "expected": 50 },
+        { "input": [10, 10], "expected": 100 },
+        { "input": [0, 100], "expected": 0 }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.4, "contracts": 0.3 },
+      "expectedSignature": {
+        "functionName": "NormalizeScore",
+        "parameterTypes": ["int", "int"],
+        "returnType": "int"
+      },
+      "tags": ["contracts", "math"]
+    },
+    {
+      "id": "contract-010",
+      "name": "Safe Decrement",
+      "category": "contracts",
+      "difficulty": 1,
+      "description": "Decrement a positive number",
+      "prompts": {
+        "calor": "Write a Calor function named SafeDecrement that returns n - 1 for positive n. Include precondition §Q that n > 0. Include postcondition §S that result >= 0. Use i32 types.",
+        "csharp": "Write a C# public static method named SafeDecrement in a public static class that returns n - 1. Throw ArgumentException if n <= 0. The method should take an int parameter and return an int."
+      },
+      "testCases": [
+        { "input": [1], "expected": 0 },
+        { "input": [5], "expected": 4 },
+        { "input": [100], "expected": 99 },
+        { "input": [2], "expected": 1 }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.4, "contracts": 0.3 },
+      "expectedSignature": {
+        "functionName": "SafeDecrement",
+        "parameterTypes": ["int"],
+        "returnType": "int"
+      },
+      "tags": ["contracts"]
+    },
+    {
+      "id": "data-001",
+      "name": "Sum Two Numbers",
+      "category": "data-structures",
+      "difficulty": 1,
+      "description": "Sum two integers",
+      "prompts": {
+        "calor": "Write a Calor function named Sum that returns the sum of two integers a and b. Use i32 types and proper Calor syntax with S-expression (+ a b) for addition.",
+        "csharp": "Write a C# public static method named Sum in a public static class that returns the sum of two integers. The method should take two int parameters and return an int."
+      },
+      "testCases": [
+        { "input": [1, 2], "expected": 3 },
+        { "input": [10, 20], "expected": 30 },
+        { "input": [-1, 1], "expected": 0 },
+        { "input": [0, 0], "expected": 0 }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.5, "contracts": 0.2 },
+      "expectedSignature": {
+        "functionName": "Sum",
+        "parameterTypes": ["int", "int"],
+        "returnType": "int"
+      },
+      "tags": ["math", "basic"]
+    },
+    {
+      "id": "data-002",
+      "name": "Find Maximum of Two",
+      "category": "data-structures",
+      "difficulty": 1,
+      "description": "Find the maximum of two integers",
+      "prompts": {
+        "calor": "Write a Calor function named Max that returns the maximum of two integers a and b. Use i32 types and proper Calor syntax with §IF conditional and S-expression (> a b) for comparison.",
+        "csharp": "Write a C# public static method named Max in a public static class that returns the maximum of two integers. The method should take two int parameters and return an int."
+      },
+      "testCases": [
+        { "input": [5, 3], "expected": 5 },
+        { "input": [3, 5], "expected": 5 },
+        { "input": [-1, -5], "expected": -1 },
+        { "input": [7, 7], "expected": 7 }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.5, "contracts": 0.2 },
+      "expectedSignature": {
+        "functionName": "Max",
+        "parameterTypes": ["int", "int"],
+        "returnType": "int"
+      },
+      "tags": ["conditionals", "comparison"]
+    },
+    {
+      "id": "data-003",
+      "name": "Find Minimum of Two",
+      "category": "data-structures",
+      "difficulty": 1,
+      "description": "Find the minimum of two integers",
+      "prompts": {
+        "calor": "Write a Calor function named Min that returns the minimum of two integers a and b. Use i32 types and proper Calor syntax with §IF conditional and S-expression (< a b) for comparison.",
+        "csharp": "Write a C# public static method named Min in a public static class that returns the minimum of two integers. The method should take two int parameters and return an int."
+      },
+      "testCases": [
+        { "input": [5, 3], "expected": 3 },
+        { "input": [3, 5], "expected": 3 },
+        { "input": [-1, -5], "expected": -5 },
+        { "input": [7, 7], "expected": 7 }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.5, "contracts": 0.2 },
+      "expectedSignature": {
+        "functionName": "Min",
+        "parameterTypes": ["int", "int"],
+        "returnType": "int"
+      },
+      "tags": ["conditionals", "comparison"]
+    },
+    {
+      "id": "data-004",
+      "name": "Difference",
+      "category": "data-structures",
+      "difficulty": 1,
+      "description": "Return the difference of two numbers",
+      "prompts": {
+        "calor": "Write a Calor function named Difference that returns a - b. Use i32 types and S-expression (- a b).",
+        "csharp": "Write a C# public static method named Difference in a public static class that returns a - b. The method should take two int parameters and return an int."
+      },
+      "testCases": [
+        { "input": [10, 3], "expected": 7 },
+        { "input": [3, 10], "expected": -7 },
+        { "input": [5, 5], "expected": 0 },
+        { "input": [0, 5], "expected": -5 }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.5, "contracts": 0.2 },
+      "expectedSignature": {
+        "functionName": "Difference",
+        "parameterTypes": ["int", "int"],
+        "returnType": "int"
+      },
+      "tags": ["math"]
+    },
+    {
+      "id": "data-005",
+      "name": "Product",
+      "category": "data-structures",
+      "difficulty": 1,
+      "description": "Return the product of two numbers",
+      "prompts": {
+        "calor": "Write a Calor function named Product that returns a * b. Use i32 types and S-expression (* a b).",
+        "csharp": "Write a C# public static method named Product in a public static class that returns a * b. The method should take two int parameters and return an int."
+      },
+      "testCases": [
+        { "input": [3, 4], "expected": 12 },
+        { "input": [5, 0], "expected": 0 },
+        { "input": [-2, 3], "expected": -6 },
+        { "input": [7, 7], "expected": 49 }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.5, "contracts": 0.2 },
+      "expectedSignature": {
+        "functionName": "Product",
+        "parameterTypes": ["int", "int"],
+        "returnType": "int"
+      },
+      "tags": ["math"]
+    },
+    {
+      "id": "data-006",
+      "name": "Average",
+      "category": "data-structures",
+      "difficulty": 1,
+      "description": "Return the integer average of two numbers",
+      "prompts": {
+        "calor": "Write a Calor function named Average that returns (a + b) / 2. Use i32 types and S-expressions.",
+        "csharp": "Write a C# public static method named Average in a public static class that returns the integer average of two numbers. The method should take two int parameters and return an int."
+      },
+      "testCases": [
+        { "input": [10, 20], "expected": 15 },
+        { "input": [5, 5], "expected": 5 },
+        { "input": [0, 10], "expected": 5 },
+        { "input": [7, 8], "expected": 7 }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.5, "contracts": 0.2 },
+      "expectedSignature": {
+        "functionName": "Average",
+        "parameterTypes": ["int", "int"],
+        "returnType": "int"
+      },
+      "tags": ["math"]
+    },
+    {
+      "id": "data-007",
+      "name": "Is Zero",
+      "category": "data-structures",
+      "difficulty": 1,
+      "description": "Check if a number is zero",
+      "prompts": {
+        "calor": "Write a Calor function named IsZero that returns true if n == 0. Use i32 for input and bool for output.",
+        "csharp": "Write a C# public static method named IsZero in a public static class that returns true if n equals 0. The method should take an int parameter and return a bool."
+      },
+      "testCases": [
+        { "input": [0], "expected": true },
+        { "input": [1], "expected": false },
+        { "input": [-1], "expected": false },
+        { "input": [100], "expected": false }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.5, "contracts": 0.2 },
+      "expectedSignature": {
+        "functionName": "IsZero",
+        "parameterTypes": ["int"],
+        "returnType": "bool"
+      },
+      "tags": ["boolean"]
+    },
+    {
+      "id": "data-008",
+      "name": "Increment",
+      "category": "data-structures",
+      "difficulty": 1,
+      "description": "Increment a number by one",
+      "prompts": {
+        "calor": "Write a Calor function named Increment that returns n + 1. Use i32 types and S-expression (+ n 1).",
+        "csharp": "Write a C# public static method named Increment in a public static class that returns n + 1. The method should take an int parameter and return an int."
+      },
+      "testCases": [
+        { "input": [0], "expected": 1 },
+        { "input": [5], "expected": 6 },
+        { "input": [-1], "expected": 0 },
+        { "input": [99], "expected": 100 }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.5, "contracts": 0.2 },
+      "expectedSignature": {
+        "functionName": "Increment",
+        "parameterTypes": ["int"],
+        "returnType": "int"
+      },
+      "tags": ["math"]
+    },
+    {
+      "id": "data-009",
+      "name": "Decrement",
+      "category": "data-structures",
+      "difficulty": 1,
+      "description": "Decrement a number by one",
+      "prompts": {
+        "calor": "Write a Calor function named Decrement that returns n - 1. Use i32 types and S-expression (- n 1).",
+        "csharp": "Write a C# public static method named Decrement in a public static class that returns n - 1. The method should take an int parameter and return an int."
+      },
+      "testCases": [
+        { "input": [1], "expected": 0 },
+        { "input": [5], "expected": 4 },
+        { "input": [0], "expected": -1 },
+        { "input": [100], "expected": 99 }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.5, "contracts": 0.2 },
+      "expectedSignature": {
+        "functionName": "Decrement",
+        "parameterTypes": ["int"],
+        "returnType": "int"
+      },
+      "tags": ["math"]
+    },
+    {
+      "id": "data-010",
+      "name": "Median of Three",
+      "category": "data-structures",
+      "difficulty": 2,
+      "description": "Find the median of three numbers",
+      "prompts": {
+        "calor": "Write a Calor function named Median3 that returns the median of three integers a, b, c. Use i32 types and nested §IF conditionals.",
+        "csharp": "Write a C# public static method named Median3 in a public static class that returns the median of three integers. The method should take three int parameters and return an int."
+      },
+      "testCases": [
+        { "input": [1, 2, 3], "expected": 2 },
+        { "input": [3, 1, 2], "expected": 2 },
+        { "input": [5, 5, 5], "expected": 5 },
+        { "input": [1, 5, 3], "expected": 3 }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.5, "contracts": 0.2 },
+      "expectedSignature": {
+        "functionName": "Median3",
+        "parameterTypes": ["int", "int", "int"],
+        "returnType": "int"
+      },
+      "tags": ["conditionals", "comparison"]
+    },
+    {
+      "id": "logic-001",
+      "name": "Bool To Int",
+      "category": "logic",
+      "difficulty": 1,
+      "description": "Convert boolean to integer (true=1, false=0)",
+      "prompts": {
+        "calor": "Write a Calor function named BoolToInt that returns 1 if b is true, 0 if false. Use bool for input and i32 for output.",
+        "csharp": "Write a C# public static method named BoolToInt in a public static class that returns 1 if the bool is true, 0 otherwise. The method should take a bool parameter and return an int."
+      },
+      "testCases": [
+        { "input": [true], "expected": 1 },
+        { "input": [false], "expected": 0 }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.5, "contracts": 0.2 },
+      "expectedSignature": {
+        "functionName": "BoolToInt",
+        "parameterTypes": ["bool"],
+        "returnType": "int"
+      },
+      "tags": ["conversion", "boolean"]
+    },
+    {
+      "id": "logic-002",
+      "name": "Int To Bool",
+      "category": "logic",
+      "difficulty": 1,
+      "description": "Convert integer to boolean (0=false, nonzero=true)",
+      "prompts": {
+        "calor": "Write a Calor function named IntToBool that returns false if n is 0, true otherwise. Use i32 for input and bool for output.",
+        "csharp": "Write a C# public static method named IntToBool in a public static class that returns false if n is 0, true otherwise. The method should take an int parameter and return a bool."
+      },
+      "testCases": [
+        { "input": [0], "expected": false },
+        { "input": [1], "expected": true },
+        { "input": [-1], "expected": true },
+        { "input": [100], "expected": true }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.5, "contracts": 0.2 },
+      "expectedSignature": {
+        "functionName": "IntToBool",
+        "parameterTypes": ["int"],
+        "returnType": "bool"
+      },
+      "tags": ["conversion", "boolean"]
+    },
+    {
+      "id": "logic-003",
+      "name": "Logical And",
+      "category": "logic",
+      "difficulty": 1,
+      "description": "Logical AND of two booleans",
+      "prompts": {
+        "calor": "Write a Calor function named And that returns a && b. Use bool for inputs and output.",
+        "csharp": "Write a C# public static method named And in a public static class that returns a && b. The method should take two bool parameters and return a bool."
+      },
+      "testCases": [
+        { "input": [true, true], "expected": true },
+        { "input": [true, false], "expected": false },
+        { "input": [false, true], "expected": false },
+        { "input": [false, false], "expected": false }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.5, "contracts": 0.2 },
+      "expectedSignature": {
+        "functionName": "And",
+        "parameterTypes": ["bool", "bool"],
+        "returnType": "bool"
+      },
+      "tags": ["boolean", "logic"]
+    },
+    {
+      "id": "logic-004",
+      "name": "Logical Or",
+      "category": "logic",
+      "difficulty": 1,
+      "description": "Logical OR of two booleans",
+      "prompts": {
+        "calor": "Write a Calor function named Or that returns a || b. Use bool for inputs and output.",
+        "csharp": "Write a C# public static method named Or in a public static class that returns a || b. The method should take two bool parameters and return a bool."
+      },
+      "testCases": [
+        { "input": [true, true], "expected": true },
+        { "input": [true, false], "expected": true },
+        { "input": [false, true], "expected": true },
+        { "input": [false, false], "expected": false }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.5, "contracts": 0.2 },
+      "expectedSignature": {
+        "functionName": "Or",
+        "parameterTypes": ["bool", "bool"],
+        "returnType": "bool"
+      },
+      "tags": ["boolean", "logic"]
+    },
+    {
+      "id": "logic-005",
+      "name": "Logical Not",
+      "category": "logic",
+      "difficulty": 1,
+      "description": "Logical NOT of a boolean",
+      "prompts": {
+        "calor": "Write a Calor function named Not that returns !b. Use bool for input and output.",
+        "csharp": "Write a C# public static method named Not in a public static class that returns !b. The method should take a bool parameter and return a bool."
+      },
+      "testCases": [
+        { "input": [true], "expected": false },
+        { "input": [false], "expected": true }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.5, "contracts": 0.2 },
+      "expectedSignature": {
+        "functionName": "Not",
+        "parameterTypes": ["bool"],
+        "returnType": "bool"
+      },
+      "tags": ["boolean", "logic"]
+    },
+    {
+      "id": "logic-006",
+      "name": "Logical Xor",
+      "category": "logic",
+      "difficulty": 1,
+      "description": "Logical XOR of two booleans",
+      "prompts": {
+        "calor": "Write a Calor function named Xor that returns true if exactly one of a or b is true. Use bool for inputs and output.",
+        "csharp": "Write a C# public static method named Xor in a public static class that returns true if exactly one of a or b is true. The method should take two bool parameters and return a bool."
+      },
+      "testCases": [
+        { "input": [true, true], "expected": false },
+        { "input": [true, false], "expected": true },
+        { "input": [false, true], "expected": true },
+        { "input": [false, false], "expected": false }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.5, "contracts": 0.2 },
+      "expectedSignature": {
+        "functionName": "Xor",
+        "parameterTypes": ["bool", "bool"],
+        "returnType": "bool"
+      },
+      "tags": ["boolean", "logic"]
+    },
+    {
+      "id": "logic-007",
+      "name": "Are Equal",
+      "category": "logic",
+      "difficulty": 1,
+      "description": "Check if two integers are equal",
+      "prompts": {
+        "calor": "Write a Calor function named AreEqual that returns true if a == b. Use i32 for inputs and bool for output.",
+        "csharp": "Write a C# public static method named AreEqual in a public static class that returns true if a equals b. The method should take two int parameters and return a bool."
+      },
+      "testCases": [
+        { "input": [5, 5], "expected": true },
+        { "input": [5, 3], "expected": false },
+        { "input": [0, 0], "expected": true },
+        { "input": [-1, 1], "expected": false }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.5, "contracts": 0.2 },
+      "expectedSignature": {
+        "functionName": "AreEqual",
+        "parameterTypes": ["int", "int"],
+        "returnType": "bool"
+      },
+      "tags": ["comparison", "boolean"]
+    },
+    {
+      "id": "logic-008",
+      "name": "Are Not Equal",
+      "category": "logic",
+      "difficulty": 1,
+      "description": "Check if two integers are not equal",
+      "prompts": {
+        "calor": "Write a Calor function named AreNotEqual that returns true if a != b. Use i32 for inputs and bool for output.",
+        "csharp": "Write a C# public static method named AreNotEqual in a public static class that returns true if a does not equal b. The method should take two int parameters and return a bool."
+      },
+      "testCases": [
+        { "input": [5, 5], "expected": false },
+        { "input": [5, 3], "expected": true },
+        { "input": [0, 0], "expected": false },
+        { "input": [-1, 1], "expected": true }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.5, "contracts": 0.2 },
+      "expectedSignature": {
+        "functionName": "AreNotEqual",
+        "parameterTypes": ["int", "int"],
+        "returnType": "bool"
+      },
+      "tags": ["comparison", "boolean"]
+    },
+    {
+      "id": "logic-009",
+      "name": "Both Positive",
+      "category": "logic",
+      "difficulty": 1,
+      "description": "Check if both numbers are positive",
+      "prompts": {
+        "calor": "Write a Calor function named BothPositive that returns true if both a > 0 and b > 0. Use i32 for inputs and bool for output.",
+        "csharp": "Write a C# public static method named BothPositive in a public static class that returns true if both a and b are positive. The method should take two int parameters and return a bool."
+      },
+      "testCases": [
+        { "input": [5, 3], "expected": true },
+        { "input": [5, -3], "expected": false },
+        { "input": [0, 5], "expected": false },
+        { "input": [-1, -1], "expected": false }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.5, "contracts": 0.2 },
+      "expectedSignature": {
+        "functionName": "BothPositive",
+        "parameterTypes": ["int", "int"],
+        "returnType": "bool"
+      },
+      "tags": ["boolean", "logic"]
+    },
+    {
+      "id": "logic-010",
+      "name": "Either Positive",
+      "category": "logic",
+      "difficulty": 1,
+      "description": "Check if either number is positive",
+      "prompts": {
+        "calor": "Write a Calor function named EitherPositive that returns true if a > 0 or b > 0. Use i32 for inputs and bool for output.",
+        "csharp": "Write a C# public static method named EitherPositive in a public static class that returns true if either a or b is positive. The method should take two int parameters and return a bool."
+      },
+      "testCases": [
+        { "input": [5, 3], "expected": true },
+        { "input": [5, -3], "expected": true },
+        { "input": [0, -5], "expected": false },
+        { "input": [-1, -1], "expected": false }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.5, "contracts": 0.2 },
+      "expectedSignature": {
+        "functionName": "EitherPositive",
+        "parameterTypes": ["int", "int"],
+        "returnType": "bool"
+      },
+      "tags": ["boolean", "logic"]
+    },
+    {
+      "id": "logic-011",
+      "name": "Same Sign",
+      "category": "logic",
+      "difficulty": 2,
+      "description": "Check if two numbers have the same sign",
+      "prompts": {
+        "calor": "Write a Calor function named SameSign that returns true if a and b are both positive, both negative, or both zero. Use i32 for inputs and bool for output.",
+        "csharp": "Write a C# public static method named SameSign in a public static class that returns true if a and b have the same sign. The method should take two int parameters and return a bool."
+      },
+      "testCases": [
+        { "input": [5, 3], "expected": true },
+        { "input": [-5, -3], "expected": true },
+        { "input": [0, 0], "expected": true },
+        { "input": [5, -3], "expected": false },
+        { "input": [0, 5], "expected": false }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.5, "contracts": 0.2 },
+      "expectedSignature": {
+        "functionName": "SameSign",
+        "parameterTypes": ["int", "int"],
+        "returnType": "bool"
+      },
+      "tags": ["boolean", "logic"]
+    },
+    {
+      "id": "logic-012",
+      "name": "Is Multiple Of",
+      "category": "logic",
+      "difficulty": 1,
+      "description": "Check if a is a multiple of b",
+      "prompts": {
+        "calor": "Write a Calor function named IsMultipleOf that returns true if a is a multiple of b (a % b == 0). Include precondition §Q that b != 0. Use i32 for inputs and bool for output.",
+        "csharp": "Write a C# public static method named IsMultipleOf in a public static class that returns true if a is a multiple of b. The method should take two int parameters and return a bool."
+      },
+      "testCases": [
+        { "input": [10, 5], "expected": true },
+        { "input": [10, 3], "expected": false },
+        { "input": [15, 5], "expected": true },
+        { "input": [7, 7], "expected": true }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.5, "contracts": 0.2 },
+      "expectedSignature": {
+        "functionName": "IsMultipleOf",
+        "parameterTypes": ["int", "int"],
+        "returnType": "bool"
+      },
+      "tags": ["math", "boolean"]
+    },
+    {
+      "id": "logic-013",
+      "name": "Is Greater Than",
+      "category": "logic",
+      "difficulty": 1,
+      "description": "Check if a is greater than b",
+      "prompts": {
+        "calor": "Write a Calor function named IsGreaterThan that returns true if a > b. Use i32 for inputs and bool for output.",
+        "csharp": "Write a C# public static method named IsGreaterThan in a public static class that returns true if a > b. The method should take two int parameters and return a bool."
+      },
+      "testCases": [
+        { "input": [5, 3], "expected": true },
+        { "input": [3, 5], "expected": false },
+        { "input": [5, 5], "expected": false },
+        { "input": [-1, -5], "expected": true }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.5, "contracts": 0.2 },
+      "expectedSignature": {
+        "functionName": "IsGreaterThan",
+        "parameterTypes": ["int", "int"],
+        "returnType": "bool"
+      },
+      "tags": ["comparison", "boolean"]
+    },
+    {
+      "id": "logic-014",
+      "name": "Is Less Than",
+      "category": "logic",
+      "difficulty": 1,
+      "description": "Check if a is less than b",
+      "prompts": {
+        "calor": "Write a Calor function named IsLessThan that returns true if a < b. Use i32 for inputs and bool for output.",
+        "csharp": "Write a C# public static method named IsLessThan in a public static class that returns true if a < b. The method should take two int parameters and return a bool."
+      },
+      "testCases": [
+        { "input": [3, 5], "expected": true },
+        { "input": [5, 3], "expected": false },
+        { "input": [5, 5], "expected": false },
+        { "input": [-5, -1], "expected": true }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.5, "contracts": 0.2 },
+      "expectedSignature": {
+        "functionName": "IsLessThan",
+        "parameterTypes": ["int", "int"],
+        "returnType": "bool"
+      },
+      "tags": ["comparison", "boolean"]
+    },
+    {
+      "id": "logic-015",
+      "name": "Implies",
+      "category": "logic",
+      "difficulty": 2,
+      "description": "Logical implication (a implies b)",
+      "prompts": {
+        "calor": "Write a Calor function named Implies that returns !a || b (logical implication). Use bool for inputs and output.",
+        "csharp": "Write a C# public static method named Implies in a public static class that returns !a || b (logical implication). The method should take two bool parameters and return a bool."
+      },
+      "testCases": [
+        { "input": [true, true], "expected": true },
+        { "input": [true, false], "expected": false },
+        { "input": [false, true], "expected": true },
+        { "input": [false, false], "expected": true }
+      ],
+      "scoring": { "compilation": 0.3, "testCases": 0.5, "contracts": 0.2 },
+      "expectedSignature": {
+        "functionName": "Implies",
+        "parameterTypes": ["bool", "bool"],
+        "returnType": "bool"
+      },
+      "tags": ["boolean", "logic"]
+    }
+  ]
+}
