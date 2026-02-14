@@ -1,0 +1,16 @@
+{
+  "id": "refactor-sig-return-calor",
+  "name": "Change return type (Calor)",
+  "category": "refactoring-benchmark",
+  "fixture": "refactor-signature-calor",
+  "prompt": "In Signature.calr, change the return type of the `TryParse` function (f002) from `i32` to `Option<i32>` to properly handle parse failures. Return `None` for invalid input and `Some(value)` for valid input.\n\nBefore:\n\u00a7F{f002:TryParse:pub}\n  \u00a7I{str:input}\n  \u00a7O{i32}\n  \u00a7R 0\n\u00a7/F{f002}\n\nAfter:\n\u00a7F{f002:TryParse:pub}\n  \u00a7I{str:input}\n  \u00a7O{Option<i32>}\n  \u00a7S (or (== result None) (exists v (== result (Some v))))\n  \u00a7R None\n\u00a7/F{f002}\n\nIMPORTANT: The function ID f002 must NOT change. Add an appropriate postcondition for the Option type.",
+  "verification": {
+    "compilation": {
+      "mustSucceed": true
+    },
+    "z3": {
+      "enabled": false
+    }
+  },
+  "timeout": 120
+}

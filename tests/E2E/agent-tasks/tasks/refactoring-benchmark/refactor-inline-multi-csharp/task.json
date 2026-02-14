@@ -1,0 +1,13 @@
+{
+  "id": "refactor-inline-multi-csharp",
+  "name": "Inline at multiple call sites (C#)",
+  "category": "refactoring-benchmark",
+  "fixture": "refactor-inline-csharp",
+  "prompt": "In Inline.cs, inline the `Square` method at both call sites in `SumOfSquares`. Each call to Square(arg) should be replaced with arg * arg.\n\nBefore:\npublic int SumOfSquares(int x, int y)\n{\n    return Square(x) + Square(y);\n}\n\nAfter:\n// Postcondition: result >= 0\npublic int SumOfSquares(int x, int y)\n{\n    return x * x + y * y;\n}",
+  "verification": {
+    "compilation": {
+      "mustSucceed": true
+    }
+  },
+  "timeout": 120
+}

@@ -1,0 +1,17 @@
+{
+  "id": "refactor-contract-post-calor",
+  "name": "Add postcondition (Calor)",
+  "category": "refactoring-benchmark",
+  "fixture": "refactor-contract-calor",
+  "prompt": "In Contract.calr, add a postcondition to the `Abs` function (f002) guaranteeing that the result is non-negative. Add:\n\n\u00a7S (>= result 0)\n\nThe function should look like:\n\u00a7F{f002:Abs:pub}\n  \u00a7I{i32:x}\n  \u00a7O{i32}\n  \u00a7S (>= result 0)\n  \u00a7R (? (< x 0) (- 0 x) x)\n\u00a7/F{f002}\n\nIMPORTANT: The function ID f002 must NOT change.",
+  "verification": {
+    "compilation": {
+      "mustSucceed": true
+    },
+    "z3": {
+      "enabled": true,
+      "minProvenContracts": 1
+    }
+  },
+  "timeout": 120
+}

@@ -1,0 +1,13 @@
+{
+  "id": "refactor-sig-reorder-csharp",
+  "name": "Reorder parameters (C#)",
+  "category": "refactoring-benchmark",
+  "fixture": "refactor-signature-csharp",
+  "prompt": "In Signature.cs, reorder the parameters of `CreateRange` to be (step, start, end) instead of (start, end, step). Also update the caller `CountSteps` to pass arguments in the new order.\n\nBefore CreateRange:\npublic int CreateRange(int start, int end, int step)\n\nAfter CreateRange:\n// Precondition: step > 0\n// Precondition: start <= end\npublic int CreateRange(int step, int start, int end)\n{\n    return (end - start) / step;\n}\n\nUpdate CountSteps:\npublic int CountSteps(int max)\n{\n    return CreateRange(1, 0, max);  // step=1, start=0, end=max\n}",
+  "verification": {
+    "compilation": {
+      "mustSucceed": true
+    }
+  },
+  "timeout": 150
+}

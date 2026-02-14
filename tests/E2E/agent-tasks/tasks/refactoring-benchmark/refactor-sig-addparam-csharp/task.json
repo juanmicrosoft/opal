@@ -1,0 +1,13 @@
+{
+  "id": "refactor-sig-addparam-csharp",
+  "name": "Add parameter to method (C#)",
+  "category": "refactoring-benchmark",
+  "fixture": "refactor-signature-csharp",
+  "prompt": "In Signature.cs, add a `greeting` parameter of type `string` to the `Greet` method. The method should concatenate the greeting with the name.\n\nBefore:\npublic string Greet(string name)\n{\n    return name;\n}\n\nAfter:\npublic string Greet(string greeting, string name)\n{\n    return greeting + name;\n}",
+  "verification": {
+    "compilation": {
+      "mustSucceed": true
+    }
+  },
+  "timeout": 120
+}

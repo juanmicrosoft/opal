@@ -1,0 +1,17 @@
+{
+  "id": "refactor-rename-param-calor",
+  "name": "Rename parameter (Calor)",
+  "category": "refactoring-benchmark",
+  "fixture": "refactor-rename-calor",
+  "prompt": "In Rename.calr, rename the parameter `val` in the `Calculate` function (f001) to `value`. Update ALL occurrences including:\n- The parameter declaration (\u00a7I)\n- The postcondition (\u00a7S) that references val\n- The return expression (\u00a7R) that uses val\n\nIMPORTANT: The function ID f001 must NOT change.\n\nBefore: \u00a7I{i32:val}\nAfter:  \u00a7I{i32:value}\n\nBefore: \u00a7S (== result (* val 2))\nAfter:  \u00a7S (== result (* value 2))\n\nBefore: \u00a7R (* val 2)\nAfter:  \u00a7R (* value 2)",
+  "verification": {
+    "compilation": {
+      "mustSucceed": true
+    },
+    "z3": {
+      "enabled": true,
+      "minProvenContracts": 1
+    }
+  },
+  "timeout": 120
+}

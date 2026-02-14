@@ -1,0 +1,13 @@
+{
+  "id": "refactor-move-module-csharp",
+  "name": "Move method to different class (C#)",
+  "category": "refactoring-benchmark",
+  "fixture": "refactor-move-csharp",
+  "prompt": "In the C# project, move the `Abs` method from src/Math.cs (MathModule class) to src/Utils.cs (UtilsModule class). Make it a public method in UtilsModule.\n\nSteps:\n1. Remove the Abs method from MathModule in src/Math.cs\n2. Add it to UtilsModule in src/Utils.cs\n3. Update the caller `Distance` in MathModule to call the moved method\n\nThe contract comment `// Postcondition: result >= 0` must be preserved with the moved method.",
+  "verification": {
+    "compilation": {
+      "mustSucceed": true
+    }
+  },
+  "timeout": 150
+}

@@ -1,0 +1,13 @@
+{
+  "id": "refactor-extract-nested-csharp",
+  "name": "Extract nested calculation (C#)",
+  "category": "refactoring-benchmark",
+  "fixture": "refactor-extract-csharp",
+  "prompt": "In Extract.cs, refactor `ComputeNested` by extracting the squaring pattern into a reusable method. Create a `Square` method and update the computation to use it.\n\nNew Square method:\n// Postcondition: result >= 0\nprivate int Square(int n)\n{\n    return n * n;\n}\n\nUpdated ComputeNested using Square:\npublic int ComputeNested(int x, int y, int z)\n{\n    return Square(x) + Square(y) + Square(z);\n}",
+  "verification": {
+    "compilation": {
+      "mustSucceed": true
+    }
+  },
+  "timeout": 150
+}

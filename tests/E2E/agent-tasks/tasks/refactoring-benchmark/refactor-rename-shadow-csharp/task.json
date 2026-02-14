@@ -1,0 +1,13 @@
+{
+  "id": "refactor-rename-shadow-csharp",
+  "name": "Rename with local variable (C#)",
+  "category": "refactoring-benchmark",
+  "fixture": "refactor-rename-csharp",
+  "prompt": "In Rename.cs, rename the parameter `x` in the `OuterCalc` method to `input`. Be careful not to confuse it with the local variable `inner`. Update:\n- Parameter declaration\n- Variable initialization that uses x\n- Return expression that uses x\n\nBefore:\npublic int OuterCalc(int x)\n{\n    var inner = x * 2;\n    return x + inner;\n}\n\nAfter:\npublic int OuterCalc(int input)\n{\n    var inner = input * 2;\n    return input + inner;\n}",
+  "verification": {
+    "compilation": {
+      "mustSucceed": true
+    }
+  },
+  "timeout": 120
+}

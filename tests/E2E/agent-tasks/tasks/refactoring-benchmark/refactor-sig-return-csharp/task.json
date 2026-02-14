@@ -1,0 +1,13 @@
+{
+  "id": "refactor-sig-return-csharp",
+  "name": "Change return type (C#)",
+  "category": "refactoring-benchmark",
+  "fixture": "refactor-signature-csharp",
+  "prompt": "In Signature.cs, change the return type of the `TryParse` method from `int` to `int?` (nullable int) to properly handle parse failures. Return `null` for invalid input.\n\nBefore:\npublic int TryParse(string input)\n{\n    return 0;\n}\n\nAfter:\n// Postcondition: result is null for invalid input, or the parsed value\npublic int? TryParse(string input)\n{\n    return null; // Simplified - actual parsing would go here\n}",
+  "verification": {
+    "compilation": {
+      "mustSucceed": true
+    }
+  },
+  "timeout": 120
+}

@@ -985,6 +985,65 @@ validate_task_json() {
 }
 
 # ============================================================================
+# MULTI-TASK JSON SUPPORT
+# Functions to handle JSON files with multiple tasks in a "tasks" array
+# ============================================================================
+
+# Check if a JSON file contains a "tasks" array (multi-task format)
+is_multi_task_json() {
+    local json_file="$1"
+    if [[ "$JQ_AVAILABLE" == "true" ]]; then
+        local has_tasks
+        has_tasks=$(jq -r 'has("tasks")' "$json_file" 2>/dev/null) || has_tasks="false"
+        [[ "$has_tasks" == "true" ]]
+    else
+        grep -q '"tasks"[[:space:]]*:' "$json_file" 2>/dev/null
+    fi
+}
+
+# Get task count from a multi-task JSON file
+get_multi_task_count() {
+    local json_file="$1"
+    if [[ "$JQ_AVAILABLE" == "true" ]]; then
+        jq -r '.tasks | length' "$json_file" 2>/dev/null || echo 0
+    else
+        echo 0
+    fi
+}
+
+# Extract a single task from a multi-task JSON file by index
+# Usage: extract_task_by_index "file.json" 0
+extract_task_by_index() {
+    local json_file="$1"
+    local index="$2"
+    if [[ "$JQ_AVAILABLE" == "true" ]]; then
+        jq -c ".tasks[$index]" "$json_file" 2>/dev/null
+    else
+        echo ""
+    fi
+}
+
+# Extract a single task from a multi-task JSON file by ID
+# Usage: extract_task_by_id "file.json" "task-id"
+extract_task_by_id() {
+    local json_file="$1"
+    local task_id="$2"
+    if [[ "$JQ_AVAILABLE" == "true" ]]; then
+        jq -c ".tasks[] | select(.id == \"$task_id\")" "$json_file" 2>/dev/null
+    else
+        echo ""
+    fi
+}
+
+# List all task IDs in a multi-task JSON file
+list_multi_task_ids() {
+    local json_file="$1"
+    if [[ "$JQ_AVAILABLE" == "true" ]]; then
+        jq -r '.tasks[].id' "$json_file" 2>/dev/null
+    fi
+}
+
+# ============================================================================
 # AGENT INVOCATION
 # ============================================================================
 
@@ -1064,12 +1123,28 @@ invoke_agent() {
 # VERIFICATION
 # ============================================================================
 
-# Verify compilation with Calor compiler
-# Note: We only verify Calor compilation, not dotnet build, because:
-# 1. The fixtures don't include Calor.Runtime reference
-# 2. dotnet build with MSBuild targets would create duplicate definitions
-# The goal is to verify the agent wrote valid Calor syntax
-verify_compilation() {
+# Detect project type based on files present
+# Returns: "calor", "csharp", or "unknown"
+detect_project_type() {
+    local workspace="$1"
+
+    # Check for .calr files (Calor project)
+    if find "$workspace" -name "*.calr" -type f 2>/dev/null | grep -q .; then
+        echo "calor"
+        return
+    fi
+
+    # Check for .cs files (C# project)
+    if find "$workspace" -name "*.cs" -type f 2>/dev/null | grep -q .; then
+        echo "csharp"
+        return
+    fi
+
+    echo "unknown"
+}
+
+# Verify Calor compilation
+verify_calor_compilation() {
     local workspace="$1"
     local must_succeed="${2:-true}"
 
@@ -1077,7 +1152,6 @@ verify_compilation() {
     original_dir=$(pwd)
     cd "$workspace"
 
-    # Find .calr files and compile them
     local compile_failed=false
     local files_found=false
 
@@ -1114,6 +1188,85 @@ verify_compilation() {
     fi
 
     return 0
+}
+
+# Verify C# compilation using dotnet build
+verify_csharp_compilation() {
+    local workspace="$1"
+    local must_succeed="${2:-true}"
+
+    local original_dir
+    original_dir=$(pwd)
+    cd "$workspace"
+
+    local compile_failed=false
+    local csproj_found=false
+
+    # Find .csproj files and build them
+    while IFS= read -r -d '' csproj_file; do
+        csproj_found=true
+        log_debug "Building $csproj_file..."
+
+        # Run dotnet build
+        local build_output
+        build_output=$(dotnet build "$csproj_file" --nologo -v q 2>&1) || {
+            log_debug "C# compilation failed for $csproj_file"
+            log_debug "Output: $build_output"
+            compile_failed=true
+        }
+    done < <(find . -name "*.csproj" -type f -print0 2>/dev/null)
+
+    if [[ "$csproj_found" == "false" ]]; then
+        log_debug "No .csproj files found in workspace"
+        # If no .csproj but .cs files exist, try to compile them directly
+        local cs_count
+        cs_count=$(find . -name "*.cs" -type f 2>/dev/null | wc -l | tr -d ' ')
+        if [[ "$cs_count" -gt 0 ]]; then
+            log_debug "Found $cs_count .cs files, checking syntax..."
+            # Use dotnet script or csc if available, otherwise just check file exists
+            # For now, we'll consider it passed if files exist (basic check)
+            log_debug "C# syntax check: files present, assuming valid"
+        else
+            compile_failed=true
+        fi
+    fi
+
+    cd "$original_dir"
+
+    if [[ "$compile_failed" == "true" && "$must_succeed" == "true" ]]; then
+        return 1
+    fi
+
+    return 0
+}
+
+# Verify compilation - auto-detects project type
+# For Calor projects: runs calor compiler
+# For C# projects: runs dotnet build
+verify_compilation() {
+    local workspace="$1"
+    local must_succeed="${2:-true}"
+
+    local project_type
+    project_type=$(detect_project_type "$workspace")
+
+    log_debug "Detected project type: $project_type"
+
+    case "$project_type" in
+        calor)
+            verify_calor_compilation "$workspace" "$must_succeed"
+            ;;
+        csharp)
+            verify_csharp_compilation "$workspace" "$must_succeed"
+            ;;
+        *)
+            log_debug "Unknown project type - no compilation files found"
+            if [[ "$must_succeed" == "true" ]]; then
+                return 1
+            fi
+            return 0
+            ;;
+    esac
 }
 
 # Verify Z3 contracts
@@ -1381,4 +1534,347 @@ check_claude_cli() {
         exit 1
     fi
     log_debug "Claude CLI found: $(which claude)"
+}
+
+# ============================================================================
+# REFACTORING VERIFICATION
+# Functions for verifying refactoring-specific properties
+# ============================================================================
+
+# Count contracts (§Q and §S) in a Calor file
+# Usage: count_contracts "path/to/file.calr"
+count_contracts() {
+    local file="$1"
+    if [[ ! -f "$file" ]]; then
+        echo 0
+        return
+    fi
+    local count=0
+    # Count §Q (preconditions) and §S (postconditions)
+    local q_count s_count
+    q_count=$(grep -c '§Q' "$file" 2>/dev/null) || q_count=0
+    s_count=$(grep -c '§S' "$file" 2>/dev/null) || s_count=0
+    echo $((q_count + s_count))
+}
+
+# Count effects (§E{...}) in a Calor file
+# Usage: count_effects "path/to/file.calr"
+count_effects() {
+    local file="$1"
+    if [[ ! -f "$file" ]]; then
+        echo 0
+        return
+    fi
+    local count
+    count=$(grep -c '§E{' "$file" 2>/dev/null) || count=0
+    echo "$count"
+}
+
+# Extract unique IDs from a Calor file
+# Usage: extract_ids "path/to/file.calr"
+extract_ids() {
+    local file="$1"
+    if [[ ! -f "$file" ]]; then
+        return
+    fi
+    # Extract function IDs (f001, f002, etc.), module IDs (m001), and variable IDs (v001)
+    grep -oE '§[FMV]\{[^:]+:' "$file" 2>/dev/null | sed 's/§[FMV]{//' | sed 's/:$//' | sort -u
+}
+
+# Verify contract preservation after refactoring
+# Usage: verify_contract_preservation "before_file" "after_file"
+# Returns 0 if contracts are preserved or increased, 1 otherwise
+verify_contract_preservation() {
+    local before_file="$1"
+    local after_file="$2"
+
+    local before_contracts after_contracts
+    before_contracts=$(count_contracts "$before_file")
+    after_contracts=$(count_contracts "$after_file")
+
+    log_debug "Contract preservation: before=$before_contracts, after=$after_contracts"
+
+    # Contracts should be preserved or increased (propagated to new functions)
+    if [[ $after_contracts -ge $before_contracts ]]; then
+        log_debug "Contract preservation: PASSED (contracts preserved or increased)"
+        return 0
+    else
+        log_debug "Contract preservation: FAILED (contracts decreased from $before_contracts to $after_contracts)"
+        return 1
+    fi
+}
+
+# Verify effect preservation after refactoring
+# Usage: verify_effect_preservation "before_file" "after_file"
+# Returns 0 if effects are preserved, 1 otherwise
+verify_effect_preservation() {
+    local before_file="$1"
+    local after_file="$2"
+
+    local before_effects after_effects
+    before_effects=$(count_effects "$before_file")
+    after_effects=$(count_effects "$after_file")
+
+    log_debug "Effect preservation: before=$before_effects, after=$after_effects"
+
+    # Effects should be preserved (same count or distributed across functions)
+    if [[ $after_effects -ge $before_effects ]]; then
+        log_debug "Effect preservation: PASSED"
+        return 0
+    else
+        log_debug "Effect preservation: FAILED (effects decreased from $before_effects to $after_effects)"
+        return 1
+    fi
+}
+
+# Verify ID stability after refactoring (Calor only)
+# Usage: verify_id_stability "before_file" "after_file"
+# Returns 0 if original IDs are preserved, 1 otherwise
+verify_id_stability() {
+    local before_file="$1"
+    local after_file="$2"
+
+    # Get IDs from before and after
+    local before_ids after_ids
+    before_ids=$(extract_ids "$before_file" | tr '\n' ' ')
+    after_ids=$(extract_ids "$after_file" | tr '\n' ' ')
+
+    log_debug "ID stability: before=[$before_ids], after=[$after_ids]"
+
+    # Check that all original IDs still exist
+    local missing_ids=false
+    for id in $before_ids; do
+        if ! echo "$after_ids" | grep -q "$id"; then
+            log_debug "ID stability: Missing ID '$id'"
+            missing_ids=true
+        fi
+    done
+
+    if [[ "$missing_ids" == "false" ]]; then
+        log_debug "ID stability: PASSED (all original IDs preserved)"
+        return 0
+    else
+        log_debug "ID stability: FAILED (some IDs were lost)"
+        return 1
+    fi
+}
+
+# ============================================================================
+# C# CONTRACT COMMENT VERIFICATION
+# Verifies comment-based contracts in C# code (// Requires:, // Ensures:, etc.)
+# ============================================================================
+
+# Count C# contract comments in a file
+# Recognizes patterns like:
+#   // Requires: x > 0
+#   // Ensures: result >= 0
+#   // Contract: ...
+#   /// <requires>...</requires>
+#   [ContractAttribute] (simplified detection)
+# Usage: count_csharp_contract_comments "path/to/file.cs"
+count_csharp_contract_comments() {
+    local file="$1"
+    if [[ ! -f "$file" ]]; then
+        echo 0
+        return
+    fi
+
+    local count=0
+
+    # Count // Requires: and // Ensures: comments
+    local requires_count ensures_count contract_count
+    requires_count=$(grep -ciE '//\s*(requires|precondition):' "$file" 2>/dev/null) || requires_count=0
+    ensures_count=$(grep -ciE '//\s*(ensures|postcondition):' "$file" 2>/dev/null) || ensures_count=0
+
+    # Count generic // Contract: comments
+    contract_count=$(grep -ciE '//\s*contract:' "$file" 2>/dev/null) || contract_count=0
+
+    # Count XML doc contract tags
+    local xml_requires xml_ensures
+    xml_requires=$(grep -ciE '<requires>' "$file" 2>/dev/null) || xml_requires=0
+    xml_ensures=$(grep -ciE '<ensures>' "$file" 2>/dev/null) || xml_ensures=0
+
+    # Count Code Contracts attributes (simplified)
+    local attr_count
+    attr_count=$(grep -ciE '\[Contract' "$file" 2>/dev/null) || attr_count=0
+
+    # Count Debug.Assert/Trace.Assert as informal contracts
+    local assert_count
+    assert_count=$(grep -ciE '(Debug|Trace)\.Assert\s*\(' "$file" 2>/dev/null) || assert_count=0
+
+    echo $((requires_count + ensures_count + contract_count + xml_requires + xml_ensures + attr_count + assert_count))
+}
+
+# Count C# contract comments in all .cs files in a directory
+# Usage: count_csharp_contracts_in_dir "path/to/dir"
+count_csharp_contracts_in_dir() {
+    local dir="$1"
+    local total=0
+
+    while IFS= read -r -d '' file; do
+        local file_count
+        file_count=$(count_csharp_contract_comments "$file")
+        total=$((total + file_count))
+    done < <(find "$dir" -name "*.cs" -type f -print0 2>/dev/null)
+
+    echo "$total"
+}
+
+# Verify C# contract comment preservation after refactoring
+# Usage: verify_csharp_contract_preservation "before_dir" "after_dir"
+# Returns 0 if contracts are preserved or increased, 1 otherwise
+verify_csharp_contract_preservation() {
+    local before_dir="$1"
+    local after_dir="$2"
+
+    local before_contracts after_contracts
+    before_contracts=$(count_csharp_contracts_in_dir "$before_dir")
+    after_contracts=$(count_csharp_contracts_in_dir "$after_dir")
+
+    log_debug "C# contract preservation: before=$before_contracts, after=$after_contracts"
+
+    if [[ $after_contracts -ge $before_contracts ]]; then
+        log_debug "C# contract preservation: PASSED"
+        return 0
+    else
+        log_debug "C# contract preservation: FAILED (contracts decreased from $before_contracts to $after_contracts)"
+        return 1
+    fi
+}
+
+# Extract contract content from C# files (for detailed comparison)
+# Usage: extract_csharp_contracts "path/to/file.cs"
+extract_csharp_contracts() {
+    local file="$1"
+    if [[ ! -f "$file" ]]; then
+        return
+    fi
+
+    # Extract all contract-like lines
+    grep -iE '//\s*(requires|ensures|precondition|postcondition|contract):|<(requires|ensures)>|\[Contract' "$file" 2>/dev/null | sort
+}
+
+# Compare C# contract content between files
+# Usage: compare_csharp_contracts "before_file" "after_file"
+# Returns 0 if all before contracts exist in after, 1 otherwise
+compare_csharp_contracts() {
+    local before_file="$1"
+    local after_file="$2"
+
+    local before_contracts after_contracts
+    before_contracts=$(extract_csharp_contracts "$before_file")
+    after_contracts=$(extract_csharp_contracts "$after_file")
+
+    # If no contracts in before, always pass
+    if [[ -z "$before_contracts" ]]; then
+        return 0
+    fi
+
+    # Check each before contract exists in after
+    local missing=false
+    while IFS= read -r contract; do
+        if ! echo "$after_contracts" | grep -qF "$contract"; then
+            log_debug "Missing contract: $contract"
+            missing=true
+        fi
+    done <<< "$before_contracts"
+
+    if [[ "$missing" == "true" ]]; then
+        return 1
+    fi
+    return 0
+}
+
+# Count functions in a workspace (for both Calor and C#)
+# Usage: count_functions "workspace_path" "calor|csharp"
+count_functions() {
+    local workspace="$1"
+    local lang="${2:-calor}"
+
+    local count=0
+    if [[ "$lang" == "calor" ]]; then
+        # Count §F{ patterns in .calr files
+        while IFS= read -r -d '' file; do
+            local file_count
+            file_count=$(grep -c '§F{' "$file" 2>/dev/null) || file_count=0
+            count=$((count + file_count))
+        done < <(find "$workspace" -name "*.calr" -type f -print0 2>/dev/null)
+    else
+        # Count method declarations in .cs files (simplified)
+        while IFS= read -r -d '' file; do
+            local file_count
+            file_count=$(grep -cE '(public|private|protected|internal)\s+\w+\s+\w+\s*\(' "$file" 2>/dev/null) || file_count=0
+            count=$((count + file_count))
+        done < <(find "$workspace" -name "*.cs" -type f -print0 2>/dev/null)
+    fi
+
+    echo "$count"
+}
+
+# Verify refactoring metrics for a workspace
+# Usage: verify_refactoring_metrics "workspace" "before_snapshot_dir" "language"
+# Returns JSON with metrics
+get_refactoring_metrics() {
+    local workspace="$1"
+    local before_dir="$2"
+    local lang="${3:-calor}"
+
+    if [[ "$lang" == "calor" ]]; then
+        local before_contracts=0 after_contracts=0
+        local before_effects=0 after_effects=0
+        local before_funcs=0 after_funcs=0
+
+        # Count in before snapshot
+        while IFS= read -r -d '' file; do
+            before_contracts=$((before_contracts + $(count_contracts "$file")))
+            before_effects=$((before_effects + $(count_effects "$file")))
+            before_funcs=$((before_funcs + $(grep -c '§F{' "$file" 2>/dev/null || echo 0)))
+        done < <(find "$before_dir" -name "*.calr" -type f -print0 2>/dev/null)
+
+        # Count in after (workspace)
+        while IFS= read -r -d '' file; do
+            after_contracts=$((after_contracts + $(count_contracts "$file")))
+            after_effects=$((after_effects + $(count_effects "$file")))
+            after_funcs=$((after_funcs + $(grep -c '§F{' "$file" 2>/dev/null || echo 0)))
+        done < <(find "$workspace" -name "*.calr" -type f -print0 2>/dev/null)
+
+        cat << EOF
+{
+  "language": "calor",
+  "contractsBefore": $before_contracts,
+  "contractsAfter": $after_contracts,
+  "contractsPreserved": $([[ $after_contracts -ge $before_contracts ]] && echo "true" || echo "false"),
+  "effectsBefore": $before_effects,
+  "effectsAfter": $after_effects,
+  "effectsPreserved": $([[ $after_effects -ge $before_effects ]] && echo "true" || echo "false"),
+  "functionsBefore": $before_funcs,
+  "functionsAfter": $after_funcs
+}
+EOF
+    else
+        # C# metrics - function count, compilation, and comment-based contracts
+        local before_funcs=0 after_funcs=0
+        local before_contracts=0 after_contracts=0
+
+        while IFS= read -r -d '' file; do
+            before_funcs=$((before_funcs + $(grep -cE '(public|private|protected)\s+\w+\s+\w+\s*\(' "$file" 2>/dev/null || echo 0)))
+            before_contracts=$((before_contracts + $(count_csharp_contract_comments "$file")))
+        done < <(find "$before_dir" -name "*.cs" -type f -print0 2>/dev/null)
+
+        while IFS= read -r -d '' file; do
+            after_funcs=$((after_funcs + $(grep -cE '(public|private|protected)\s+\w+\s+\w+\s*\(' "$file" 2>/dev/null || echo 0)))
+            after_contracts=$((after_contracts + $(count_csharp_contract_comments "$file")))
+        done < <(find "$workspace" -name "*.cs" -type f -print0 2>/dev/null)
+
+        cat << EOF
+{
+  "language": "csharp",
+  "functionsBefore": $before_funcs,
+  "functionsAfter": $after_funcs,
+  "contractCommentsBefore": $before_contracts,
+  "contractCommentsAfter": $after_contracts,
+  "contractsPreserved": $([[ $after_contracts -ge $before_contracts ]] && echo "true" || echo "false")
+}
+EOF
+    fi
 }

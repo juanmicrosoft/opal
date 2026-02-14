@@ -1,0 +1,34 @@
+§M{m001:ContractExamples}
+
+// Function needing a precondition
+§F{f001:Sqrt:pub}
+  §I{i32:x}
+  §O{i32}
+  §R x
+§/F{f001}
+
+// Function needing a postcondition
+§F{f002:Abs:pub}
+  §I{i32:x}
+  §O{i32}
+  §R (? (< x 0) (- 0 x) x)
+§/F{f002}
+
+// Function needing array bounds contract
+§F{f003:GetElement:pub}
+  §I{i32:index}
+  §I{i32:length}
+  §O{i32}
+  §R (? (and (>= index 0) (< index length)) index (- 0 1))
+§/F{f003}
+
+// Function needing effect declaration
+§F{f004:PrintValue:pub}
+  §I{i32:x}
+  §O{void}
+  §C{Console.WriteLine}
+    §A x
+  §/C
+§/F{f004}
+
+§/M{m001}

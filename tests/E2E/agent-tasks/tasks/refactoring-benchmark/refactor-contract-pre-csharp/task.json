@@ -1,0 +1,13 @@
+{
+  "id": "refactor-contract-pre-csharp",
+  "name": "Add precondition (C#)",
+  "category": "refactoring-benchmark",
+  "fixture": "refactor-contract-csharp",
+  "prompt": "In Contract.cs, add a precondition to the `Sqrt` method requiring that the input x is non-negative. Add:\n1. A contract comment documenting the precondition\n2. A guard clause that throws ArgumentOutOfRangeException if violated\n\nResult:\n// Precondition: x >= 0\npublic int Sqrt(int x)\n{\n    if (x < 0)\n        throw new ArgumentOutOfRangeException(nameof(x), \"x must be non-negative\");\n    return x;\n}",
+  "verification": {
+    "compilation": {
+      "mustSucceed": true
+    }
+  },
+  "timeout": 120
+}
