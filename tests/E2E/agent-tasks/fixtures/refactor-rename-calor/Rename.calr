@@ -1,6 +1,5 @@
 §M{m001:RenameExamples}
 
-// Function with parameter to rename
 §F{f001:Calculate:pub}
   §I{i32:val}
   §O{i32}
@@ -8,7 +7,6 @@
   §R (* val 2)
 §/F{f001}
 
-// Function with contract referencing parameter
 §F{f002:ValidatedOp:pub}
   §I{i32:num}
   §I{i32:max}
@@ -19,7 +17,6 @@
   §R num
 §/F{f002}
 
-// Function with parameter shadowing in nested scope
 §F{f003:OuterCalc:pub}
   §I{i32:x}
   §O{i32}

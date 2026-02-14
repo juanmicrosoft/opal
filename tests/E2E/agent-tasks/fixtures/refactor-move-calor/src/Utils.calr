@@ -1,6 +1,5 @@
 §M{m002:UtilsModule}
 
-// Target module for moved functions
 §F{f010:Log:pub}
   §I{str:message}
   §O{void}

@@ -1,6 +1,5 @@
 §M{m001:ExtractExamples}
 
-// Simple calculation to extract
 §F{f001:Distance:pub}
   §I{i32:x}
   §I{i32:y}
@@ -8,7 +7,6 @@
   §R (+ (* x x) (* y y))
 §/F{f001}
 
-// Function with contracts - extraction should preserve contracts
 §F{f002:ProcessArray:pub}
   §I{i32:index}
   §I{i32:length}
@@ -19,7 +17,6 @@
   §R (? (and (>= index 0) (< index length)) index (- 0 1))
 §/F{f002}
 
-// Function with effects - extraction should track effects
 §F{f003:LogAndCompute:pub}
   §I{i32:a}
   §I{i32:b}
@@ -31,7 +28,6 @@
   §R (+ a b)
 §/F{f003}
 
-// Nested function calls - complex extraction
 §F{f004:ComputeNested:pub}
   §I{i32:x}
   §I{i32:y}

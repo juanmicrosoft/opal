@@ -1,20 +1,17 @@
 §M{m001:SignatureExamples}
 
-// Function to add a parameter to
 §F{f001:Greet:pub}
   §I{str:name}
   §O{str}
   §R name
 §/F{f001}
 
-// Function to change return type
 §F{f002:TryParse:pub}
   §I{str:input}
   §O{i32}
   §R 0
 §/F{f002}
 
-// Function to reorder parameters
 §F{f003:CreateRange:pub}
   §I{i32:start}
   §I{i32:end}
@@ -25,7 +22,6 @@
   §R (/ (- end start) step)
 §/F{f003}
 
-// Function that calls CreateRange - for testing call site updates
 §F{f004:CountSteps:pub}
   §I{i32:max}
   §O{i32}

@@ -1,6 +1,5 @@
 §M{m001:MathModule}
 
-// Function to move to Utils module
 §F{f001:Abs:pub}
   §I{i32:x}
   §O{i32}
@@ -8,7 +7,6 @@
   §R (? (< x 0) (- 0 x) x)
 §/F{f001}
 
-// Function with contracts that will be moved
 §F{f002:SafeDivide:pub}
   §I{i32:a}
   §I{i32:b}
@@ -18,7 +16,6 @@
   §R (/ a b)
 §/F{f002}
 
-// Function with dependencies - move requires updating callers
 §F{f003:Distance:pub}
   §I{i32:x}
   §I{i32:y}

@@ -1,13 +1,11 @@
 §M{m001:InlineExamples}
 
-// Simple helper function to inline
 §F{f001:Double:pub}
   §I{i32:x}
   §O{i32}
   §R (* x 2)
 §/F{f001}
 
-// Function that calls Double - target for inlining
 §F{f002:Calculate:pub}
   §I{i32:a}
   §I{i32:b}
@@ -20,7 +18,6 @@
       §/C)
 §/F{f002}
 
-// Function with contracts to inline
 §F{f003:Clamp:pub}
   §I{i32:value}
   §I{i32:min}
@@ -32,7 +29,6 @@
   §R (? (< value min) min (? (> value max) max value))
 §/F{f003}
 
-// Function that uses Clamp - test contract propagation on inline
 §F{f004:NormalizeScore:pub}
   §I{i32:score}
   §O{i32}
@@ -45,7 +41,6 @@
     §/C
 §/F{f004}
 
-// Function called at multiple sites
 §F{f005:Square:pub}
   §I{i32:n}
   §O{i32}
@@ -53,7 +48,6 @@
   §R (* n n)
 §/F{f005}
 
-// Uses Square multiple times - test multi-site inlining
 §F{f006:SumOfSquares:pub}
   §I{i32:x}
   §I{i32:y}
