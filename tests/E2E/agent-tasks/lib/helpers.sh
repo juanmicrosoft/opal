@@ -457,12 +457,57 @@ Example:
 §/F{f001}
 ```
 
-### Control Flow (If/Else with arrow syntax)
+### Control Flow
+
+**Arrow syntax (single statement per branch):**
 ```
 §IF{id} condition → action
 §EI condition → action
 §EL → action
 §/I{id}
+```
+
+**Block syntax (multiple statements per branch):**
+```
+§IF{id} condition
+  statement1
+  statement2
+§EI condition
+  statement3
+§EL
+  statement4
+§/I{id}
+```
+
+**Example - Arrow syntax (Classify function):**
+```
+§F{f001:Classify:pub}
+  §I{i32:n}
+  §O{str}
+  §IF{if1} (< n 0) → §R "negative"
+  §EI (== n 0) → §R "zero"
+  §EL → §R "positive"
+  §/I{if1}
+§/F{f001}
+```
+
+**Example - Block syntax (GetGrade function):**
+```
+§F{f001:GetGrade:pub}
+  §I{i32:score}
+  §O{str}
+  §B{grade:str} "F"
+  §IF{if1} (>= score 90)
+    §ASSIGN grade "A"
+  §EI (>= score 80)
+    §ASSIGN grade "B"
+  §EI (>= score 70)
+    §ASSIGN grade "C"
+  §EL
+    §ASSIGN grade "F"
+  §/I{if1}
+  §R grade
+§/F{f001}
 ```
 
 ### Collections
@@ -491,9 +536,9 @@ Example:
   §PUSH{nums} 10
   §PUSH{nums} 20
   §PUSH{nums} 30
-  §VAR{sum:i32} 0
+  §B{i32:sum} 0
   §EACH{e1:n} nums
-    §SET{sum} (+ sum n)
+    §ASSIGN sum (+ sum n)
   §/EACH{e1}
   §R sum
 §/F{f001}
@@ -531,15 +576,15 @@ Example:
 §AF{af1:ProcessAsync:pub}
   §O{Task<i32>}
   §E{net:r}
-  §VAR{data:i32} §AWAIT (FetchDataAsync)
+  §B{i32:data} §AWAIT §C{FetchDataAsync} §/C
   §R (* data 2)
 §/AF{af1}
 ```
 
 Key points:
 - Use `§AF{id:Name:pub}` for async function (not `§F`)
-- Return type is `Task<T>`
-- Use `§AWAIT expression` to await async operations
+- Return type is `Task<T>` (or just the inner type, Task wrapper is automatic)
+- Use `§AWAIT` before async calls: `§AWAIT §C{MethodAsync} §A arg §/C`
 - `§E{net:r}` declares network read effect
 
 **ConfigureAwait(false) for library code:**
@@ -547,19 +592,21 @@ Key points:
 §AF{af1:BackgroundProcessAsync:pub}
   §O{Task<i32>}
   §E{net:r}
-  §VAR{result:i32} §AWAIT{false} (SlowOperationAsync)
+  §B{i32:result} §AWAIT{false} §C{SlowOperationAsync} §/C
   §R result
 §/AF{af1}
 ```
+
+Use `§AWAIT{false}` to add ConfigureAwait(false) for library code.
 
 **Async method in a class:**
 ```
 §CL{cl1:DataService:pub}
   §AMT{amt1:LoadAsync:pub}
-    §O{Task<i32>}
+    §O{Task<str>}
     §E{net:r}
-    §AWAIT (HttpClient.GetAsync "url")
-    §R 100
+    §B{str:data} §AWAIT §C{HttpClient.GetStringAsync} §A "https://example.com" §/C
+    §R data
   §/AMT{amt1}
 §/CL{cl1}
 ```
@@ -573,38 +620,42 @@ Use `§AMT{` for async method in class (not `§AF{` or `§MT{`).
 §F{f001:ApplyDouble:pub}
   §I{i32:x}
   §O{i32}
-  §VAR{doubler:Func<i32,i32>} (n) → (* n 2)
-  §R (doubler x)
+  §B{Func<i32,i32>:doubler} (n) → (* n 2)
+  §R §C{doubler} §A x §/C
 §/F{f001}
 ```
 
 Key lambda syntax:
-- `(param) → expression` for inline lambda
+- `(param) → expression` for inline arrow lambda
 - `(a, b) → (+ a b)` for multiple params
-- Use `§VAR{name:type} lambda` to bind lambda to variable
+- Use `§B{type:name} lambda` to bind lambda to variable
 
 **Block lambda (multi-statement):**
 ```
 §F{f001:ApplyComplex:pub}
   §I{i32:x}
   §O{i32}
-  §LAM{lam1:n:i32:i32}
+  §LAM{lam1:n:i32}
     §IF{if1} (> n 0) → §R (* n 2)
     §EL → §R 0
     §/I{if1}
   §/LAM{lam1}
-  §R (lam1 x)
+  §R §C{lam1} §A x §/C
 §/F{f001}
 ```
 
+Block lambda syntax: `§LAM{id:param:paramType}...§/LAM{id}`
+
 **Delegate definition:**
 ```
-§DG{dg1:MathOp}
+§DEL{del1:MathOperation}
   §I{i32:x}
   §I{i32:y}
   §O{i32}
-§/DG{dg1}
+§/DEL{del1}
 ```
+
+Delegate syntax: `§DEL{id:Name}...§/DEL{id}`
 
 ### Variable Binding and Assignment
 
@@ -650,10 +701,80 @@ Key syntax:
   §MT{mt2:Set:pub}
     §I{T:value}
     §O{void}
-    §SET{_value} value
+    §ASSIGN _value value
   §/MT{mt2}
 §/CL{cl1}
 ```
+
+**Generic class with type constraint:**
+```
+§CL{cl1:Repository:pub}<T>
+  §WHERE T : class
+  §FLD{List<T>:_items:priv}
+  §MT{mt1:Add:pub}
+    §I{T:item}
+    §O{void}
+    §C{_items.Add} §A item §/C
+  §/MT{mt1}
+§/CL{cl1}
+```
+
+Type constraint syntax: `§WHERE T : constraint`
+- `§WHERE T : class` - reference type
+- `§WHERE T : struct` - value type
+- `§WHERE T : new()` - has parameterless constructor
+- `§WHERE T : IComparable<T>` - implements interface
+
+### Properties
+
+**Property with getter and setter:**
+```
+§CL{cl1:Product:pub}
+  §FLD{f64:_price:priv}
+  §PROP{p001:Price:f64:pub}
+    §GET
+      §R _price
+    §/GET
+    §SET
+      §ASSIGN _price value
+    §/SET
+  §/PROP{p001}
+§/CL{cl1}
+```
+
+**Auto-property (simple getter/setter):**
+```
+§CL{cl1:Person:pub}
+  §PROP{p001:Name:str:pub}
+    §GET
+    §SET
+  §/PROP{p001}
+§/CL{cl1}
+```
+
+Property syntax: `§PROP{id:Name:type:visibility}...§/PROP{id}`
+
+### Constructors
+
+**Constructor in a class:**
+```
+§CL{cl1:Person:pub}
+  §FLD{str:_name:priv}
+  §FLD{i32:_age:priv}
+  §CTOR{ctor1:pub}
+    §I{str:name}
+    §I{i32:age}
+    §ASSIGN _name name
+    §ASSIGN _age age
+  §/CTOR{ctor1}
+  §MT{mt1:GetName:pub}
+    §O{str}
+    §R _name
+  §/MT{mt1}
+§/CL{cl1}
+```
+
+Constructor syntax: `§CTOR{id:visibility}...§/CTOR{id}`
 
 ### Multiple Postconditions (Strengthened Contracts)
 
@@ -687,12 +808,33 @@ When fully specifying behavior, use multiple §S postconditions:
 §E{net,cw}              // Network AND console write
 ```
 
+### StringBuilder Operations
+
+**Create and use StringBuilder:**
+```
+§F{f001:BuildGreeting:pub}
+  §I{str:name}
+  §O{str}
+  §B{StringBuilder:sb} (sb-new)
+  (sb-append sb "Hello, ")
+  (sb-append sb name)
+  (sb-append sb "!")
+  §R (sb-to-string sb)
+§/F{f001}
+```
+
+StringBuilder functions:
+- `(sb-new)` - create new StringBuilder
+- `(sb-append sb value)` - append value to StringBuilder
+- `(sb-to-string sb)` - convert to string
+
 ### Array Types
 
-Use `i32[]` for integer arrays, `str[]` for string arrays:
+Use `[type]` for array types:
 ```
-§I{i32[]:arr}           // Integer array parameter
-§I{str[]:names}         // String array parameter
+§I{[i32]:arr}           // Integer array parameter
+§I{[str]:names}         // String array parameter
+§I{[[i32]]:matrix}      // Nested array (2D)
 ```
 
 ### Quantifiers (for contracts)
@@ -700,30 +842,38 @@ Use `i32[]` for integer arrays, `str[]` for string arrays:
 **Forall quantifier - all elements positive:**
 ```
 §F{f001:AllPositive:pub}
-  §I{i32[]:arr}
+  §I{[i32]:arr}
   §O{bool}
-  §S (implies result (forall i (and (>= i 0) (< i (len arr))) (> (at arr i) 0)))
-  // ... implementation loops through arr
-  §R true
+  §S (-> result (forall ((i i32)) (> arr{i} 0)))
+  §B{bool:allPos} true
+  §L{for1:i:0:(- (len arr) 1):1}
+    §IF{if1} (<= arr{i} 0) → §ASSIGN allPos false
+    §/I{if1}
+  §/L{for1}
+  §R allPos
 §/F{f001}
 ```
 
 **Exists quantifier - has negative element:**
 ```
 §F{f001:HasNegative:pub}
-  §I{i32[]:arr}
+  §I{[i32]:arr}
   §O{bool}
-  §S (implies result (exists i (and (>= i 0) (< i (len arr))) (< (at arr i) 0)))
-  // ... implementation loops through arr
+  §S (== result (exists ((i i32)) (< arr{i} 0)))
+  §L{for1:i:0:(- (len arr) 1):1}
+    §IF{if1} (< arr{i} 0) → §R true
+    §/I{if1}
+  §/L{for1}
   §R false
 §/F{f001}
 ```
 
 Key quantifier syntax:
-- `(forall var range-condition property)` - all elements satisfy property
-- `(exists var range-condition property)` - some element satisfies property
+- `(forall ((var type)) body)` - universal quantifier with typed variable
+- `(exists ((var type)) body)` - existential quantifier with typed variable
+- `(-> condition consequence)` - implication (if condition then consequence)
+- `arr{i}` - array element access at index i
 - `(len arr)` - array length
-- `(at arr i)` - element at index i
 
 CALOR_REFERENCE
 
@@ -837,7 +987,6 @@ invoke_agent() {
         $timeout_cmd "$timeout_secs" claude \
             --print \
             --dangerously-skip-permissions \
-            --output-format=json \
             "$prompt" > "$output_file" 2>&1 || exit_code=$?
     else
         # No timeout available - run directly with bash timeout via subshell
@@ -845,7 +994,6 @@ invoke_agent() {
             claude \
                 --print \
                 --dangerously-skip-permissions \
-                --output-format=json \
                 "$prompt" > "$output_file" 2>&1
         ) &
         local pid=$!
