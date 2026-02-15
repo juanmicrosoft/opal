@@ -689,10 +689,11 @@ When fully specifying behavior, use multiple §S postconditions:
 
 ### Array Types
 
-Use `i32[]` for integer arrays, `str[]` for string arrays:
+Use `[type]` for array types:
 ```
-§I{i32[]:arr}           // Integer array parameter
-§I{str[]:names}         // String array parameter
+§I{[i32]:arr}           // Integer array parameter
+§I{[str]:names}         // String array parameter
+§I{[[i32]]:matrix}      // Nested array (2D)
 ```
 
 ### Quantifiers (for contracts)
@@ -700,30 +701,38 @@ Use `i32[]` for integer arrays, `str[]` for string arrays:
 **Forall quantifier - all elements positive:**
 ```
 §F{f001:AllPositive:pub}
-  §I{i32[]:arr}
+  §I{[i32]:arr}
   §O{bool}
-  §S (implies result (forall i (and (>= i 0) (< i (len arr))) (> (at arr i) 0)))
-  // ... implementation loops through arr
-  §R true
+  §S (-> result (forall ((i i32)) (> arr{i} 0)))
+  §B{bool:allPos} true
+  §L{for1:i:0:(- (len arr) 1):1}
+    §IF{if1} (<= arr{i} 0) → §ASSIGN allPos false
+    §/I{if1}
+  §/L{for1}
+  §R allPos
 §/F{f001}
 ```
 
 **Exists quantifier - has negative element:**
 ```
 §F{f001:HasNegative:pub}
-  §I{i32[]:arr}
+  §I{[i32]:arr}
   §O{bool}
-  §S (implies result (exists i (and (>= i 0) (< i (len arr))) (< (at arr i) 0)))
-  // ... implementation loops through arr
+  §S (== result (exists ((i i32)) (< arr{i} 0)))
+  §L{for1:i:0:(- (len arr) 1):1}
+    §IF{if1} (< arr{i} 0) → §R true
+    §/I{if1}
+  §/L{for1}
   §R false
 §/F{f001}
 ```
 
 Key quantifier syntax:
-- `(forall var range-condition property)` - all elements satisfy property
-- `(exists var range-condition property)` - some element satisfies property
+- `(forall ((var type)) body)` - universal quantifier with typed variable
+- `(exists ((var type)) body)` - existential quantifier with typed variable
+- `(-> condition consequence)` - implication (if condition then consequence)
+- `arr{i}` - array element access at index i
 - `(len arr)` - array length
-- `(at arr i)` - element at index i
 
 CALOR_REFERENCE
 
@@ -837,7 +846,6 @@ invoke_agent() {
         $timeout_cmd "$timeout_secs" claude \
             --print \
             --dangerously-skip-permissions \
-            --output-format=json \
             "$prompt" > "$output_file" 2>&1 || exit_code=$?
     else
         # No timeout available - run directly with bash timeout via subshell
@@ -845,7 +853,6 @@ invoke_agent() {
             claude \
                 --print \
                 --dangerously-skip-permissions \
-                --output-format=json \
                 "$prompt" > "$output_file" 2>&1
         ) &
         local pid=$!
