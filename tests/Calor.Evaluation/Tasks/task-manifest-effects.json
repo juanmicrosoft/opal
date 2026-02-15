@@ -225,7 +225,7 @@
       "difficulty": 2,
       "prompt": "Write a public function named CreateFixture that takes a string 'name' and an integer 'seed', and returns a fixture ID. Must be deterministic. Return the seed XOR'd with the sum of char codes of name.",
       "testCases": [
-        { "input": ["test", 100], "expected": 548 },
+        { "input": ["test", 100], "expected": 420 },
         { "input": ["abc", 0], "expected": 294 },
         { "input": ["", 42], "expected": 42 }
       ],
@@ -785,10 +785,10 @@
       "name": "Cacheable Hash Function",
       "category": "cache-safety",
       "difficulty": 2,
-      "prompt": "Write a public function named HashString that takes a string 'input' and returns a deterministic hash integer. This is used as a cache key - must be consistent. Use sum of (char code * position).",
+      "prompt": "Write a public function named HashString that takes a string 'input' and returns a deterministic hash integer. This is used as a cache key - must be consistent. Use sum of (char code * position) where position is 0-indexed.",
       "testCases": [
-        { "input": ["abc"], "expected": 302 },
-        { "input": ["hello"], "expected": 808 },
+        { "input": ["abc"], "expected": 296 },
+        { "input": ["hello"], "expected": 1085 },
         { "input": [""], "expected": 0 }
       ],
       "scoring": { "compilation": 0.2, "testCases": 0.4, "contracts": 0.4 },
