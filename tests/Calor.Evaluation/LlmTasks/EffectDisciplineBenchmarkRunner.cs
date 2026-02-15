@@ -384,7 +384,7 @@ public sealed class EffectDisciplineBenchmarkRunner : IDisposable
                 {
                     Index = index,
                     Passed = verification.Passed,
-                    ActualOutput = execResult.ReturnValue?.ToString(),
+                    ActualOutput = FormatOutput(execResult.ReturnValue),
                     ExpectedOutput = testCase.Expected.Value.ToString(),
                     ErrorMessage = verification.Passed ? null : verification.Reason,
                     ExecutionTimeMs = execResult.DurationMs
@@ -395,7 +395,7 @@ public sealed class EffectDisciplineBenchmarkRunner : IDisposable
             {
                 Index = index,
                 Passed = true,
-                ActualOutput = execResult.ReturnValue?.ToString(),
+                ActualOutput = FormatOutput(execResult.ReturnValue),
                 ExecutionTimeMs = execResult.DurationMs
             };
         }
@@ -408,6 +408,29 @@ public sealed class EffectDisciplineBenchmarkRunner : IDisposable
                 ErrorMessage = $"Test execution error: {ex.Message}"
             };
         }
+    }
+
+    /// <summary>
+    /// Formats the output value for display. Uses JSON serialization for arrays and complex types.
+    /// </summary>
+    private static string? FormatOutput(object? value)
+    {
+        if (value == null) return null;
+
+        // For arrays and collections, use JSON serialization to get readable output
+        if (value.GetType().IsArray || value is System.Collections.IEnumerable && value is not string)
+        {
+            try
+            {
+                return JsonSerializer.Serialize(value);
+            }
+            catch
+            {
+                return value.ToString();
+            }
+        }
+
+        return value.ToString();
     }
 
     private static object? ConvertJsonElement(JsonElement element)
