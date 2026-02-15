@@ -27,6 +27,13 @@ REQUIRED_PASSES=2
 # Track if jq is available (set during check_jq)
 JQ_AVAILABLE=false
 
+# Initialize jq availability immediately
+# Note: check_jq is defined below, so we call it after sourcing completes
+# For now, do inline check
+if command -v jq &> /dev/null; then
+    JQ_AVAILABLE=true
+fi
+
 # Track active workspace for cleanup on interrupt
 ACTIVE_WORKSPACE=""
 
@@ -144,8 +151,30 @@ json_get_int() {
     echo "${value:-$default}"
 }
 
+# Get a nested value from JSON file (e.g., "verification.z3.enabled")
+# Usage: json_get_nested_file "$json_file" "path.to.key" "default"
+json_get_nested_file() {
+    local json_file="$1"
+    local path="$2"
+    local default="${3:-}"
+
+    if [[ "$JQ_AVAILABLE" == "true" && -f "$json_file" ]]; then
+        local value
+        # Use jq without // empty to properly handle boolean false values
+        value=$(jq -r ".$path | if . == null then \"\" else tostring end" "$json_file" 2>/dev/null) || value=""
+        if [[ -z "$value" ]]; then
+            echo "$default"
+        else
+            echo "$value"
+        fi
+    else
+        echo "$default"
+    fi
+}
+
 # Get a nested value from JSON (e.g., "verification.z3.enabled")
 # Usage: json_get_nested "$json" "path.to.key" "default"
+# NOTE: For complex JSON with newlines, prefer json_get_nested_file
 json_get_nested() {
     local json="$1"
     local path="$2"
@@ -153,7 +182,7 @@ json_get_nested() {
 
     if [[ "$JQ_AVAILABLE" == "true" ]]; then
         local value
-        value=$(echo "$json" | jq -r ".$path // empty" 2>/dev/null) || value=""
+        value=$(printf '%s' "$json" | jq -r ".$path // empty" 2>/dev/null) || value=""
         echo "${value:-$default}"
     else
         # Fallback: Parse path and extract nested values
@@ -253,6 +282,12 @@ clone_github() {
 # Instead, we create a minimal CLAUDE.md for the agent to reference
 init_calor() {
     local workspace="$1"
+
+    # If fixture already has CLAUDE.md, preserve it (may have task-specific instructions)
+    if [[ -f "$workspace/CLAUDE.md" ]]; then
+        log_debug "Preserving existing CLAUDE.md from fixture"
+        return 0
+    fi
 
     # Create comprehensive CLAUDE.md with Calor syntax reference for the agent
     cat > "$workspace/CLAUDE.md" << 'CALOR_REFERENCE'
@@ -1372,9 +1407,12 @@ verify_task() {
     local task_dir="$2"
     local workspace="$3"
 
+    # Use file-based JSON parsing to avoid issues with special characters
+    local task_file="$task_dir/task.json"
+
     # Check compilation requirement
     local must_compile
-    must_compile=$(json_get_nested "$task_json" "verification.compilation.mustSucceed" "true")
+    must_compile=$(json_get_nested_file "$task_file" "verification.compilation.mustSucceed" "true")
 
     if [[ "$must_compile" == "true" ]]; then
         if ! verify_compilation "$workspace" "true"; then
@@ -1386,12 +1424,12 @@ verify_task() {
 
     # Check Z3 verification
     local z3_enabled
-    z3_enabled=$(json_get_nested "$task_json" "verification.z3.enabled" "false")
+    z3_enabled=$(json_get_nested_file "$task_file" "verification.z3.enabled" "false")
 
     if [[ "$z3_enabled" == "true" ]]; then
         local min_proven max_disproven
-        min_proven=$(json_get_nested "$task_json" "verification.z3.minProvenContracts" "0")
-        max_disproven=$(json_get_nested "$task_json" "verification.z3.maxDisprovenContracts" "999")
+        min_proven=$(json_get_nested_file "$task_file" "verification.z3.minProvenContracts" "0")
+        max_disproven=$(json_get_nested_file "$task_file" "verification.z3.maxDisprovenContracts" "999")
 
         if ! verify_z3 "$workspace" "$min_proven" "$max_disproven"; then
             log_debug "Z3 verification failed"
