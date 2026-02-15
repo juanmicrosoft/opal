@@ -373,12 +373,28 @@ Example with effects:
 ```
 
 ### Method Calls
-External method calls use §C (call) sections:
+External method calls AND internal function calls use §C (call) sections:
 ```
 §C{Console.WriteLine}
   §A "Hello"
 §/C
 ```
+
+**IMPORTANT: Function calls in expressions**
+When calling a function inside an expression (e.g., in a ternary or return), you MUST use §C{...} syntax:
+```
+§R (? §C{ValidateIndex}
+    §A index
+    §A length
+  §/C index (- 0 1))
+```
+
+WRONG (will not compile):
+```
+§R (? (ValidateIndex index length) index (- 0 1))
+```
+
+Function names are NOT operators - always use §C{FunctionName} with §A arguments.
 
 ### Examples
 
@@ -1163,15 +1179,23 @@ verify_calor_compilation() {
 
         # Capture output for debugging
         local compile_output
-        compile_output=$("$COMPILER" --input "$calr_file" --output "$cs_file" 2>&1) || {
-            log_debug "Calor compilation failed for $calr_file"
-            log_debug "Output: $compile_output"
+        local compile_status=0
+        compile_output=$("$COMPILER" --input "$calr_file" --output "$cs_file" 2>&1) || compile_status=$?
+
+        if [[ $compile_status -ne 0 ]]; then
+            log_debug "Calor compilation failed for $calr_file (exit code: $compile_status)"
+            log_debug "Compiler output: $compile_output"
             compile_failed=true
-        }
+        fi
 
         # Verify output file was created
         if [[ ! -f "$cs_file" ]]; then
             log_debug "Generated file not created: $cs_file"
+            log_debug "Calor file contents:"
+            log_debug "$(cat "$calr_file" 2>/dev/null | head -50)"
+            if [[ -n "$compile_output" ]]; then
+                log_debug "Compiler output: $compile_output"
+            fi
             compile_failed=true
         fi
     done < <(find . -name "*.calr" -type f -print0 2>/dev/null)

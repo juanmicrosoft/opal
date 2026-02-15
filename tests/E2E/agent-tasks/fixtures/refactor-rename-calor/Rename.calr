@@ -20,7 +20,7 @@
 §F{f003:OuterCalc:pub}
   §I{i32:x}
   §O{i32}
-  §V{v001:inner:i32} (* x 2)
+  §B{inner} (* x 2)
   §R (+ x inner)
 §/F{f003}
 

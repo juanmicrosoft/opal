@@ -22,6 +22,7 @@
 §F{f004:PrintValue:pub}
   §I{i32:x}
   §O{void}
+  §E{cw}
   §C{Console.WriteLine}
     §A x
   §/C
