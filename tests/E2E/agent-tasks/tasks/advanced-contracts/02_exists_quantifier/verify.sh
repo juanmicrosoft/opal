@@ -13,8 +13,8 @@ grep -q "HasNegative" "$CALR_FILE" || { echo "HasNegative function not found"; e
 # Check for exists quantifier
 grep -qE "\(exists " "$CALR_FILE" || { echo "Exists quantifier not found"; exit 1; }
 
-# Check for array parameter
-grep -qE "i32\[\]" "$CALR_FILE" || { echo "Array parameter type (i32[]) not found"; exit 1; }
+# Check for array parameter (accepts both [i32] and i32[] syntax)
+grep -qE "\[i32\]|i32\[\]" "$CALR_FILE" || { echo "Array parameter type ([i32] or i32[]) not found"; exit 1; }
 
 echo "Verification passed: HasNegative function found with exists quantifier"
 exit 0
