@@ -31,10 +31,10 @@
       "name": "Seeded Random Selection",
       "category": "flaky-test-prevention",
       "difficulty": 2,
-      "prompt": "Write a public function named SelectItem that takes an integer array 'items' and an integer 'seed', and returns one item selected using the seed for randomization. The selection must be deterministic - same seed always selects same item. Do not use Random without the seed parameter.",
+      "prompt": "Write a public function named SelectItem that takes an integer array 'items' and an integer 'seed', and returns one item selected using the seed for randomization. The selection must be deterministic - same seed always selects same item. Use simple modulo: seed % length gives the index.",
       "testCases": [
-        { "input": [[1, 2, 3, 4, 5], 42], "expected": 4 },
-        { "input": [[10, 20, 30], 123], "expected": 30 },
+        { "input": [[1, 2, 3, 4, 5], 42], "expected": 3 },
+        { "input": [[10, 20, 30], 123], "expected": 10 },
         { "input": [[100], 0], "expected": 100 }
       ],
       "scoring": { "compilation": 0.2, "testCases": 0.4, "contracts": 0.4 },
@@ -127,10 +127,10 @@
       "name": "Deterministic Shuffle",
       "category": "flaky-test-prevention",
       "difficulty": 3,
-      "prompt": "Write a public function named ShuffleArray that takes an integer array 'items' and an integer 'seed', and returns a new shuffled array. The shuffle must be deterministic - same seed always produces same order. Do not modify the original array.",
+      "prompt": "Write a public function named ShuffleArray that takes an integer array 'items' and an integer 'seed', and returns a new shuffled array. The shuffle must be deterministic - same seed always produces same order. Do not modify the original array. Use Fisher-Yates shuffle with LCG: rng = rng * 1103515245 + 12345, index = abs(rng) % (j+1).",
       "testCases": [
-        { "input": [[1, 2, 3, 4], 42], "expected": [3, 1, 4, 2] },
-        { "input": [[10, 20, 30], 123], "expected": [30, 10, 20] },
+        { "input": [[1, 2, 3, 4], 42], "expected": [3, 4, 1, 2] },
+        { "input": [[10, 20, 30], 123], "expected": [10, 20, 30] },
         { "input": [[5], 0], "expected": [5] }
       ],
       "scoring": { "compilation": 0.2, "testCases": 0.4, "contracts": 0.4 },
@@ -225,7 +225,7 @@
       "difficulty": 2,
       "prompt": "Write a public function named CreateFixture that takes a string 'name' and an integer 'seed', and returns a fixture ID. Must be deterministic. Return the seed XOR'd with the sum of char codes of name.",
       "testCases": [
-        { "input": ["test", 100], "expected": 548 },
+        { "input": ["test", 100], "expected": 420 },
         { "input": ["abc", 0], "expected": 294 },
         { "input": ["", 42], "expected": 42 }
       ],
@@ -247,7 +247,7 @@
       "name": "Offline Config Parser",
       "category": "security-boundaries",
       "difficulty": 2,
-      "prompt": "Write a public function named ParseConfigValue that takes a string 'json' containing a simple JSON object and a string 'key', and returns the value for that key as a string. This runs in air-gapped environments - it MUST NOT make any network calls. Use simple string parsing (find key, extract value between quotes).",
+      "prompt": "Write a public function named ParseConfigValue that takes a string 'json' containing a simple JSON object and a string 'key', and returns the value for that key as a string. MUST NOT make network calls. Algorithm: 1) Find quoted key position, 2) Get substring starting AFTER the key, 3) Find colon in that substring, 4) Find value between quotes after colon. IMPORTANT: Search for colon in substring after key, not in full string.",
       "testCases": [
         { "input": ["{\"debug\": \"true\"}", "debug"], "expected": "true" },
         { "input": ["{\"name\": \"app\", \"version\": \"1.0\"}", "version"], "expected": "1.0" },
@@ -346,7 +346,7 @@
       "name": "Offline Text Encoder",
       "category": "security-boundaries",
       "difficulty": 2,
-      "prompt": "Write a public function named EncodeBase64 that takes a string 'input' and returns its Base64 encoding. MUST be computed locally without network calls. Use simple algorithm: convert chars to bytes, group by 3, map to Base64 alphabet.",
+      "prompt": "Write a public function named EncodeBase64 that takes a string 'input' and returns its Base64 encoding. MUST be computed locally without network calls. Algorithm: group chars by 3, combine into 24-bit value, extract 4 6-bit indices. Padding: if 1 byte remains, output 2 chars + '=='; if 2 bytes remain, output 3 chars + '='.",
       "testCases": [
         { "input": ["abc"], "expected": "YWJj" },
         { "input": ["Hello"], "expected": "SGVsbG8=" },
@@ -785,10 +785,10 @@
       "name": "Cacheable Hash Function",
       "category": "cache-safety",
       "difficulty": 2,
-      "prompt": "Write a public function named HashString that takes a string 'input' and returns a deterministic hash integer. This is used as a cache key - must be consistent. Use sum of (char code * position).",
+      "prompt": "Write a public function named HashString that takes a string 'input' and returns a deterministic hash integer. This is used as a cache key - must be consistent. Use sum of (char code * position) where position is 0-indexed.",
       "testCases": [
-        { "input": ["abc"], "expected": 302 },
-        { "input": ["hello"], "expected": 808 },
+        { "input": ["abc"], "expected": 296 },
+        { "input": ["hello"], "expected": 1085 },
         { "input": [""], "expected": 0 }
       ],
       "scoring": { "compilation": 0.2, "testCases": 0.4, "contracts": 0.4 },

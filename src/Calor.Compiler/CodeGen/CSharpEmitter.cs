@@ -479,14 +479,14 @@ public sealed class CSharpEmitter : IAstVisitor<string>
 
     public string Visit(StringLiteralNode node)
     {
-        // Check if this is an interpolated string (contains ${...})
-        if (node.Value.Contains("${"))
+        // Check if this is an interpolated string (contains ${identifier})
+        // Only match Calor interpolation syntax: ${identifier}, not format placeholders ${0}
+        // Calor interpolation uses identifiers (letters, underscores), not numbers
+        var interpolationRegex = new System.Text.RegularExpressions.Regex(@"\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}");
+        if (interpolationRegex.IsMatch(node.Value))
         {
             // Convert Calor interpolation ${expr} to C# interpolation {expr}
-            var converted = System.Text.RegularExpressions.Regex.Replace(
-                node.Value,
-                @"\$\{([^}]+)\}",
-                "{$1}");
+            var converted = interpolationRegex.Replace(node.Value, "{$1}");
 
             // Escape for C# string literal (but not the interpolation braces)
             var escaped = converted
