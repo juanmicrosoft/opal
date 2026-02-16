@@ -491,12 +491,26 @@ Example:
 §/F{f001}
 ```
 
+**Example - Arrow syntax (Max function):**
+```
+§F{f001:Max:pub}
+  §I{i32:a}
+  §I{i32:b}
+  §O{i32}
+  §IF{if1} (>= a b) → §R a
+  §EL → §R b
+  §/I{if1}
+§/F{f001}
+```
+
+**PREFER arrow syntax** `→` (or `->`) for simple conditionals with single return statements.
+
 **Example - Block syntax (GetGrade function):**
 ```
 §F{f001:GetGrade:pub}
   §I{i32:score}
   §O{str}
-  §B{grade:str} "F"
+  §B{str:grade} "F"
   §IF{if1} (>= score 90)
     §ASSIGN grade "A"
   §EI (>= score 80)
@@ -664,7 +678,7 @@ Delegate syntax: `§DEL{id:Name}...§/DEL{id}`
 §F{f001:Accumulate:pub}
   §I{i32:n}
   §O{i32}
-  §B{acc:i32} 0           // Bind variable acc = 0
+  §B{i32:acc} 0           // Bind variable acc = 0
   §ASSIGN acc (+ acc n)   // Assign acc = acc + n
   §ASSIGN acc (+ acc n)   // Assign again
   §ASSIGN acc (+ acc n)   // And again
@@ -673,8 +687,28 @@ Delegate syntax: `§DEL{id:Name}...§/DEL{id}`
 ```
 
 Key syntax:
-- `§B{name:type} value` - bind (declare) mutable variable
+- `§B{type:name} value` - bind (declare) mutable variable (type first, then name)
 - `§ASSIGN name expression` - assign new value to variable
+
+### Interfaces
+
+**Interface definition:**
+```
+§IFACE{i001:IRepository}
+  §MT{m001:GetById}
+    §I{i32:id}
+    §O{Option<Entity>}
+  §/MT{m001}
+  §MT{m002:Save}
+    §I{Entity:entity}
+    §O{void}
+  §/MT{m002}
+§/IFACE{i001}
+```
+
+Interface syntax: `§IFACE{id:Name}...§/IFACE{id}`
+- Methods have signatures only (no body, no `§R`)
+- Use `§MT{id:Name}` for method signatures (no visibility needed in interface)
 
 ### Class Methods
 
