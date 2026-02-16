@@ -4,21 +4,30 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-02-16
+
 ### Benchmark Results (Statistical: 30 runs)
-- **Overall Advantage**: 0.99x (near parity with C#)
-- **Metrics**: Calor wins 7, C# wins 4
+- **Overall Advantage**: 1.07x (Calor leads)
+- **Metrics**: Calor wins 8, C# wins 4
 - **Highlights**:
-  - Comprehension: 1.46x (Calor wins, large effect)
-  - RefactoringStability: 1.38x (Calor wins, large effect)
+  - Comprehension: 1.55x (Calor wins, large effect)
   - EditPrecision: 1.37x (Calor wins, large effect)
+  - RefactoringStability: 1.37x (Calor wins, large effect)
   - ErrorDetection: 1.24x (Calor wins, large effect)
   - ContractVerification, EffectSoundness, InteropEffectCoverage: Calor-only features (C# has no equivalent)
-- **Programs Tested**: 36
+- **Programs Tested**: 40
+
+### Added
+- Effect Discipline benchmark measuring side effect management (40 tasks across 4 categories)
+- Safety benchmark measuring contract enforcement quality
 
 ### Fixed
+- Fixed array type conversion in benchmark test harness (JSON deserializes as `object[]` but methods need typed arrays)
+- Fixed format string interpolation in compiler (`"${0}"` no longer incorrectly treated as C# interpolation)
+- Added documentation that `abs`, `max`, `min`, `sqrt`, `pow` operators don't exist in Calor
 - Fixed 21 benchmark test files that had invalid syntax (recursive functions, data structures, design patterns)
 - Fixed InformationDensity calculator using outdated square bracket patterns instead of curly braces
-- All 41 benchmark files now compile successfully
+- All 40 benchmark files now compile successfully
 
 ## [0.2.3] - 2026-02-12
 
