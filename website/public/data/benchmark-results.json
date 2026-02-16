@@ -158,6 +158,12 @@
       "pValue": 0.0001,
       "effectSize": -4.77,
       "effectInterpretation": "large"
+    },
+    "EffectDiscipline": {
+      "ratio": 1,
+      "winner": "tie",
+      "source": "effect-discipline-benchmark",
+      "taskCount": 40
     }
   },
   "programs": [
