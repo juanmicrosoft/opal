@@ -80,6 +80,46 @@ find_task_by_id() {
     return 1
 }
 
+# Find tasks matching a filter pattern (matches against task ID)
+# Usage: find_tasks_by_filter "calor" > tasks.txt
+find_tasks_by_filter() {
+    local filter="$1"
+
+    find "$TASKS_DIR" -name "task.json" -type f 2>/dev/null | while IFS= read -r task_file; do
+        local json
+        json=$(cat "$task_file" 2>/dev/null) || continue
+        local id
+        id=$(json_get "$json" "id" "")
+        # Match filter against task ID (case-insensitive)
+        if echo "$id" | grep -qi "$filter"; then
+            dirname "$task_file"
+        fi
+    done | sort
+}
+
+# Find tasks in a category matching a filter pattern
+# Usage: find_tasks_by_category_and_filter "refactoring-benchmark" "calor" > tasks.txt
+find_tasks_by_category_and_filter() {
+    local category="$1"
+    local filter="$2"
+    local category_dir="$TASKS_DIR/$category"
+
+    if [[ ! -d "$category_dir" ]]; then
+        return
+    fi
+
+    find "$category_dir" -name "task.json" -type f 2>/dev/null | while IFS= read -r task_file; do
+        local json
+        json=$(cat "$task_file" 2>/dev/null) || continue
+        local id
+        id=$(json_get "$json" "id" "")
+        # Match filter against task ID (case-insensitive)
+        if echo "$id" | grep -qi "$filter"; then
+            dirname "$task_file"
+        fi
+    done | sort
+}
+
 # List all tasks with their details
 list_tasks() {
     echo ""
@@ -232,8 +272,10 @@ Usage: $0 [OPTIONS]
 Options:
   --category <name>   Run only tasks in specified category
                       Categories: basic-syntax, contract-writing, logic-implementation,
-                                  calor-idioms, github-projects
+                                  calor-idioms, github-projects, refactoring-benchmark
   --task <id>         Run only the task with specified ID
+  --filter <pattern>  Filter tasks by ID pattern (e.g., "calor" or "csharp")
+                      Can be combined with --category
   --single-run        Run each task only once (skip majority voting)
   --list              List all available tasks
   --clean             Clean up temporary workspaces only
@@ -241,10 +283,13 @@ Options:
   --help              Show this help message
 
 Examples:
-  $0                              # Run all tasks with majority voting
-  $0 --category contract-writing  # Run only contract-writing tasks
-  $0 --task contract-001          # Run specific task
-  $0 --single-run                 # Quick run without voting (for debugging)
+  $0                                              # Run all tasks with majority voting
+  $0 --category contract-writing                  # Run only contract-writing tasks
+  $0 --task contract-001                          # Run specific task
+  $0 --category refactoring-benchmark --filter calor  # Run only Calor refactoring tasks
+  $0 --category refactoring-benchmark --filter csharp # Run only C# refactoring tasks
+  $0 --filter calor                               # Run all tasks with "calor" in ID
+  $0 --single-run                                 # Quick run without voting (for debugging)
 
 Majority Voting:
   Each task runs 3 times by default. A task passes if 2/3 runs succeed.
@@ -269,6 +314,7 @@ EOF
 main() {
     local category=""
     local task_id=""
+    local filter=""
     local clean_only=false
     local list_only=false
     SINGLE_RUN=false
@@ -283,6 +329,10 @@ main() {
                 ;;
             --task)
                 task_id="$2"
+                shift 2
+                ;;
+            --filter)
+                filter="$2"
                 shift 2
                 ;;
             --single-run)
@@ -352,10 +402,26 @@ main() {
             exit 1
         fi
         echo "$task_dir" > "$tasks_file"
+    elif [[ -n "$category" && -n "$filter" ]]; then
+        # Both category and filter specified
+        find_tasks_by_category_and_filter "$category" "$filter" > "$tasks_file"
+        if [[ ! -s "$tasks_file" ]]; then
+            log_fail "No tasks found in category '$category' matching filter '$filter'"
+            rm -f "$tasks_file"
+            exit 1
+        fi
     elif [[ -n "$category" ]]; then
         find_tasks_by_category "$category" > "$tasks_file"
         if [[ ! -s "$tasks_file" ]]; then
             log_fail "No tasks found in category: $category"
+            rm -f "$tasks_file"
+            exit 1
+        fi
+    elif [[ -n "$filter" ]]; then
+        # Only filter specified (no category)
+        find_tasks_by_filter "$filter" > "$tasks_file"
+        if [[ ! -s "$tasks_file" ]]; then
+            log_fail "No tasks found matching filter: $filter"
             rm -f "$tasks_file"
             exit 1
         fi

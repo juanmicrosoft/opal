@@ -1,0 +1,13 @@
+{
+  "id": "refactor-rename-contract-csharp",
+  "name": "Rename with contract references (C#)",
+  "category": "refactoring-benchmark",
+  "fixture": "refactor-rename-csharp",
+  "prompt": "In Rename.cs, rename the parameter `num` in the `ValidatedOp` method to `value`. This parameter is referenced in multiple places. Update ALL occurrences:\n- Parameter declaration\n- nameof(num) in the exception\n- Precondition comments that reference num\n- The validation condition that checks num\n- The return statement that returns num\n\nBefore:\npublic int ValidatedOp(int num, int max)\n{\n    if (num < 0 || num > max)\n        throw new ArgumentOutOfRangeException(nameof(num));\n    return num;\n}\n\nAfter:\n// Precondition: value >= 0\n// Precondition: value <= max\npublic int ValidatedOp(int value, int max)\n{\n    if (value < 0 || value > max)\n        throw new ArgumentOutOfRangeException(nameof(value));\n    return value;\n}",
+  "verification": {
+    "compilation": {
+      "mustSucceed": true
+    }
+  },
+  "timeout": 120
+}

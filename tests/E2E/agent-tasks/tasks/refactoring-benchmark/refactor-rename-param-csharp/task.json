@@ -1,0 +1,13 @@
+{
+  "id": "refactor-rename-param-csharp",
+  "name": "Rename parameter (C#)",
+  "category": "refactoring-benchmark",
+  "fixture": "refactor-rename-csharp",
+  "prompt": "In Rename.cs, rename the parameter `val` in the `Calculate` method to `value`. Update ALL occurrences including:\n- The parameter declaration\n- The postcondition comment that references val\n- The return expression that uses val\n\nBefore:\npublic int Calculate(int val)\n{\n    return val * 2;\n}\n\nAfter:\n// Postcondition: result == value * 2\npublic int Calculate(int value)\n{\n    return value * 2;\n}",
+  "verification": {
+    "compilation": {
+      "mustSucceed": true
+    }
+  },
+  "timeout": 120
+}

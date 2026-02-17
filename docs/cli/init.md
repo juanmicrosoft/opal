@@ -45,8 +45,9 @@ This is ideal for multi-project solutions where you want consistent Calor toolin
 MySolution/
 ├── MySolution.sln
 ├── CLAUDE.md                    # AI config in solution root
+├── .mcp.json                    # MCP server configuration
 ├── .claude/
-│   ├── settings.json
+│   ├── settings.json            # Hooks configuration
 │   └── skills/calor/SKILL.md
 ├── src/
 │   ├── Core/
@@ -70,8 +71,9 @@ This is ideal for standalone projects or when you need different AI configuratio
 MyProject/
 ├── MyProject.csproj             # Has Calor MSBuild targets
 ├── CLAUDE.md                    # AI config in project root
+├── .mcp.json                    # MCP server configuration
 └── .claude/
-    ├── settings.json
+    ├── settings.json            # Hooks configuration
     └── skills/calor/SKILL.md
 ```
 
@@ -124,12 +126,50 @@ Creates the following files:
 |:-----|:--------|
 | `.claude/skills/calor/SKILL.md` | Calor code writing skill with YAML frontmatter |
 | `.claude/skills/calor-convert/SKILL.md` | C# to Calor conversion skill |
-| `.claude/settings.json` | **Hook configuration** - enforces Calor-first development |
+| `.claude/skills/calor-semantics/SKILL.md` | Calor semantics and verification skill |
+| `.claude/skills/calor-analyze/SKILL.md` | C# analysis for Calor migration skill |
+| `.claude/settings.json` | **Hooks** - enforces Calor-first development with pre-tool-use hooks |
+| `.mcp.json` | **MCP servers** - provides Calor compiler tools to Claude |
 | `CLAUDE.md` | Project documentation (creates new or updates Calor section) |
+
+#### MCP Server Integration
+
+The `.mcp.json` file configures **two MCP servers**:
+
+```json
+{
+  "mcpServers": {
+    "calor-lsp": {
+      "type": "stdio",
+      "command": "calor",
+      "args": ["lsp"]
+    },
+    "calor": {
+      "type": "stdio",
+      "command": "calor",
+      "args": ["mcp", "--stdio"]
+    }
+  }
+}
+```
+
+| Server | Purpose |
+|:-------|:--------|
+| `calor-lsp` | Language server for real-time diagnostics, hover info, go-to-definition |
+| `calor` | MCP tools for compile, verify, analyze, convert, and syntax help |
+
+The MCP tools allow Claude to:
+- **Compile** Calor code and see generated C#
+- **Verify** contracts with Z3 SMT solver
+- **Analyze** code for security vulnerabilities
+- **Convert** C# to Calor programmatically
+- **Get syntax help** for specific Calor features
+
+See [`calor mcp`](/calor/cli/mcp/) for full tool documentation.
 
 #### Calor-First Enforcement
 
-The `.claude/settings.json` file configures a `PreToolUse` hook that **blocks Claude from creating `.cs` files**. When Claude tries to write a C# file, it will see:
+The `.claude/settings.json` file configures a `PreToolUse` hook that **blocks Claude from creating `.cs` files** (MCP servers are in the separate `.mcp.json` file). When Claude tries to write a C# file, it will see:
 
 ```
 BLOCKED: Cannot create C# file 'MyClass.cs'
@@ -172,7 +212,7 @@ This means:
 - Codex *should* create `.calr` files based on the instructions
 - However, enforcement is not automatic - Codex may occasionally create `.cs` files
 - Review file extensions after code generation
-- Use `calor analyze` to find any unconverted `.cs` files
+- Use `calor assess` to find any unconverted `.cs` files
 
 After initialization, use these Codex commands:
 
@@ -267,7 +307,7 @@ This means:
 - Copilot *should* create `.calr` files based on the instructions
 - However, enforcement is not automatic - Copilot may occasionally create `.cs` files
 - Review file extensions after code generation
-- Use `calor analyze` to find any unconverted `.cs` files
+- Use `calor assess` to find any unconverted `.cs` files
 
 After initialization, reference the Calor skills when asking Copilot about Calor syntax or converting C# code.
 
@@ -438,7 +478,7 @@ cd ~/projects/MyApp
 calor init
 
 # Analyze codebase for migration candidates
-calor analyze ./src --top 10
+calor assess ./src --top 10
 ```
 
 ### Initialize with Claude Code
@@ -481,6 +521,7 @@ Solution: MySolution.sln (3 projects)
 
 Created files:
   CLAUDE.md
+  .mcp.json
   .claude/skills/calor/SKILL.md
   .claude/skills/calor-convert/SKILL.md
   .claude/settings.json
@@ -549,7 +590,7 @@ calor init --solution MyApp.sln --ai claude
 
 - [Adding Calor to Existing Projects](/calor/guides/adding-calor-to-existing-projects/) - Complete migration guide
 - [calor convert](/calor/cli/convert/) - Convert individual files
-- [calor analyze](/calor/cli/analyze/) - Find migration candidates
+- [calor assess](/calor/cli/assess/) - Find migration candidates
 - [Claude Integration](/calor/getting-started/claude-integration/) - Using Calor with Claude Code
 - [Codex Integration](/calor/getting-started/codex-integration/) - Using Calor with OpenAI Codex CLI
 - [Gemini Integration](/calor/getting-started/gemini-integration/) - Using Calor with Google Gemini CLI

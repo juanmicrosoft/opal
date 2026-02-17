@@ -1,0 +1,17 @@
+{
+  "id": "refactor-rename-contract-calor",
+  "name": "Rename with contract references (Calor)",
+  "category": "refactoring-benchmark",
+  "fixture": "refactor-rename-calor",
+  "prompt": "In Rename.calr, rename the parameter `num` in the `ValidatedOp` function (f002) to `value`. This parameter is referenced in multiple contracts. Update ALL occurrences:\n- Parameter declaration: \u00a7I{i32:num} -> \u00a7I{i32:value}\n- First precondition: \u00a7Q (>= num 0) -> \u00a7Q (>= value 0)\n- Second precondition: \u00a7Q (<= num max) -> \u00a7Q (<= value max)\n- Return expression: \u00a7R num -> \u00a7R value\n\nIMPORTANT: The function ID f002 must NOT change. The postcondition \u00a7S (<= result max) doesn't reference num, so it stays unchanged.",
+  "verification": {
+    "compilation": {
+      "mustSucceed": true
+    },
+    "z3": {
+      "enabled": true,
+      "minProvenContracts": 2
+    }
+  },
+  "timeout": 120
+}

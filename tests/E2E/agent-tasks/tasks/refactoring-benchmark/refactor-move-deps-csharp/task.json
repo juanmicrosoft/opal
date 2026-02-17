@@ -1,0 +1,13 @@
+{
+  "id": "refactor-move-deps-csharp",
+  "name": "Move with dependency update (C#)",
+  "category": "refactoring-benchmark",
+  "fixture": "refactor-move-csharp",
+  "prompt": "In the C# project, move the `Abs` method to src/Utils.cs AND update the `Distance` method in MathModule that calls it. After moving:\n\n1. Abs should be in UtilsModule with its postcondition comment preserved\n2. Distance should call the moved Abs method\n\nYou'll need to either:\n- Create an instance of UtilsModule to call the method, OR\n- Make Abs a static method and call UtilsModule.Abs(...)\n\nChoose the approach that results in cleaner code.",
+  "verification": {
+    "compilation": {
+      "mustSucceed": true
+    }
+  },
+  "timeout": 180
+}

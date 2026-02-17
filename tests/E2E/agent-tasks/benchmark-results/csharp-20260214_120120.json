@@ -1,0 +1,48 @@
+[INFO] Running csharp refactoring benchmark...
+
+============================================
+Calor E2E Agent Task Test Suite
+============================================
+
+[WARN] timeout command not found - install coreutils for reliable timeouts
+[WARN]   macOS: brew install coreutils
+[INFO] Building Calor compiler...
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:00.83
+[INFO] Compiler built successfully
+
+[INFO] Running 3 task(s)...
+[INFO] Mode: Single run (no majority voting)
+
+Running: Add parameter to method (C#) (refactor-sig-addparam-csharp)
+[WARN] timeout command not found - agent may hang indefinitely
+PASS: Parameter added
+[PASS] refactor-sig-addparam-csharp: 1/1 passed
+
+Running: Reorder parameters (C#) (refactor-sig-reorder-csharp)
+[WARN] timeout command not found - agent may hang indefinitely
+PASS: Parameters reordered, caller updated
+[PASS] refactor-sig-reorder-csharp: 1/1 passed
+
+Running: Change return type (C#) (refactor-sig-return-csharp)
+[WARN] timeout command not found - agent may hang indefinitely
+PASS: Return type changed to int?
+[PASS] refactor-sig-return-csharp: 1/1 passed
+
+
+============================================
+Agent Task Test Summary
+============================================
+Passed:  3
+Failed:  0
+Skipped: 0
+--------------------------------------------
+Total:   3
+============================================
+Pass Rate: 100%
+SUCCESS: Pass rate meets 80% threshold
+============================================

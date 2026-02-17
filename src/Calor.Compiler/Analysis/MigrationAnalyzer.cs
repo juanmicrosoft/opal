@@ -783,7 +783,19 @@ public sealed class MigrationAnalyzer
                 ScoreDimension.ApiComplexityPotential,
                 visitor.ApiComplexityPatterns,
                 Math.Max(1, visitor.PublicMemberCount),
-                visitor.ApiComplexityExamples)
+                visitor.ApiComplexityExamples),
+
+            [ScoreDimension.AsyncPotential] = CreateDimensionScore(
+                ScoreDimension.AsyncPotential,
+                visitor.AsyncPatterns,
+                methodCount,
+                visitor.AsyncExamples),
+
+            [ScoreDimension.LinqPotential] = CreateDimensionScore(
+                ScoreDimension.LinqPotential,
+                visitor.LinqPatterns,
+                methodCount,
+                visitor.LinqExamples)
         };
     }
 
@@ -842,6 +854,14 @@ internal sealed class MigrationAnalysisVisitor : CSharpSyntaxWalker
     // API complexity patterns
     public int ApiComplexityPatterns { get; private set; }
     public List<string> ApiComplexityExamples { get; } = new();
+
+    // Async patterns
+    public int AsyncPatterns { get; private set; }
+    public List<string> AsyncExamples { get; } = new();
+
+    // LINQ patterns
+    public int LinqPatterns { get; private set; }
+    public List<string> LinqExamples { get; } = new();
 
     // Unsupported C# constructs (converter limitations)
     public int SwitchExpressionCount { get; private set; }
@@ -1019,6 +1039,30 @@ internal sealed class MigrationAnalysisVisitor : CSharpSyntaxWalker
         "SaveChanges", "SaveChangesAsync"
     };
 
+    private static readonly HashSet<string> LinqMethods = new(StringComparer.Ordinal)
+    {
+        "Where", "Select", "SelectMany", "First", "FirstOrDefault",
+        "Single", "SingleOrDefault", "Last", "LastOrDefault",
+        "Any", "All", "Count", "Sum", "Average", "Min", "Max",
+        "OrderBy", "OrderByDescending", "ThenBy", "ThenByDescending",
+        "GroupBy", "Join", "GroupJoin", "Distinct", "Union", "Intersect", "Except",
+        "Skip", "Take", "SkipWhile", "TakeWhile", "Reverse",
+        "Concat", "Zip", "Aggregate", "ToList", "ToArray", "ToDictionary", "ToHashSet"
+    };
+
+    private static readonly HashSet<string> AsyncMethods = new(StringComparer.Ordinal)
+    {
+        "ConfigureAwait", "WhenAll", "WhenAny", "Run", "Delay",
+        "FromResult", "FromException", "FromCanceled",
+        "ContinueWith", "GetAwaiter", "AsTask"
+    };
+
+    private static readonly HashSet<string> AsyncTypes = new(StringComparer.Ordinal)
+    {
+        "Task", "ValueTask", "IAsyncEnumerable", "IAsyncEnumerator",
+        "CancellationToken", "CancellationTokenSource", "IAsyncDisposable"
+    };
+
     public MigrationAnalysisVisitor(bool verbose = false) : base(SyntaxWalkerDepth.Node)
     {
         _verbose = verbose;
@@ -1051,6 +1095,25 @@ internal sealed class MigrationAnalysisVisitor : CSharpSyntaxWalker
         {
             StaticAbstractMemberCount++;
             AddExample(StaticAbstractMemberExamples, $"static abstract {node.ReturnType} {node.Identifier}()");
+        }
+
+        // Check for async modifier
+        if (node.Modifiers.Any(SyntaxKind.AsyncKeyword))
+        {
+            AsyncPatterns++;
+            AddExample(AsyncExamples, $"async {node.Identifier.Text}");
+        }
+
+        // Check for Task/Task<T>/IAsyncEnumerable return type
+        var returnType = GetTypeName(node.ReturnType);
+        if (returnType is "Task" or "ValueTask" ||
+            returnType.StartsWith("Task<", StringComparison.Ordinal) ||
+            returnType.StartsWith("ValueTask<", StringComparison.Ordinal) ||
+            returnType.StartsWith("IAsyncEnumerable<", StringComparison.Ordinal) ||
+            returnType.StartsWith("IAsyncEnumerator<", StringComparison.Ordinal))
+        {
+            AsyncPatterns++;
+            AddExample(AsyncExamples, $"{returnType} return type");
         }
 
         base.VisitMethodDeclaration(node);
@@ -1196,6 +1259,7 @@ internal sealed class MigrationAnalysisVisitor : CSharpSyntaxWalker
     }
 
     // Effect patterns: I/O, Network, Database
+    // LINQ patterns: Where, Select, OrderBy, etc.
     public override void VisitInvocationExpression(InvocationExpressionSyntax node)
     {
         var memberAccess = node.Expression as MemberAccessExpressionSyntax;
@@ -1227,6 +1291,21 @@ internal sealed class MigrationAnalysisVisitor : CSharpSyntaxWalker
             {
                 EffectPatterns++;
                 AddExample(EffectExamples, $"Console.{methodName}");
+            }
+
+            // LINQ methods
+            if (LinqMethods.Contains(methodName))
+            {
+                LinqPatterns++;
+                AddExample(LinqExamples, $".{methodName}()");
+            }
+
+            // Async methods (ConfigureAwait, WhenAll, WhenAny, etc.)
+            if (AsyncMethods.Contains(methodName) ||
+                (typeName == "Task" && AsyncMethods.Contains(methodName)))
+            {
+                AsyncPatterns++;
+                AddExample(AsyncExamples, $".{methodName}()");
             }
         }
 
@@ -1446,6 +1525,17 @@ internal sealed class MigrationAnalysisVisitor : CSharpSyntaxWalker
             }
         }
 
+        // Track CancellationToken parameters (async pattern)
+        if (node.Type != null)
+        {
+            var paramTypeName = GetTypeName(node.Type);
+            if (paramTypeName is "CancellationToken" or "CancellationTokenSource")
+            {
+                AsyncPatterns++;
+                AddExample(AsyncExamples, $"{paramTypeName} parameter");
+            }
+        }
+
         // Track nested generic types in parameters (like Expression<Func<T, U>>)
         if (node.Type is GenericNameSyntax genericName)
         {
@@ -1483,6 +1573,13 @@ internal sealed class MigrationAnalysisVisitor : CSharpSyntaxWalker
             AddExample(DefaultLambdaParameterExamples, $"{node.Parameter.Identifier} = {node.Parameter.Default.Value}");
         }
 
+        // Check for async lambda
+        if (node.Modifiers.Any(SyntaxKind.AsyncKeyword))
+        {
+            AsyncPatterns++;
+            AddExample(AsyncExamples, $"async {node.Parameter} => ...");
+        }
+
         base.VisitSimpleLambdaExpression(node);
     }
 
@@ -1500,6 +1597,13 @@ internal sealed class MigrationAnalysisVisitor : CSharpSyntaxWalker
                 DefaultLambdaParameterCount++;
                 AddExample(DefaultLambdaParameterExamples, $"{param.Identifier} = {param.Default.Value}");
             }
+        }
+
+        // Check for async lambda
+        if (node.Modifiers.Any(SyntaxKind.AsyncKeyword))
+        {
+            AsyncPatterns++;
+            AddExample(AsyncExamples, $"async ({paramList}) => ...");
         }
 
         base.VisitParenthesizedLambdaExpression(node);
@@ -1656,29 +1760,89 @@ internal sealed class MigrationAnalysisVisitor : CSharpSyntaxWalker
         base.VisitLockStatement(node);
     }
 
-    // Track await foreach
+    // Track await expressions
+    public override void VisitAwaitExpression(AwaitExpressionSyntax node)
+    {
+        AsyncPatterns++;
+        var preview = node.Expression.ToString();
+        if (preview.Length > 30) preview = preview.Substring(0, 30) + "...";
+        AddExample(AsyncExamples, $"await {preview}");
+        base.VisitAwaitExpression(node);
+    }
+
+    // Track LINQ query syntax (from x in collection where... select...)
+    public override void VisitQueryExpression(QueryExpressionSyntax node)
+    {
+        LinqPatterns++;
+        var preview = node.ToString();
+        if (preview.Length > 40) preview = preview.Substring(0, 40) + "...";
+        AddExample(LinqExamples, $"query: {preview}");
+        base.VisitQueryExpression(node);
+    }
+
+    // Also count individual query clauses for more granular tracking
+    public override void VisitWhereClause(WhereClauseSyntax node)
+    {
+        LinqPatterns++;
+        AddExample(LinqExamples, "where clause");
+        base.VisitWhereClause(node);
+    }
+
+    public override void VisitOrderByClause(OrderByClauseSyntax node)
+    {
+        LinqPatterns++;
+        AddExample(LinqExamples, "orderby clause");
+        base.VisitOrderByClause(node);
+    }
+
+    public override void VisitGroupClause(GroupClauseSyntax node)
+    {
+        LinqPatterns++;
+        AddExample(LinqExamples, "group clause");
+        base.VisitGroupClause(node);
+    }
+
+    public override void VisitJoinClause(JoinClauseSyntax node)
+    {
+        LinqPatterns++;
+        AddExample(LinqExamples, "join clause");
+        base.VisitJoinClause(node);
+    }
+
+    public override void VisitLetClause(LetClauseSyntax node)
+    {
+        LinqPatterns++;
+        AddExample(LinqExamples, "let clause");
+        base.VisitLetClause(node);
+    }
+
+    // Track await foreach (async iteration + blocker)
     public override void VisitForEachStatement(ForEachStatementSyntax node)
     {
         if (node.AwaitKeyword != default)
         {
             AwaitForeachCount++;
             AddExample(AwaitForeachExamples, $"await foreach ({node.Type} {node.Identifier} in ...)");
+            AsyncPatterns++;
+            AddExample(AsyncExamples, $"await foreach ({node.Identifier})");
         }
         base.VisitForEachStatement(node);
     }
 
-    // Track await using statements
+    // Track await using statements (async disposal + blocker)
     public override void VisitUsingStatement(UsingStatementSyntax node)
     {
         if (node.AwaitKeyword != default)
         {
             AwaitUsingCount++;
             AddExample(AwaitUsingExamples, "await using (...)");
+            AsyncPatterns++;
+            AddExample(AsyncExamples, "await using statement");
         }
         base.VisitUsingStatement(node);
     }
 
-    // Track await using declarations
+    // Track await using declarations (C# 8+) - async pattern + blocker
     public override void VisitLocalDeclarationStatement(LocalDeclarationStatementSyntax node)
     {
         if (node.AwaitKeyword != default && node.UsingKeyword != default)
@@ -1686,6 +1850,8 @@ internal sealed class MigrationAnalysisVisitor : CSharpSyntaxWalker
             AwaitUsingCount++;
             var varName = node.Declaration.Variables.FirstOrDefault()?.Identifier.Text ?? "var";
             AddExample(AwaitUsingExamples, $"await using var {varName} = ...");
+            AsyncPatterns++;
+            AddExample(AsyncExamples, "await using declaration");
         }
 
         // Track scoped locals

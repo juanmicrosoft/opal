@@ -10,6 +10,18 @@ The Effect Discipline benchmark measures how well code prevents **real-world bug
 
 ---
 
+## Fair Outcome-Based Scoring
+
+This benchmark uses **outcome-based scoring** to ensure fair comparison between Calor and C#:
+
+| Scoring Principle | Description |
+|:------------------|:------------|
+| **Tests Pass = Full Score** | If all tests pass, both languages score 1.0 |
+| **No Syntax Bias** | No bonus for `§E{}` or `[Pure]` - only outcomes matter |
+| **Equal Opportunity** | Both languages CAN achieve determinism with good practices |
+
+---
+
 ## Why This Matters
 
 These are actual bugs that have caused production incidents:
@@ -41,14 +53,9 @@ public string GenerateReport(string title, long timestamp) {
 }
 ```
 
-**How Calor Prevents It:**
-- Effect signature `pure` prevents time effects
-- Compiler error if you try to use `DateTime.Now` in a pure function
-
-**How C# Developers Prevent It:**
-- Pass dependencies as parameters (DI pattern)
-- Use `ITimeProvider` interfaces
-- Discipline and code review
+**How Both Languages Prevent It:**
+- **Calor**: Effect signature prevents time effects at compile time
+- **C#**: Pass dependencies as parameters (DI pattern), use `ITimeProvider`
 
 ---
 
@@ -69,14 +76,9 @@ public Config ParseConfig(string json) {
 }
 ```
 
-**How Calor Prevents It:**
-- Effect signature `pure` or `fs:r` prevents network effects
-- Any HTTP call in a pure function = compiler error
-
-**How C# Developers Prevent It:**
-- Interface boundaries for I/O
-- Code review and security audits
-- No compile-time enforcement
+**How Both Languages Prevent It:**
+- **Calor**: Effect signature prevents network effects
+- **C#**: Interface boundaries for I/O, code review
 
 ---
 
@@ -97,14 +99,9 @@ public string Sanitize(string input) {
 }
 ```
 
-**How Calor Prevents It:**
-- Pure functions cannot have I/O effects
-- Effect annotations document what a function can do
-
-**How C# Developers Prevent It:**
-- `[Pure]` attribute (advisory only)
-- Static methods with no dependencies
-- Discipline
+**How Both Languages Prevent It:**
+- **Calor**: Pure functions cannot have I/O effects
+- **C#**: `[Pure]` attribute, static methods with no dependencies
 
 ---
 
@@ -127,14 +124,9 @@ public decimal CalculatePrice(decimal base, int qty, decimal rate) {
 }
 ```
 
-**How Calor Prevents It:**
-- Pure functions are safe to memoize by definition
-- Compiler enforces no external data access
-
-**How C# Developers Prevent It:**
-- Careful parameter design
-- All inputs must be explicit
-- No enforcement mechanism
+**How Both Languages Prevent It:**
+- **Calor**: Pure functions are safe to memoize by definition
+- **C#**: Careful parameter design, all inputs explicit
 
 ---
 
@@ -142,55 +134,57 @@ public decimal CalculatePrice(decimal base, int qty, decimal rate) {
 
 | Component | Weight | What It Measures |
 |:----------|:-------|:-----------------|
-| **Functional Correctness** | 40% | Does the code work? |
-| **Bug Prevention** | 40% | Would this code have the target bug? |
-| **Maintainability** | 20% | Can another developer understand the constraints? |
+| **Functional Correctness** | 50% | Do all tests pass? |
+| **Bug Prevention** | 50% | Does the code produce deterministic results? |
 
-### Bug Prevention Scoring
+### Outcome-Based Bug Prevention
 
-Both languages can achieve full marks:
+Both languages achieve the same score when tests pass:
 
-- **Calor**: Effect system catches violation at compile time = full points
-- **C#**: Best practice followed that prevents bug = full points
-- **C#**: Analyzer would catch it = partial points
-- **Either**: Bug would reach production = zero points
+- **Tests Pass** = Bug Prevention 1.0 for BOTH languages
+- **Tests Fail** = Bug Prevention 0.0
+
+No bonus for:
+- Calor effect annotations (`§E{}`)
+- C# `[Pure]` attributes
+- Any syntax-based patterns
+
+**What matters is the OUTCOME, not the mechanism.**
 
 ---
 
 ## Expected Results
 
-| Category | Calor | C# | Analysis |
-|:---------|:------|:---|:---------|
-| Flaky Test Prevention | ~90% | ~75% | Both can solve with DI; Calor enforces it |
-| Security Boundaries | ~95% | ~60% | C# has no enforcement mechanism |
-| Side Effect Transparency | ~90% | ~70% | C# relies on discipline |
-| Cache Safety | ~90% | ~75% | Similar to flaky tests |
-| **Overall** | **~85%** | **~75%** | **~1.11x advantage** |
+| Category | Result | Analysis |
+|:---------|:-------|:---------|
+| Flaky Test Prevention | Tie (1.0x) | Both solve with good practices |
+| Security Boundaries | Tie (1.0x) | Both can use interface boundaries |
+| Side Effect Transparency | Tie (1.0x) | Both can write pure functions |
+| Cache Safety | Tie (1.0x) | Both can design deterministic APIs |
+| **Overall** | **Tie (1.0x)** | **Fair outcome-based comparison** |
 
-### Why the Advantage is Modest (1.1x not 1.6x)
+### Why Equal?
 
-- C# developers CAN write safe code following best practices
-- Many tasks are solvable with good architecture
-- Calor's advantage is **enforcement**, not capability
-- The benchmark rewards outcomes, not techniques
+- Both languages CAN write deterministic, side-effect-free code
+- The benchmark tests OUTCOMES (do tests pass?), not mechanisms
+- Calor's advantage is enforcement (compile-time errors), but both can achieve the same results
 
 ---
 
-## Fair Comparison
+## Non-Determinism Warnings
 
-This benchmark does **NOT** force C# into Calor's paradigm:
+While scoring is outcome-based, the benchmark detects and warns about patterns that could cause issues:
 
-**C# Best Practices Recognized:**
-- Passing dependencies as parameters (DI pattern)
-- Using `ITimeProvider` / `IRandomGenerator` interfaces
-- `[Pure]` attribute usage
-- Static methods with no dependencies
-- Interface boundaries for I/O
-- Immutable patterns (`readonly`, records)
+| Pattern | Warning |
+|:--------|:--------|
+| `DateTime.Now/UtcNow` | Time-dependent code detected |
+| `new Random()` | Unseeded random detected |
+| `Guid.NewGuid()` | Non-deterministic GUID usage |
+| `HttpClient`, `WebRequest` | Network call detected |
+| `File.Read/Write` | File I/O detected |
+| `Console.Write` | Console output detected |
 
-**What We're Testing:**
-- "Which language produces code less likely to have these bugs?"
-- NOT "Does Calor's effect system work?"
+These are informational only and do not affect scores.
 
 ---
 
@@ -214,5 +208,5 @@ dotnet run --project tests/Calor.Evaluation -- effect-discipline \
 ## Learn More
 
 - [Safety Benchmark](/benchmarking/metrics/safety/) - Contract enforcement
-- [Effect Soundness](/benchmarking/metrics/effect-soundness/) - Effect accuracy (Calor-only)
+- [Correctness Benchmark](/benchmarking/metrics/correctness/) - Edge case handling
 - [Methodology](/benchmarking/methodology/) - How benchmarks work

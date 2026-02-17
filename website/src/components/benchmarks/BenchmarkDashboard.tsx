@@ -1,5 +1,6 @@
 'use client';
 
+import { AgentRefactoringCard } from './AgentRefactoringCard';
 import { MetricCard } from './MetricCard';
 import { ProgramTable } from './ProgramTable';
 import { cn } from '@/lib/utils';
@@ -23,7 +24,7 @@ interface BenchmarkData {
     cSharpWins: number;
     statisticalRunCount: number;
   };
-  metrics: Record<string, { ratio: number; winner: 'calor' | 'csharp'; isCalorOnly?: boolean }>;
+  metrics: Record<string, { ratio: number; winner: 'calor' | 'csharp' | 'tie'; isCalorOnly?: boolean }>;
   programs: Array<{
     id: string;
     name: string;
@@ -151,6 +152,9 @@ export function BenchmarkDashboard() {
         />
       </div>
 
+      {/* Agent Refactoring Benchmark */}
+      <AgentRefactoringCard />
+
       {/* Metric breakdown */}
       <div>
         <h3 className="text-xl font-semibold mb-4">Metric Breakdown</h3>
@@ -171,6 +175,10 @@ export function BenchmarkDashboard() {
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-calor-pink" />
             <span>Calor better</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-calor-salmon" />
+            <span>Tie</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-calor-cerulean" />

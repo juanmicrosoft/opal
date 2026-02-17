@@ -1,0 +1,13 @@
+{
+  "id": "refactor-inline-contracts-csharp",
+  "name": "Inline with contracts (C#)",
+  "category": "refactoring-benchmark",
+  "fixture": "refactor-inline-csharp",
+  "prompt": "In Inline.cs, inline the `Clamp` method into `NormalizeScore`. The Clamp method has validation that should be preserved in the inlined code.\n\nBefore:\npublic int NormalizeScore(int score)\n{\n    return Clamp(score, 0, 100);\n}\n\nAfter:\n// Postcondition: result >= 0\n// Postcondition: result <= 100\npublic int NormalizeScore(int score)\n{\n    if (score < 0) return 0;\n    if (score > 100) return 100;\n    return score;\n}",
+  "verification": {
+    "compilation": {
+      "mustSucceed": true
+    }
+  },
+  "timeout": 150
+}

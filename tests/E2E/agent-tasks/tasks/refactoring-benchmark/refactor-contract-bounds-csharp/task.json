@@ -1,0 +1,13 @@
+{
+  "id": "refactor-contract-bounds-csharp",
+  "name": "Add array bounds contract (C#)",
+  "category": "refactoring-benchmark",
+  "fixture": "refactor-contract-csharp",
+  "prompt": "In Contract.cs, add bounds-checking to the `GetElement` method. Add:\n1. Contract comments documenting the preconditions\n2. Guard clauses that throw ArgumentOutOfRangeException if violated\n\nResult:\n// Precondition: index >= 0\n// Precondition: index < length\n// Precondition: length > 0\npublic int GetElement(int index, int length)\n{\n    if (length <= 0)\n        throw new ArgumentOutOfRangeException(nameof(length), \"length must be positive\");\n    if (index < 0 || index >= length)\n        throw new ArgumentOutOfRangeException(nameof(index), \"index must be within bounds\");\n    return index;\n}",
+  "verification": {
+    "compilation": {
+      "mustSucceed": true
+    }
+  },
+  "timeout": 120
+}

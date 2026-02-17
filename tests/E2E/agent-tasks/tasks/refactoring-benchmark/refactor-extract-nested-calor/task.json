@@ -1,0 +1,17 @@
+{
+  "id": "refactor-extract-nested-calor",
+  "name": "Extract nested calculation (Calor)",
+  "category": "refactoring-benchmark",
+  "fixture": "refactor-extract-calor",
+  "prompt": "In Extract.calr, refactor `ComputeNested` (f004) by extracting the sum-of-squares pattern into reusable functions. Create a `Square` function (f008) and update the computation to use it.\n\nNew Square function:\n\u00a7F{f008:Square:pub}\n  \u00a7I{i32:n}\n  \u00a7O{i32}\n  \u00a7S (>= result 0)\n  \u00a7R (* n n)\n\u00a7/F{f008}\n\nUpdated ComputeNested using Square:\n\u00a7F{f004:ComputeNested:pub}\n  \u00a7I{i32:x}\n  \u00a7I{i32:y}\n  \u00a7I{i32:z}\n  \u00a7O{i32}\n  \u00a7R (+ \u00a7C{Square}\n        \u00a7A x\n      \u00a7/C\n      (+ \u00a7C{Square}\n          \u00a7A y\n        \u00a7/C\n        \u00a7C{Square}\n          \u00a7A z\n        \u00a7/C))\n\u00a7/F{f004}\n\nNote: The function ID f004 stays the same after refactoring.",
+  "verification": {
+    "compilation": {
+      "mustSucceed": true
+    },
+    "z3": {
+      "enabled": true,
+      "minProvenContracts": 1
+    }
+  },
+  "timeout": 150
+}

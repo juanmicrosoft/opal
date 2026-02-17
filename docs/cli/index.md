@@ -33,7 +33,7 @@ dotnet tool update -g calor
 | Command | Description |
 |:--------|:------------|
 | `calor` (default) | Compile Calor source files to C# |
-| [`calor analyze`](/calor/cli/analyze/) | Score C# files for Calor migration potential |
+| [`calor assess`](/calor/cli/assess/) | Score C# files for Calor migration potential |
 | [`calor init`](/calor/cli/init/) | Initialize Calor with AI agent support and .csproj integration |
 | [`calor convert`](/calor/cli/convert/) | Convert single files between C# and Calor |
 | [`calor migrate`](/calor/cli/migrate/) | Migrate entire projects between C# and Calor |
@@ -41,6 +41,8 @@ dotnet tool update -g calor
 | [`calor benchmark`](/calor/cli/benchmark/) | Compare Calor vs C# across evaluation metrics |
 | [`calor format`](/calor/cli/format/) | Format Calor source files to canonical style |
 | [`calor diagnose`](/calor/cli/diagnose/) | Output machine-readable diagnostics for tooling |
+| [`calor mcp`](/calor/cli/mcp/) | Start MCP server for AI agent tool integration |
+| `calor lsp` | Start Language Server Protocol server for IDE features |
 | [`calor hook`](/calor/cli/hook/) | Claude Code hook commands (internal) |
 
 ---

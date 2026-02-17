@@ -1,0 +1,53 @@
+[INFO] Running csharp refactoring benchmark...
+
+============================================
+Calor E2E Agent Task Test Suite
+============================================
+
+[WARN] timeout command not found - install coreutils for reliable timeouts
+[WARN]   macOS: brew install coreutils
+[INFO] Building Calor compiler...
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:01.04
+[INFO] Compiler built successfully
+
+[INFO] Running 4 task(s)...
+[INFO] Mode: Single run (no majority voting)
+
+Running: Extract with contracts (C#) (refactor-extract-contracts-csharp)
+[WARN] timeout command not found - agent may hang indefinitely
+PASS: ValidateIndex extracted with contract comments
+[PASS] refactor-extract-contracts-csharp: 1/1 passed
+
+Running: Extract with effects (C#) (refactor-extract-effects-csharp)
+[WARN] timeout command not found - agent may hang indefinitely
+PASS: ComputeSum extracted, LogAndCompute calls it
+[PASS] refactor-extract-effects-csharp: 1/1 passed
+
+Running: Extract nested calculation (C#) (refactor-extract-nested-csharp)
+[WARN] timeout command not found - agent may hang indefinitely
+PASS: Square extracted, ComputeNested calls it
+[PASS] refactor-extract-nested-csharp: 1/1 passed
+
+Running: Extract simple expression (C#) (refactor-extract-simple-csharp)
+[WARN] timeout command not found - agent may hang indefinitely
+PASS: SumOfSquares extracted correctly, Distance calls it
+[PASS] refactor-extract-simple-csharp: 1/1 passed
+
+
+============================================
+Agent Task Test Summary
+============================================
+Passed:  4
+Failed:  0
+Skipped: 0
+--------------------------------------------
+Total:   4
+============================================
+Pass Rate: 100%
+SUCCESS: Pass rate meets 80% threshold
+============================================

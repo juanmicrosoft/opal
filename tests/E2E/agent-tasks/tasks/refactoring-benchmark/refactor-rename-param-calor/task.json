@@ -1,0 +1,16 @@
+{
+  "id": "refactor-rename-param-calor",
+  "name": "Rename parameter (Calor)",
+  "category": "refactoring-benchmark",
+  "fixture": "refactor-rename-calor",
+  "prompt": "In Rename.calr, find the `Calculate` function (f001) and perform a find-and-replace: change every occurrence of `val` to `value`. The word `val` appears exactly 3 times in this function and ALL must be changed:\n\n1. Line with §I{i32:val} - change val to value\n2. Line with §S (== result (* val 2)) - change val to value  \n3. Line with §R (* val 2) - change val to value\n\nDo NOT change the function ID f001. After editing, the function should have §I{i32:value}, §S (== result (* value 2)), and §R (* value 2).",
+  "verification": {
+    "compilation": {
+      "mustSucceed": true
+    },
+    "z3": {
+      "enabled": false
+    }
+  },
+  "timeout": 120
+}

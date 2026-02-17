@@ -239,24 +239,22 @@ public sealed class EffectDisciplineBenchmarkRunner : IDisposable
             var calorResult = _executor.CompileCalor(genResult.GeneratedCode);
             if (!calorResult.Success)
             {
-                // Check if these are effect violations (which is actually good for the benchmark)
+                // Check if these are effect violations (for informational purposes)
                 effectViolations = calorResult.Errors
                     .Where(e => e.Contains("effect", StringComparison.OrdinalIgnoreCase) ||
                                e.Contains("pure", StringComparison.OrdinalIgnoreCase) ||
                                e.Contains("§E", StringComparison.OrdinalIgnoreCase))
                     .ToList();
 
-                var earlyBugPreventionScore = EffectDisciplineScorer.ScoreCalorBugPrevention(
-                    genResult.GeneratedCode, false, effectViolations, task.Category);
-
+                // Outcome-based scoring: compilation failed = 0.0
+                // No special treatment for effect violations - same as C# compilation failure
                 return result with
                 {
                     CompilationSuccess = false,
                     CompilationErrors = calorResult.Errors,
                     EffectViolations = effectViolations,
-                    BugPreventionScore = earlyBugPreventionScore,
-                    // If compilation failed due to effect violation, that's actually good discipline
-                    DisciplineScore = effectViolations.Count > 0 ? earlyBugPreventionScore * 0.8 : 0
+                    BugPreventionScore = 0.0,
+                    DisciplineScore = 0.0
                 };
             }
 
@@ -315,33 +313,28 @@ public sealed class EffectDisciplineBenchmarkRunner : IDisposable
 
         result = result with { TestResults = testResults };
 
-        // Calculate functional correctness
+        // Calculate functional correctness - pure outcome-based
         var correctnessScore = testResults.Count > 0
             ? testResults.Count(t => t.Passed) / (double)testResults.Count
             : 0.0;
 
-        // Calculate bug prevention score
-        double bugPreventionScore;
-        if (language.Equals("calor", StringComparison.OrdinalIgnoreCase))
-        {
-            bugPreventionScore = EffectDisciplineScorer.ScoreCalorBugPrevention(
-                genResult.GeneratedCode, true, effectViolations, task.Category);
-        }
-        else
-        {
-            // For C#, use analyzers if enabled, otherwise heuristics
-            bugPreventionScore = EffectDisciplineScorer.ScoreCSharpBugPrevention(
-                genResult.GeneratedCode,
-                true,
-                analyzerDiagnostics.Count > 0 ? analyzerDiagnostics : null,
-                task.Category);
-        }
+        // Bug prevention score is OUTCOME-BASED for BOTH languages
+        // If all tests pass → 1.0, if any test fails → 0.0
+        // This ensures fair comparison without syntax bias
+        var allTestsPass = testResults.Count > 0 && testResults.All(t => t.Passed);
+        var bugPreventionScore = EffectDisciplineScorer.ScoreBugPreventionByOutcome(
+            allTestsPass,
+            isDeterministic: true); // Determinism is verified by test outcomes
 
-        // Calculate maintainability score
+        // Detect non-deterministic patterns for warnings (not scoring)
+        var warnings = EffectDisciplineScorer.DetectNonDeterministicPatterns(
+            genResult.GeneratedCode, task.Category);
+
+        // Maintainability is scored equally for both languages
         var maintainabilityScore = EffectDisciplineScorer.ScoreMaintainability(
             genResult.GeneratedCode, language);
 
-        // Calculate overall discipline score
+        // Calculate overall discipline score - simplified to correctness + bug prevention
         var disciplineScore = EffectDisciplineScorer.CalculateDisciplineScore(
             correctnessScore, bugPreventionScore, maintainabilityScore);
 
@@ -350,7 +343,8 @@ public sealed class EffectDisciplineBenchmarkRunner : IDisposable
             CorrectnessScore = correctnessScore,
             BugPreventionScore = bugPreventionScore,
             MaintainabilityScore = maintainabilityScore,
-            DisciplineScore = disciplineScore
+            DisciplineScore = disciplineScore,
+            DeterminismWarnings = warnings
         };
     }
 
@@ -640,6 +634,10 @@ public record EffectDisciplineLanguageResult
     public double CorrectnessScore { get; init; }
     public double BugPreventionScore { get; init; }
     public double MaintainabilityScore { get; init; }
+    /// <summary>
+    /// Non-deterministic patterns detected (for warnings, not scoring).
+    /// </summary>
+    public List<string> DeterminismWarnings { get; init; } = new();
 }
 
 /// <summary>

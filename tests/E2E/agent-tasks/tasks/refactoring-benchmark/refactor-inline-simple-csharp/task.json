@@ -1,0 +1,13 @@
+{
+  "id": "refactor-inline-simple-csharp",
+  "name": "Inline simple function (C#)",
+  "category": "refactoring-benchmark",
+  "fixture": "refactor-inline-csharp",
+  "prompt": "In Inline.cs, inline the `Double` method into `Calculate`. Replace each call to Double with its body `arg * 2` where arg is the argument passed.\n\nBefore:\npublic int Calculate(int a, int b)\n{\n    return Double(a) + Double(b);\n}\n\nAfter:\npublic int Calculate(int a, int b)\n{\n    return a * 2 + b * 2;\n}\n\nYou may optionally delete the Double method if it's no longer needed.",
+  "verification": {
+    "compilation": {
+      "mustSucceed": true
+    }
+  },
+  "timeout": 120
+}

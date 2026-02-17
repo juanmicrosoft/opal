@@ -1,0 +1,13 @@
+{
+  "id": "refactor-extract-contracts-csharp",
+  "name": "Extract with contracts (C#)",
+  "category": "refactoring-benchmark",
+  "fixture": "refactor-extract-csharp",
+  "prompt": "In Extract.cs, extract the bounds validation logic from `ProcessArray` into a new private method called `ValidateIndex`. The new method should:\n- Take parameters index (int) and length (int)\n- Return bool indicating if index is valid\n- Have contract comments documenting preconditions and postconditions\n\nUpdate ProcessArray to call ValidateIndex and keep its contract comments.\n\nNew method structure:\n// Precondition: length >= 0\n// Postcondition: result == (index >= 0 && index < length)\nprivate bool ValidateIndex(int index, int length)\n{\n    return index >= 0 && index < length;\n}",
+  "verification": {
+    "compilation": {
+      "mustSucceed": true
+    }
+  },
+  "timeout": 180
+}

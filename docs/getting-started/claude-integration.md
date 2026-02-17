@@ -25,10 +25,60 @@ This creates:
 |:-----|:--------|
 | `.claude/skills/calor/SKILL.md` | Teaches Claude Calor syntax for writing new code |
 | `.claude/skills/calor-convert/SKILL.md` | Teaches Claude how to convert C# to Calor |
-| `.claude/settings.json` | **Enforces Calor-first** - blocks `.cs` file creation |
+| `.claude/skills/calor-semantics/SKILL.md` | Teaches Claude about Calor semantics and verification |
+| `.claude/skills/calor-analyze/SKILL.md` | Teaches Claude how to analyze C# for Calor migration |
+| `.claude/settings.json` | **Hooks** - blocks `.cs` file creation with pre-tool-use hooks |
+| `.mcp.json` | **MCP servers** - provides Calor compiler tools to Claude |
 | `CLAUDE.md` | Project documentation with Calor reference and conventions |
 
 You can run this command again anytime to update the Calor documentation section in CLAUDE.md without losing your custom content.
+
+---
+
+## MCP Tools Integration
+
+In addition to skills and hooks, `calor init --ai claude` configures **MCP servers** that give Claude direct access to Calor compiler capabilities:
+
+| Tool | Description |
+|:-----|:------------|
+| `calor_compile` | Compile Calor code to C# and see results |
+| `calor_verify` | Verify contracts with Z3 SMT solver, get counterexamples |
+| `calor_analyze` | Analyze code for security vulnerabilities and bugs |
+| `calor_convert` | Convert C# code to Calor programmatically |
+| `calor_syntax_help` | Get syntax help for specific Calor features |
+| `calor_lint` | Check code for agent-optimal format compliance |
+| `calor_format` | Format code to canonical style |
+| `calor_diagnose` | Get machine-readable diagnostics with precise locations |
+| `calor_ids` | Check/assign declaration IDs (detect missing, duplicates, invalid) |
+| `calor_assess` | Assess C# code for Calor migration potential (scores across 8 dimensions) |
+
+These tools allow Claude to:
+- **Verify** your contracts are satisfiable before you run the code
+- **Catch bugs** through static analysis during code generation
+- **Convert** existing C# code to Calor on-the-fly
+- **Look up** Calor syntax without leaving the conversation
+- **Assess** C# files to prioritize which ones benefit most from Calor migration
+
+The MCP servers are configured in `.mcp.json` (project root):
+
+```json
+{
+  "mcpServers": {
+    "calor-lsp": {
+      "type": "stdio",
+      "command": "calor",
+      "args": ["lsp"]
+    },
+    "calor": {
+      "type": "stdio",
+      "command": "calor",
+      "args": ["mcp", "--stdio"]
+    }
+  }
+}
+```
+
+See [`calor mcp`](/calor/cli/mcp/) for detailed tool documentation.
 
 ---
 
@@ -60,7 +110,7 @@ The hook allows:
 
 ### Disabling Enforcement
 
-If you need to temporarily allow `.cs` file creation, remove or rename `.claude/settings.json`. Re-run `calor init --ai claude` to restore enforcement.
+If you need to temporarily allow `.cs` file creation, remove or rename `.claude/settings.json` (hooks are in this file). Re-run `calor init --ai claude` to restore enforcement. Note: MCP servers are in `.mcp.json` and can be managed separately.
 
 ---
 

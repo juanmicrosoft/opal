@@ -181,12 +181,13 @@ public class Program
         rootCommand.AddCommand(FormatCommand.Create());
         rootCommand.AddCommand(LintCommand.Create());
         rootCommand.AddCommand(DiagnoseCommand.Create());
-        rootCommand.AddCommand(AnalyzeCommand.Create());
+        rootCommand.AddCommand(AssessCommand.Create());
         rootCommand.AddCommand(HookCommand.Create());
         rootCommand.AddCommand(IdsCommand.Create());
         rootCommand.AddCommand(EffectsCommand.Create());
         rootCommand.AddCommand(VerifyCommand.Create());
         rootCommand.AddCommand(LspCommand.Create());
+        rootCommand.AddCommand(McpCommand.Create());
         rootCommand.AddCommand(FeatureCheckCommand.Create());
         rootCommand.AddCommand(CoverageCommand.Create());
 
@@ -221,7 +222,7 @@ public class Program
                 Console.WriteLine("  calor --input <file.calr> [--output <file.cs>]  Compile Calor to C#");
                 Console.WriteLine("  calor convert <file>                           Convert between C# and Calor");
                 Console.WriteLine("  calor migrate <project>                        Migrate entire project");
-                Console.WriteLine("  calor analyze <directory>                      Analyze C# for migration potential");
+                Console.WriteLine("  calor assess <directory>                       Assess C# for migration potential");
                 Console.WriteLine("  calor benchmark [options]                      Compare token economics");
                 Console.WriteLine("  calor init --ai <agent>                        Initialize for AI coding agents");
                 Console.WriteLine("  calor format <files>                           Format Calor source files");

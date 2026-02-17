@@ -1,0 +1,131 @@
+[INFO] Running calor refactoring benchmark...
+
+============================================
+Calor E2E Agent Task Test Suite
+============================================
+
+[WARN] timeout command not found - install coreutils for reliable timeouts
+[WARN]   macOS: brew install coreutils
+[INFO] Building Calor compiler...
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:01.12
+[INFO] Compiler built successfully
+
+[INFO] Running 20 task(s)...
+[INFO] Mode: Single run (no majority voting)
+
+Running: Add array bounds contract (Calor) (refactor-contract-bounds-calor)
+[WARN] timeout command not found - agent may hang indefinitely
+PASS: Array bounds contracts added, ID preserved
+[PASS] refactor-contract-bounds-calor: 1/1 passed
+
+Running: Add effect declaration (Calor) (refactor-contract-effect-calor)
+[WARN] timeout command not found - agent may hang indefinitely
+PASS: Effect declaration §E{cw} added to PrintValue, ID preserved
+[PASS] refactor-contract-effect-calor: 1/1 passed
+
+Running: Add postcondition (Calor) (refactor-contract-post-calor)
+[WARN] timeout command not found - agent may hang indefinitely
+PASS: Postcondition added, ID preserved
+[PASS] refactor-contract-post-calor: 1/1 passed
+
+Running: Add precondition (Calor) (refactor-contract-pre-calor)
+[WARN] timeout command not found - agent may hang indefinitely
+PASS: Precondition (>= x 0) added to Sqrt, ID preserved
+[PASS] refactor-contract-pre-calor: 1/1 passed
+
+Running: Extract with contracts (Calor) (refactor-extract-contracts-calor)
+[WARN] timeout command not found - agent may hang indefinitely
+PASS: ValidateIndex extracted with contracts, ProcessArray contracts preserved
+[PASS] refactor-extract-contracts-calor: 1/1 passed
+
+Running: Extract with effects (Calor) (refactor-extract-effects-calor)
+[WARN] timeout command not found - agent may hang indefinitely
+PASS: Pure ComputeSum extracted, LogAndCompute retains effect and calls it
+[PASS] refactor-extract-effects-calor: 1/1 passed
+
+Running: Extract nested calculation (Calor) (refactor-extract-nested-calor)
+[WARN] timeout command not found - agent may hang indefinitely
+PASS: Square extracted with contract, ComputeNested calls it, IDs preserved
+[PASS] refactor-extract-nested-calor: 1/1 passed
+
+Running: Extract simple expression (Calor) (refactor-extract-simple-calor)
+[WARN] timeout command not found - agent may hang indefinitely
+PASS: SumOfSquares extracted correctly, Distance calls it, IDs preserved
+[PASS] refactor-extract-simple-calor: 1/1 passed
+
+Running: Inline with contracts (Calor) (refactor-inline-contracts-calor)
+[WARN] timeout command not found - agent may hang indefinitely
+PASS: Clamp inlined, postconditions preserved, ID preserved
+[PASS] refactor-inline-contracts-calor: 1/1 passed
+
+Running: Inline at multiple call sites (Calor) (refactor-inline-multi-calor)
+[WARN] timeout command not found - agent may hang indefinitely
+PASS: Square inlined at both call sites, postcondition preserved
+[PASS] refactor-inline-multi-calor: 1/1 passed
+
+Running: Inline simple function (Calor) (refactor-inline-simple-calor)
+[WARN] timeout command not found - agent may hang indefinitely
+PASS: Double inlined into Calculate, ID preserved
+[PASS] refactor-inline-simple-calor: 1/1 passed
+
+Running: Move function with contracts (Calor) (refactor-move-contracts-calor)
+[WARN] timeout command not found - agent may hang indefinitely
+PASS: SafeDivide moved with all contracts preserved
+[PASS] refactor-move-contracts-calor: 1/1 passed
+
+Running: Move with dependency update (Calor) (refactor-move-deps-calor)
+[WARN] timeout command not found - agent may hang indefinitely
+[FAIL] refactor-move-deps-calor: 0/1 passed (need 1)
+
+Running: Move function to different module (Calor) (refactor-move-module-calor)
+[WARN] timeout command not found - agent may hang indefinitely
+[FAIL] refactor-move-module-calor: 0/1 passed (need 1)
+
+Running: Rename with contract references (Calor) (refactor-rename-contract-calor)
+[WARN] timeout command not found - agent may hang indefinitely
+PASS: Parameter renamed, contracts updated, ID preserved
+[PASS] refactor-rename-contract-calor: 1/1 passed
+
+Running: Rename parameter (Calor) (refactor-rename-param-calor)
+[WARN] timeout command not found - agent may hang indefinitely
+FAIL: Postcondition still references 'val'
+[FAIL] refactor-rename-param-calor: 0/1 passed (need 1)
+
+Running: Rename with local variable (Calor) (refactor-rename-shadow-calor)
+[WARN] timeout command not found - agent may hang indefinitely
+PASS: Parameter renamed, local variable preserved, ID preserved
+[PASS] refactor-rename-shadow-calor: 1/1 passed
+
+Running: Add parameter to function (Calor) (refactor-sig-addparam-calor)
+[WARN] timeout command not found - agent may hang indefinitely
+PASS: Parameter added, ID preserved
+[PASS] refactor-sig-addparam-calor: 1/1 passed
+
+Running: Reorder parameters (Calor) (refactor-sig-reorder-calor)
+[WARN] timeout command not found - agent may hang indefinitely
+PASS: Parameters reordered, caller updated, IDs preserved
+[PASS] refactor-sig-reorder-calor: 1/1 passed
+
+Running: Change return type (Calor) (refactor-sig-return-calor)
+[WARN] timeout command not found - agent may hang indefinitely
+PASS: Return type changed to Option<i32>, ID preserved
+[PASS] refactor-sig-return-calor: 1/1 passed
+
+
+============================================
+Agent Task Test Summary
+============================================
+Passed:  17
+Failed:  3
+Skipped: 0
+--------------------------------------------
+Total:   20
+============================================
+Pass Rate: 85%
+SUCCESS: Pass rate meets 80% threshold
+============================================

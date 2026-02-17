@@ -1,0 +1,13 @@
+{
+  "id": "refactor-contract-post-csharp",
+  "name": "Add postcondition (C#)",
+  "category": "refactoring-benchmark",
+  "fixture": "refactor-contract-csharp",
+  "prompt": "In Contract.cs, add a postcondition comment to the `Abs` method documenting that the result is always non-negative.\n\nResult:\n// Postcondition: result >= 0\npublic int Abs(int x)\n{\n    return x < 0 ? -x : x;\n}",
+  "verification": {
+    "compilation": {
+      "mustSucceed": true
+    }
+  },
+  "timeout": 120
+}
