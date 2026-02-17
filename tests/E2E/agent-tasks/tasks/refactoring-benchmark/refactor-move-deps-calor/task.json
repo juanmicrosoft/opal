@@ -1,0 +1,16 @@
+{
+  "id": "refactor-move-deps-calor",
+  "name": "Move with dependency update (Calor)",
+  "category": "refactoring-benchmark",
+  "fixture": "refactor-move-calor",
+  "prompt": "In the Calor project, move the `Abs` function (f001) to src/Utils.calr AND update the `Distance` function (f003) that calls it. After moving:\n\n1. Abs (f001) should be in Utils.calr with its postcondition preserved\n2. Distance (f003) should call Abs using the appropriate syntax\n\nDistance currently calls Abs:\n§R §C{Abs}\n    §A (+ (* x x) (* y y))\n  §/C\n\nAfter move, update the call if needed to reference the function in its new location.\n\nIMPORTANT: Both function IDs (f001 and f003) must be preserved. The postconditions on both functions must be preserved.",
+  "verification": {
+    "compilation": {
+      "mustSucceed": false
+    },
+    "z3": {
+      "enabled": false
+    }
+  },
+  "timeout": 180
+}

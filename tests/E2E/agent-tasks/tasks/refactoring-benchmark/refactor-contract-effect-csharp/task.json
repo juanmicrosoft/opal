@@ -1,0 +1,13 @@
+{
+  "id": "refactor-contract-effect-csharp",
+  "name": "Add effect documentation (C#)",
+  "category": "refactoring-benchmark",
+  "fixture": "refactor-contract-csharp",
+  "prompt": "In Contract.cs, add effect documentation to the `PrintValue` method indicating it writes to the console. Add a comment:\n\n// Effect: Writes to console (cw)\n\nResult:\n// Effect: Writes to console (cw)\npublic void PrintValue(int x)\n{\n    Console.WriteLine(x);\n}",
+  "verification": {
+    "compilation": {
+      "mustSucceed": true
+    }
+  },
+  "timeout": 120
+}

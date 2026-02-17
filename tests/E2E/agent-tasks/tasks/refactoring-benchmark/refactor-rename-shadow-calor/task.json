@@ -1,0 +1,16 @@
+{
+  "id": "refactor-rename-shadow-calor",
+  "name": "Rename with local variable (Calor)",
+  "category": "refactoring-benchmark",
+  "fixture": "refactor-rename-calor",
+  "prompt": "In Rename.calr, rename the parameter `x` in the `OuterCalc` function (f003) to `input`. Be careful not to confuse it with the local variable `inner`. Update:\n- Parameter declaration: \u00a7I{i32:x} -> \u00a7I{i32:input}\n- Variable initialization that uses x: (* x 2) -> (* input 2)\n- Return expression: (+ x inner) -> (+ input inner)\n\nIMPORTANT: The function ID f003 and variable ID v001 must NOT change. Only the parameter name changes.",
+  "verification": {
+    "compilation": {
+      "mustSucceed": true
+    },
+    "z3": {
+      "enabled": false
+    }
+  },
+  "timeout": 120
+}

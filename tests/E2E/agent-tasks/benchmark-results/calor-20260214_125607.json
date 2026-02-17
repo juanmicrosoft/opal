@@ -1,0 +1,45 @@
+[INFO] Running calor refactoring benchmark...
+
+============================================
+Calor E2E Agent Task Test Suite
+============================================
+
+[WARN] timeout command not found - install coreutils for reliable timeouts
+[WARN]   macOS: brew install coreutils
+[INFO] Building Calor compiler...
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:05.03
+[INFO] Compiler built successfully
+
+[INFO] Running 3 task(s)...
+[INFO] Mode: Single run (no majority voting)
+
+Running: Add parameter to function (Calor) (refactor-sig-addparam-calor)
+[WARN] timeout command not found - agent may hang indefinitely
+[FAIL] refactor-sig-addparam-calor: 0/1 passed (need 1)
+
+Running: Reorder parameters (Calor) (refactor-sig-reorder-calor)
+[WARN] timeout command not found - agent may hang indefinitely
+[FAIL] refactor-sig-reorder-calor: 0/1 passed (need 1)
+
+Running: Change return type (Calor) (refactor-sig-return-calor)
+[WARN] timeout command not found - agent may hang indefinitely
+[FAIL] refactor-sig-return-calor: 0/1 passed (need 1)
+
+
+============================================
+Agent Task Test Summary
+============================================
+Passed:  0
+Failed:  3
+Skipped: 0
+--------------------------------------------
+Total:   3
+============================================
+Pass Rate: 0%
+WARNING: Pass rate below 80% threshold
+============================================

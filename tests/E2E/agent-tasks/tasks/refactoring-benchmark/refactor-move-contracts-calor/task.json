@@ -1,0 +1,17 @@
+{
+  "id": "refactor-move-contracts-calor",
+  "name": "Move function with contracts (Calor)",
+  "category": "refactoring-benchmark",
+  "fixture": "refactor-move-calor",
+  "prompt": "In the Calor project, move the `SafeDivide` function (f002) from src/Math.calr to src/Utils.calr. The function has both preconditions and postconditions that must be preserved.\n\nThe function has:\n- \u00a7Q (!= b 0) - precondition\n- \u00a7S (== result (/ a b)) - postcondition\n\nSteps:\n1. Remove SafeDivide from src/Math.calr\n2. Add it to src/Utils.calr (keep ID f002 and all contracts)\n\nIMPORTANT: Both the function ID f002 and all contracts (\u00a7Q and \u00a7S) must be preserved exactly.",
+  "verification": {
+    "compilation": {
+      "mustSucceed": true
+    },
+    "z3": {
+      "enabled": true,
+      "minProvenContracts": 1
+    }
+  },
+  "timeout": 150
+}

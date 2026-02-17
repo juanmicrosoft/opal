@@ -1,0 +1,13 @@
+{
+  "id": "refactor-move-contracts-csharp",
+  "name": "Move method with contracts (C#)",
+  "category": "refactoring-benchmark",
+  "fixture": "refactor-move-csharp",
+  "prompt": "In the C# project, move the `SafeDivide` method from src/Math.cs to src/Utils.cs. The method has validation and contract comments that must be preserved.\n\nThe method has:\n- // Precondition: b != 0\n- // Postcondition: result == a / b\n- Throws DivideByZeroException if b == 0\n\nSteps:\n1. Remove SafeDivide from MathModule in src/Math.cs\n2. Add it to UtilsModule in src/Utils.cs with all contract comments and validation",
+  "verification": {
+    "compilation": {
+      "mustSucceed": true
+    }
+  },
+  "timeout": 150
+}

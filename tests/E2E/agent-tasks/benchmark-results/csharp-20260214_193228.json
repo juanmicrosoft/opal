@@ -1,0 +1,133 @@
+[INFO] Running csharp refactoring benchmark...
+
+============================================
+Calor E2E Agent Task Test Suite
+============================================
+
+[WARN] timeout command not found - install coreutils for reliable timeouts
+[WARN]   macOS: brew install coreutils
+[INFO] Building Calor compiler...
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:01.12
+[INFO] Compiler built successfully
+
+[INFO] Running 20 task(s)...
+[INFO] Mode: Single run (no majority voting)
+
+Running: Add array bounds contract (C#) (refactor-contract-bounds-csharp)
+[WARN] timeout command not found - agent may hang indefinitely
+PASS: Array bounds validation added
+[PASS] refactor-contract-bounds-csharp: 1/1 passed
+
+Running: Add effect documentation (C#) (refactor-contract-effect-csharp)
+[WARN] timeout command not found - agent may hang indefinitely
+PASS: Effect documentation added
+[PASS] refactor-contract-effect-csharp: 1/1 passed
+
+Running: Add postcondition (C#) (refactor-contract-post-csharp)
+[WARN] timeout command not found - agent may hang indefinitely
+PASS: Postcondition comment added
+[PASS] refactor-contract-post-csharp: 1/1 passed
+
+Running: Add precondition (C#) (refactor-contract-pre-csharp)
+[WARN] timeout command not found - agent may hang indefinitely
+PASS: Precondition added
+[PASS] refactor-contract-pre-csharp: 1/1 passed
+
+Running: Extract with contracts (C#) (refactor-extract-contracts-csharp)
+[WARN] timeout command not found - agent may hang indefinitely
+PASS: ValidateIndex extracted with contract comments
+[PASS] refactor-extract-contracts-csharp: 1/1 passed
+
+Running: Extract with effects (C#) (refactor-extract-effects-csharp)
+[WARN] timeout command not found - agent may hang indefinitely
+PASS: ComputeSum extracted, LogAndCompute calls it
+[PASS] refactor-extract-effects-csharp: 1/1 passed
+
+Running: Extract nested calculation (C#) (refactor-extract-nested-csharp)
+[WARN] timeout command not found - agent may hang indefinitely
+PASS: Square extracted, ComputeNested calls it
+[PASS] refactor-extract-nested-csharp: 1/1 passed
+
+Running: Extract simple expression (C#) (refactor-extract-simple-csharp)
+[WARN] timeout command not found - agent may hang indefinitely
+PASS: SumOfSquares extracted correctly, Distance calls it
+[PASS] refactor-extract-simple-csharp: 1/1 passed
+
+Running: Inline with contracts (C#) (refactor-inline-contracts-csharp)
+[WARN] timeout command not found - agent may hang indefinitely
+PASS: Clamp inlined into NormalizeScore
+[PASS] refactor-inline-contracts-csharp: 1/1 passed
+
+Running: Inline at multiple call sites (C#) (refactor-inline-multi-csharp)
+[WARN] timeout command not found - agent may hang indefinitely
+PASS: Square inlined at both call sites
+[PASS] refactor-inline-multi-csharp: 1/1 passed
+
+Running: Inline simple function (C#) (refactor-inline-simple-csharp)
+[WARN] timeout command not found - agent may hang indefinitely
+PASS: Double inlined into Calculate
+[PASS] refactor-inline-simple-csharp: 1/1 passed
+
+Running: Move method with contracts (C#) (refactor-move-contracts-csharp)
+[WARN] timeout command not found - agent may hang indefinitely
+PASS: SafeDivide moved with contracts
+[PASS] refactor-move-contracts-csharp: 1/1 passed
+
+Running: Move with dependency update (C#) (refactor-move-deps-csharp)
+[WARN] timeout command not found - agent may hang indefinitely
+PASS: Abs moved, Distance updated to call it
+[PASS] refactor-move-deps-csharp: 1/1 passed
+
+Running: Move method to different class (C#) (refactor-move-module-csharp)
+[WARN] timeout command not found - agent may hang indefinitely
+PASS: Abs moved to Utils
+[PASS] refactor-move-module-csharp: 1/1 passed
+
+Running: Rename with contract references (C#) (refactor-rename-contract-csharp)
+[WARN] timeout command not found - agent may hang indefinitely
+PASS: Parameter renamed consistently
+[PASS] refactor-rename-contract-csharp: 1/1 passed
+
+Running: Rename parameter (C#) (refactor-rename-param-csharp)
+[WARN] timeout command not found - agent may hang indefinitely
+FAIL: Method body still uses 'val'
+[FAIL] refactor-rename-param-csharp: 0/1 passed (need 1)
+
+Running: Rename with local variable (C#) (refactor-rename-shadow-csharp)
+[WARN] timeout command not found - agent may hang indefinitely
+PASS: Parameter renamed, local variable preserved
+[PASS] refactor-rename-shadow-csharp: 1/1 passed
+
+Running: Add parameter to method (C#) (refactor-sig-addparam-csharp)
+[WARN] timeout command not found - agent may hang indefinitely
+PASS: Parameter added
+[PASS] refactor-sig-addparam-csharp: 1/1 passed
+
+Running: Reorder parameters (C#) (refactor-sig-reorder-csharp)
+[WARN] timeout command not found - agent may hang indefinitely
+PASS: Parameters reordered, caller updated
+[PASS] refactor-sig-reorder-csharp: 1/1 passed
+
+Running: Change return type (C#) (refactor-sig-return-csharp)
+[WARN] timeout command not found - agent may hang indefinitely
+PASS: Return type changed to int?
+[PASS] refactor-sig-return-csharp: 1/1 passed
+
+
+============================================
+Agent Task Test Summary
+============================================
+Passed:  19
+Failed:  1
+Skipped: 0
+--------------------------------------------
+Total:   20
+============================================
+Pass Rate: 95%
+SUCCESS: Pass rate meets 80% threshold
+============================================

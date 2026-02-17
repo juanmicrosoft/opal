@@ -1,0 +1,13 @@
+{
+  "id": "refactor-extract-simple-csharp",
+  "name": "Extract simple expression (C#)",
+  "category": "refactoring-benchmark",
+  "fixture": "refactor-extract-csharp",
+  "prompt": "In Extract.cs, extract the calculation `x * x + y * y` from the `Distance` method into a new private method called `SumOfSquares` that takes two int parameters (a and b) and returns int. Update the original Distance method to call the new SumOfSquares method.\n\nExpected new method:\nprivate int SumOfSquares(int a, int b)\n{\n    return a * a + b * b;\n}\n\nUpdate Distance to call SumOfSquares:\nreturn SumOfSquares(x, y);",
+  "verification": {
+    "compilation": {
+      "mustSucceed": true
+    }
+  },
+  "timeout": 120
+}

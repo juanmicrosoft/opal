@@ -1,0 +1,13 @@
+{
+  "id": "refactor-extract-effects-csharp",
+  "name": "Extract with effects (C#)",
+  "category": "refactoring-benchmark",
+  "fixture": "refactor-extract-csharp",
+  "prompt": "In Extract.cs, extract the pure computation `a + b` from `LogAndCompute` into a new private method called `ComputeSum`. The new method should be a pure function (no side effects), while LogAndCompute keeps the console output.\n\nDocument which method has effects using comments:\n\n// Effect: None (pure function)\nprivate int ComputeSum(int a, int b)\n{\n    return a + b;\n}\n\n// Effect: Writes to console\npublic int LogAndCompute(int a, int b)\n{\n    Console.WriteLine(\"Computing sum\");\n    return ComputeSum(a, b);\n}",
+  "verification": {
+    "compilation": {
+      "mustSucceed": true
+    }
+  },
+  "timeout": 120
+}

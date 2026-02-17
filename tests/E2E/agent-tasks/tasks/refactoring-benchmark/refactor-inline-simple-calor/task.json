@@ -1,0 +1,16 @@
+{
+  "id": "refactor-inline-simple-calor",
+  "name": "Inline simple function (Calor)",
+  "category": "refactoring-benchmark",
+  "fixture": "refactor-inline-calor",
+  "prompt": "In Inline.calr, inline the `Double` function (f001) into `Calculate` (f002). Replace each call to Double with its body `(* arg 2)` where arg is the argument passed.\n\nBefore Calculate:\n\u00a7R (+ \u00a7C{Double}\n      \u00a7A a\n    \u00a7/C\n    \u00a7C{Double}\n      \u00a7A b\n    \u00a7/C)\n\nAfter Calculate (with Double inlined):\n\u00a7R (+ (* a 2) (* b 2))\n\nYou may optionally delete the Double function if it's no longer needed, but the function IDs of remaining functions must not change.",
+  "verification": {
+    "compilation": {
+      "mustSucceed": true
+    },
+    "z3": {
+      "enabled": false
+    }
+  },
+  "timeout": 120
+}
