@@ -38,27 +38,28 @@ public class EffectDisciplineTests
     [Fact]
     public void CalculateDisciplineScore_AppliesCorrectWeights()
     {
-        // Correctness: 40%, Bug Prevention: 40%, Maintainability: 20%
+        // New weights: Correctness: 50%, Bug Prevention: 50%, Maintainability: 0% (ignored for fairness)
         var score = EffectDisciplineScorer.CalculateDisciplineScore(
             correctness: 1.0,
             bugPrevention: 0.0,
             maintainability: 0.0);
 
-        Assert.Equal(0.40, score, precision: 2);
+        Assert.Equal(0.50, score, precision: 2);
 
         score = EffectDisciplineScorer.CalculateDisciplineScore(
             correctness: 0.0,
             bugPrevention: 1.0,
             maintainability: 0.0);
 
-        Assert.Equal(0.40, score, precision: 2);
+        Assert.Equal(0.50, score, precision: 2);
 
         score = EffectDisciplineScorer.CalculateDisciplineScore(
             correctness: 0.0,
             bugPrevention: 0.0,
             maintainability: 1.0);
 
-        Assert.Equal(0.20, score, precision: 2);
+        // Maintainability is ignored in new scoring
+        Assert.Equal(0.0, score, precision: 2);
     }
 
     #endregion
@@ -66,8 +67,10 @@ public class EffectDisciplineTests
     #region Calor Bug Prevention Scoring
 
     [Fact]
-    public void ScoreCalorBugPrevention_WithEffectViolation_ReturnsFullScore()
+    public void ScoreCalorBugPrevention_WithEffectViolation_ReturnsZero_OutcomeBased()
     {
+        // Outcome-based scoring: compilation failed = 0.0
+        // No special treatment for effect violations - same as C#
         var violations = new List<string> { "Effect violation: method has side effects" };
 
         var score = EffectDisciplineScorer.ScoreCalorBugPrevention(
@@ -76,12 +79,13 @@ public class EffectDisciplineTests
             effectViolations: violations,
             category: "flaky-test-prevention");
 
-        Assert.Equal(1.0, score);
+        Assert.Equal(0.0, score);
     }
 
     [Fact]
-    public void ScoreCalorBugPrevention_CompilationFailedNotEffect_ReturnsPartialScore()
+    public void ScoreCalorBugPrevention_CompilationFailed_ReturnsZero()
     {
+        // All compilation failures get zero - fair comparison with C#
         var violations = new List<string> { "Syntax error at line 1" };
 
         var score = EffectDisciplineScorer.ScoreCalorBugPrevention(
@@ -90,7 +94,7 @@ public class EffectDisciplineTests
             effectViolations: violations,
             category: "flaky-test-prevention");
 
-        Assert.Equal(0.3, score);
+        Assert.Equal(0.0, score);
     }
 
     [Fact]
@@ -119,11 +123,17 @@ public class EffectDisciplineTests
 
     #endregion
 
-    #region C# Bug Prevention Scoring (Heuristics)
+    #region C# Bug Prevention Scoring (Outcome-Based)
+
+    // NOTE: With outcome-based scoring, ScoreCSharpBugPrevention returns 1.0 for compiled code
+    // as a placeholder. Actual scoring is done by test outcomes in the runner.
+    // Non-deterministic patterns are detected separately as WARNINGS, not scoring penalties.
 
     [Fact]
-    public void ScoreCSharpBugPrevention_WithDateTimeNow_PenalizesForFlakyTests()
+    public void ScoreCSharpBugPrevention_WithDateTimeNow_ReturnsFullScore_OutcomeBased()
     {
+        // Outcome-based scoring: compiled code gets 1.0 as placeholder
+        // Actual scoring is done by test outcomes
         var code = @"
 public static string GetReport()
 {
@@ -136,11 +146,11 @@ public static string GetReport()
             analyzerDiagnostics: null,
             category: "flaky-test-prevention");
 
-        Assert.True(score < 0.5, $"Expected < 0.5 for DateTime.Now in flaky-test-prevention, got {score}");
+        Assert.Equal(1.0, score);
     }
 
     [Fact]
-    public void ScoreCSharpBugPrevention_WithUnseededRandom_PenalizesForFlakyTests()
+    public void ScoreCSharpBugPrevention_WithUnseededRandom_ReturnsFullScore_OutcomeBased()
     {
         var code = @"
 public static int GetRandom()
@@ -155,11 +165,12 @@ public static int GetRandom()
             analyzerDiagnostics: null,
             category: "flaky-test-prevention");
 
-        Assert.True(score < 0.5, $"Expected < 0.5 for unseeded Random in flaky-test-prevention, got {score}");
+        // Outcome-based: returns 1.0, actual scoring done by test outcomes
+        Assert.Equal(1.0, score);
     }
 
     [Fact]
-    public void ScoreCSharpBugPrevention_WithNetworkCalls_PenalizesForSecurityBoundaries()
+    public void ScoreCSharpBugPrevention_WithNetworkCalls_ReturnsFullScore_OutcomeBased()
     {
         var code = @"
 public static string FetchData()
@@ -174,11 +185,12 @@ public static string FetchData()
             analyzerDiagnostics: null,
             category: "security-boundaries");
 
-        Assert.True(score <= 0.1, $"Expected <= 0.1 for network calls in security-boundaries, got {score}");
+        // Outcome-based: returns 1.0, patterns detected separately as warnings
+        Assert.Equal(1.0, score);
     }
 
     [Fact]
-    public void ScoreCSharpBugPrevention_WithConsoleOutput_PenalizesForTransparency()
+    public void ScoreCSharpBugPrevention_WithConsoleOutput_ReturnsFullScore_OutcomeBased()
     {
         var code = @"
 public static int Calculate(int x)
@@ -193,11 +205,12 @@ public static int Calculate(int x)
             analyzerDiagnostics: null,
             category: "side-effect-transparency");
 
-        Assert.True(score < 0.5, $"Expected < 0.5 for Console.WriteLine in side-effect-transparency, got {score}");
+        // Outcome-based: returns 1.0
+        Assert.Equal(1.0, score);
     }
 
     [Fact]
-    public void ScoreCSharpBugPrevention_WithPureAttribute_GetsBonus()
+    public void ScoreCSharpBugPrevention_WithPureAttribute_ReturnsFullScore_OutcomeBased()
     {
         var code = @"
 [Pure]
@@ -212,13 +225,14 @@ public static int Add(int a, int b)
             analyzerDiagnostics: null,
             category: "cache-safety");
 
-        // Should get bonus for [Pure] attribute
-        Assert.True(score >= 0.6, $"Expected >= 0.6 for [Pure] method, got {score}");
+        // Outcome-based: no bonus for [Pure] - same as code without it
+        Assert.Equal(1.0, score);
     }
 
     [Fact]
-    public void ScoreCSharpBugPrevention_WithAnalyzerErrors_ReturnsZero()
+    public void ScoreCSharpBugPrevention_WithAnalyzerDiagnostics_StillReturnsFullScore()
     {
+        // Analyzer diagnostics are informational only - no longer affect scoring
         var diagnostics = new List<AnalyzerDiagnostic>
         {
             new() { Id = "ED001", Message = "DateTime.Now usage", Severity = DiagnosticSeverity.Error }
@@ -230,11 +244,12 @@ public static int Add(int a, int b)
             analyzerDiagnostics: diagnostics,
             category: "flaky-test-prevention");
 
-        Assert.Equal(0.0, score);
+        // Outcome-based: returns 1.0, actual scoring done by test outcomes
+        Assert.Equal(1.0, score);
     }
 
     [Fact]
-    public void ScoreCSharpBugPrevention_WithAnalyzerWarnings_DeductsPoints()
+    public void ScoreCSharpBugPrevention_WithAnalyzerWarnings_StillReturnsFullScore()
     {
         var diagnostics = new List<AnalyzerDiagnostic>
         {
@@ -247,8 +262,8 @@ public static int Add(int a, int b)
             analyzerDiagnostics: diagnostics,
             category: "cache-safety");
 
-        // Base 0.5 - 0.1 per warning = 0.4, then best practices bonus
-        Assert.True(score >= 0.3 && score < 0.6, $"Expected 0.3-0.6 for warning, got {score}");
+        // Outcome-based: returns 1.0
+        Assert.Equal(1.0, score);
     }
 
     [Fact]
@@ -265,10 +280,62 @@ public static int Add(int a, int b)
 
     #endregion
 
-    #region Maintainability Scoring
+    #region Non-Deterministic Pattern Detection (Warnings)
 
     [Fact]
-    public void ScoreMaintainability_CalorWithEffects_ScoresWell()
+    public void DetectNonDeterministicPatterns_DateTimeNow_ReturnsWarning()
+    {
+        var code = "DateTime.Now.ToString()";
+        var warnings = EffectDisciplineScorer.DetectNonDeterministicPatterns(code, "flaky-test-prevention");
+
+        Assert.Contains(warnings, w => w.Contains("DateTime.Now"));
+    }
+
+    [Fact]
+    public void DetectNonDeterministicPatterns_UnseededRandom_ReturnsWarning()
+    {
+        var code = "var rng = new Random();";
+        var warnings = EffectDisciplineScorer.DetectNonDeterministicPatterns(code, "cache-safety");
+
+        Assert.Contains(warnings, w => w.Contains("Random"));
+    }
+
+    [Fact]
+    public void DetectNonDeterministicPatterns_NetworkCall_ReturnsWarning()
+    {
+        var code = "var client = new HttpClient();";
+        var warnings = EffectDisciplineScorer.DetectNonDeterministicPatterns(code, "security-boundaries");
+
+        Assert.Contains(warnings, w => w.Contains("Network"));
+    }
+
+    [Fact]
+    public void DetectNonDeterministicPatterns_ConsoleOutput_ReturnsWarning()
+    {
+        var code = "Console.WriteLine(x);";
+        var warnings = EffectDisciplineScorer.DetectNonDeterministicPatterns(code, "side-effect-transparency");
+
+        Assert.Contains(warnings, w => w.Contains("Console"));
+    }
+
+    [Fact]
+    public void DetectNonDeterministicPatterns_PureCode_NoWarnings()
+    {
+        var code = "return a + b;";
+        var warnings = EffectDisciplineScorer.DetectNonDeterministicPatterns(code, "cache-safety");
+
+        Assert.Empty(warnings);
+    }
+
+    #endregion
+
+    #region Maintainability Scoring (Language-Neutral)
+
+    // Maintainability scoring is now language-neutral to avoid bias.
+    // No bonus for Calor effect annotations or C# [Pure] attribute.
+
+    [Fact]
+    public void ScoreMaintainability_CalorWithEffects_ScoresReasonably()
     {
         var code = @"
 §M{m001:Calculator}
@@ -283,8 +350,9 @@ public static int Add(int a, int b)
 
         var score = EffectDisciplineScorer.ScoreMaintainability(code, "calor");
 
-        // Base (0.5) + effect annotations (0.3) + descriptive names (0.2) = 1.0
-        Assert.True(score >= 0.8, $"Expected >= 0.8 for well-documented Calor code, got {score}");
+        // Base (0.7) + descriptive names (0.15) = 0.85
+        // No bonus for effect annotations (to avoid language bias)
+        Assert.True(score >= 0.7 && score <= 1.0, $"Expected 0.7-1.0, got {score}");
     }
 
     [Fact]
@@ -304,15 +372,15 @@ public static int CalculateTotal(int price, int quantity)
 
         var score = EffectDisciplineScorer.ScoreMaintainability(code, "csharp");
 
-        // Base (0.5) + XML docs (0.3) + descriptive names (0.2) = 1.0
-        Assert.True(score >= 0.8, $"Expected >= 0.8 for well-documented C# code, got {score}");
+        // Base (0.7) + descriptive names (0.15) + docs (0.15) = 1.0
+        Assert.True(score >= 0.85, $"Expected >= 0.85 for well-documented C# code, got {score}");
     }
 
     [Fact]
-    public void ScoreMaintainability_CSharpWithPureAttribute_ScoresWell()
+    public void ScoreMaintainability_CSharpWithComments_ScoresReasonably()
     {
         var code = @"
-[Pure]
+// Calculate the total price
 public static int CalculateTotal(int price, int quantity)
 {
     return price * quantity;
@@ -320,8 +388,9 @@ public static int CalculateTotal(int price, int quantity)
 
         var score = EffectDisciplineScorer.ScoreMaintainability(code, "csharp");
 
-        // Base (0.5) + [Pure] (0.3) + descriptive names (0.2) = 1.0
-        Assert.True(score >= 0.8, $"Expected >= 0.8 for [Pure] attributed code, got {score}");
+        // Base (0.7) + descriptive names (0.15) + comments (0.15) = 1.0
+        // No extra bonus for [Pure] attribute (removed for fairness)
+        Assert.True(score >= 0.7 && score <= 1.0, $"Expected 0.7-1.0, got {score}");
     }
 
     #endregion
@@ -446,9 +515,13 @@ public static class Solution
 
     #region Analyzer Diagnostic Integration Tests
 
+    // With outcome-based scoring, analyzer diagnostics are informational only.
+    // They don't affect the score - actual scoring is done by test outcomes.
+
     [Fact]
-    public void AnalyzerDiagnostic_ErrorSeverity_FailsScoring()
+    public void AnalyzerDiagnostic_ErrorSeverity_StillReturnsFullScore_OutcomeBased()
     {
+        // In outcome-based scoring, diagnostics don't affect the score
         var diagnostics = new List<AnalyzerDiagnostic>
         {
             new() { Id = "ED001", Message = "DateTime.Now usage", Severity = DiagnosticSeverity.Error, Line = 5 },
@@ -461,11 +534,12 @@ public static class Solution
             diagnostics,
             "flaky-test-prevention");
 
-        Assert.Equal(0.0, score);
+        // Outcome-based: returns 1.0 as placeholder, actual scoring by test outcomes
+        Assert.Equal(1.0, score);
     }
 
     [Fact]
-    public void AnalyzerDiagnostic_MultipleWarnings_CumulativeDeduction()
+    public void AnalyzerDiagnostic_MultipleWarnings_StillReturnsFullScore_OutcomeBased()
     {
         var diagnostics = new List<AnalyzerDiagnostic>
         {
@@ -479,8 +553,8 @@ public static class Solution
             diagnostics,
             "side-effect-transparency");
 
-        // Base 0.5 - 0.2 (2 warnings) = 0.3
-        Assert.True(score >= 0.3, $"Expected >= 0.3, got {score}");
+        // Outcome-based: returns 1.0
+        Assert.Equal(1.0, score);
     }
 
     #endregion
@@ -572,15 +646,17 @@ public static class Solution
     }
 
     [Fact]
-    public async Task EffectDisciplineBenchmarkRunner_PenalizesImpureCode()
+    public async Task EffectDisciplineBenchmarkRunner_ImpureCodeWithNoTests_ScoresZero()
     {
+        // With outcome-based scoring, code with no test cases scores 0 on bug prevention
+        // because there's no way to verify correctness
         var task = new LlmTaskDefinition
         {
             Id = "impure-001",
             Name = "Impure Function",
             Category = "flaky-test-prevention",
             Prompt = "Write a function that uses DateTime.Now.",
-            TestCases = new List<TaskTestCase>(),
+            TestCases = new List<TaskTestCase>(), // No test cases
             ExpectedSignature = new TaskSignature
             {
                 FunctionName = "GetTime",
@@ -600,10 +676,9 @@ public static class Solution
             EnableAnalyzers = true
         });
 
-        // Impure code should have lower bug prevention scores
+        // With no test cases, bug prevention is 0 (can't verify outcome)
         Assert.True(result.CSharpResult.CompilationSuccess, "C# should compile");
-        Assert.True(result.CSharpResult.BugPreventionScore < 0.5,
-            $"Bug prevention should be < 0.5 for impure code, got {result.CSharpResult.BugPreventionScore}");
+        Assert.Equal(0.0, result.CSharpResult.BugPreventionScore);
     }
 
     private static System.Text.Json.JsonElement JsonElement(int value)

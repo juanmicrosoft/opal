@@ -3,46 +3,69 @@ using System.Text.RegularExpressions;
 namespace Calor.Evaluation.LlmTasks;
 
 /// <summary>
-/// Scores effect discipline for the benchmark.
-/// Evaluates code based on bug prevention, functional correctness, and maintainability.
+/// Scores effect discipline for the benchmark using outcome-based scoring.
+/// Both languages are evaluated equally based on whether they produce correct, deterministic results.
+///
+/// Scoring Philosophy:
+/// - Bug prevention is measured by TEST OUTCOMES, not syntax analysis
+/// - If tests pass → BugPrevention = 1.0 for BOTH languages
+/// - If tests fail → BugPrevention = 0.0
+/// - No bonus for language-specific syntax (§E{}, [Pure], etc.)
 /// </summary>
 public static class EffectDisciplineScorer
 {
     /// <summary>
     /// Weight for functional correctness (does the code work?).
     /// </summary>
-    public const double CorrectnessWeight = 0.40;
+    public const double CorrectnessWeight = 0.50;
 
     /// <summary>
-    /// Weight for bug prevention (would this code have the target bug?).
+    /// Weight for bug prevention (did the code produce deterministic results?).
     /// </summary>
-    public const double BugPreventionWeight = 0.40;
-
-    /// <summary>
-    /// Weight for maintainability (can another developer understand the constraints?).
-    /// </summary>
-    public const double MaintainabilityWeight = 0.20;
+    public const double BugPreventionWeight = 0.50;
 
     /// <summary>
     /// Calculates the overall discipline score for a task result.
+    /// Simplified to focus on outcomes: correctness + determinism.
     /// </summary>
     /// <param name="correctness">Functional correctness score (0-1).</param>
-    /// <param name="bugPrevention">Bug prevention score (0-1).</param>
-    /// <param name="maintainability">Maintainability score (0-1).</param>
+    /// <param name="bugPrevention">Bug prevention score (0-1) - based on test outcomes.</param>
+    /// <param name="maintainability">Maintainability score (ignored for fairness).</param>
     /// <returns>Weighted overall score (0-1).</returns>
     public static double CalculateDisciplineScore(
         double correctness,
         double bugPrevention,
         double maintainability)
     {
+        // Simplified scoring: 50% correctness (tests pass) + 50% bug prevention (determinism)
+        // Maintainability is ignored because it unfairly rewarded Calor syntax
         return (correctness * CorrectnessWeight) +
-               (bugPrevention * BugPreventionWeight) +
-               (maintainability * MaintainabilityWeight);
+               (bugPrevention * BugPreventionWeight);
     }
 
     /// <summary>
-    /// Scores Calor code for effect discipline.
-    /// Calor's effect system provides compile-time enforcement.
+    /// Scores bug prevention based on test outcomes.
+    /// This is the FAIR scoring method used for both languages.
+    /// </summary>
+    /// <param name="testsPass">Whether all tests passed.</param>
+    /// <param name="isDeterministic">Whether the code is deterministic (no known-bad patterns).</param>
+    /// <returns>Bug prevention score (0-1).</returns>
+    public static double ScoreBugPreventionByOutcome(bool testsPass, bool isDeterministic)
+    {
+        // Pure outcome-based scoring: tests pass = 1.0, tests fail = 0.0
+        // Both languages can achieve 1.0 equally
+        if (!testsPass)
+        {
+            return 0.0;
+        }
+
+        // If tests pass but code uses non-deterministic patterns, it's a warning
+        // but we still give full credit since tests passed (outcome-based)
+        return 1.0;
+    }
+
+    /// <summary>
+    /// Scores Calor code for effect discipline using outcome-based scoring.
     /// </summary>
     /// <param name="code">The Calor source code.</param>
     /// <param name="compilationSuccess">Whether the code compiled.</param>
@@ -55,48 +78,26 @@ public static class EffectDisciplineScorer
         IReadOnlyList<string>? effectViolations,
         string category)
     {
-        // If code doesn't compile, it might be due to effect violations (good!) or other errors (bad)
+        // Outcome-based scoring: compilation failed = 0.0
+        // No special treatment for effect violations - same as any compilation failure
+        // This ensures fair comparison with C#
         if (!compilationSuccess)
         {
-            // Check if failure was due to effect violation (this is actually good - caught at compile time)
-            if (effectViolations != null && effectViolations.Any(v =>
-                v.Contains("effect", StringComparison.OrdinalIgnoreCase) ||
-                v.Contains("pure", StringComparison.OrdinalIgnoreCase) ||
-                v.Contains("§E", StringComparison.OrdinalIgnoreCase)))
-            {
-                // Compiler caught an effect violation - this is the intended behavior
-                return 1.0;
-            }
-
-            // Failed for other reasons - partial credit
-            return 0.3;
+            return 0.0;
         }
 
-        // Code compiled - check if it uses proper effect annotations
-        var score = 0.5; // Base score for compiling
-
-        // Check for explicit effect declarations
-        if (HasEffectAnnotations(code))
-        {
-            score += 0.3;
-        }
-
-        // Check for pure function markers based on category
-        if (IsPureByCategory(category) && CodeAppearsPure(code))
-        {
-            score += 0.2;
-        }
-
-        return Math.Min(score, 1.0);
+        // Code compiled - actual score determined by test outcomes
+        // Return 1.0 as placeholder; actual scoring uses test results
+        return 1.0;
     }
 
     /// <summary>
-    /// Scores C# code for effect discipline based on best practices.
-    /// C# relies on conventions, patterns, and analyzers rather than compile-time enforcement.
+    /// Scores C# code for effect discipline using outcome-based scoring.
+    /// C# can achieve the same score as Calor when tests pass.
     /// </summary>
     /// <param name="code">The C# source code.</param>
     /// <param name="compilationSuccess">Whether the code compiled.</param>
-    /// <param name="analyzerDiagnostics">Diagnostics from Roslyn analyzers (ED001-ED007).</param>
+    /// <param name="analyzerDiagnostics">Diagnostics from Roslyn analyzers (for warnings only).</param>
     /// <param name="category">The task category for context.</param>
     /// <returns>Bug prevention score (0-1).</returns>
     public static double ScoreCSharpBugPrevention(
@@ -110,193 +111,88 @@ public static class EffectDisciplineScorer
             return 0.0;
         }
 
-        // Start with base score
-        var score = 0.5;
-
-        // Deduct for analyzer violations
-        if (analyzerDiagnostics != null && analyzerDiagnostics.Count > 0)
-        {
-            var errorCount = analyzerDiagnostics.Count(d => d.Severity == DiagnosticSeverity.Error);
-            var warningCount = analyzerDiagnostics.Count(d => d.Severity == DiagnosticSeverity.Warning);
-
-            // Errors are critical - bug would reach production
-            if (errorCount > 0)
-            {
-                return 0.0;
-            }
-
-            // Warnings reduce score
-            score -= warningCount * 0.1;
-            score = Math.Max(score, 0.3);
-        }
-        else
-        {
-            // No analyzer ran - use heuristic analysis
-            score = ScoreCSharpByHeuristics(code, category);
-        }
-
-        // Bonus for best practices
-        score += ScoreCSharpBestPractices(code, category);
-
-        return Math.Min(Math.Max(score, 0.0), 1.0);
+        // Code compiled - actual score determined by test outcomes
+        // Return 1.0 as placeholder; actual scoring uses test results
+        // No penalties for syntax - we only care about outcomes
+        return 1.0;
     }
 
     /// <summary>
-    /// Heuristic analysis of C# code when analyzers aren't available.
+    /// Detects non-deterministic patterns in code (for warnings only, not scoring).
+    /// Returns a list of detected patterns that could cause flaky behavior.
     /// </summary>
-    private static double ScoreCSharpByHeuristics(string code, string category)
+    /// <param name="code">The source code to analyze.</param>
+    /// <param name="category">The task category for context.</param>
+    /// <returns>List of detected non-deterministic patterns.</returns>
+    public static List<string> DetectNonDeterministicPatterns(string code, string category)
     {
-        var score = 0.5;
-        var violations = new List<string>();
+        var warnings = new List<string>();
 
-        // Check for time-related violations (flaky tests)
-        if (category == "flaky-test-prevention" || category == "cache-safety")
+        // Time-related patterns (flaky tests, cache safety)
+        if (category is "flaky-test-prevention" or "cache-safety")
         {
             if (ContainsDateTimeNow(code))
-            {
-                violations.Add("DateTime.Now usage");
-                score -= 0.3;
-            }
-
+                warnings.Add("DateTime.Now/UtcNow usage detected");
             if (ContainsUnsafeRandom(code))
-            {
-                violations.Add("Unseeded Random usage");
-                score -= 0.3;
-            }
-
+                warnings.Add("Unseeded Random() usage detected");
             if (ContainsGuidNewGuid(code))
-            {
-                violations.Add("Guid.NewGuid() usage");
-                score -= 0.3;
-            }
+                warnings.Add("Guid.NewGuid() usage detected");
         }
 
-        // Check for network/IO violations (security boundaries)
+        // Network/IO patterns (security boundaries)
         if (category == "security-boundaries")
         {
             if (ContainsNetworkCalls(code))
-            {
-                violations.Add("Network access");
-                score -= 0.5;
-            }
-
+                warnings.Add("Network call detected");
             if (ContainsFileOperations(code))
-            {
-                violations.Add("File I/O");
-                score -= 0.3;
-            }
+                warnings.Add("File I/O detected");
         }
 
-        // Check for side effect violations (transparency)
+        // Side effect patterns (transparency)
         if (category == "side-effect-transparency")
         {
             if (ContainsConsoleOutput(code))
-            {
-                violations.Add("Console output");
-                score -= 0.3;
-            }
-
+                warnings.Add("Console output detected");
             if (ContainsLogging(code))
-            {
-                violations.Add("Logging");
-                score -= 0.3;
-            }
+                warnings.Add("Logging detected");
         }
 
-        return Math.Max(score, 0.0);
+        return warnings;
     }
 
     /// <summary>
-    /// Scores C# code for following best practices.
-    /// </summary>
-    private static double ScoreCSharpBestPractices(string code, string category)
-    {
-        var bonus = 0.0;
-
-        // Check for [Pure] attribute
-        if (HasPureAttribute(code))
-        {
-            bonus += 0.15;
-        }
-
-        // Check for static method (suggests no instance state)
-        if (IsStaticMethod(code))
-        {
-            bonus += 0.1;
-        }
-
-        // Check for readonly/immutable patterns
-        if (UsesImmutablePatterns(code))
-        {
-            bonus += 0.1;
-        }
-
-        // Category-specific bonuses
-        if (category == "flaky-test-prevention")
-        {
-            // Bonus for DI pattern (accepting dependencies as parameters)
-            if (UsesDependencyInjection(code))
-            {
-                bonus += 0.15;
-            }
-        }
-
-        return bonus;
-    }
-
-    /// <summary>
-    /// Scores maintainability based on code clarity and documentation.
+    /// Scores maintainability based on code clarity.
+    /// Simplified to not favor either language's syntax.
     /// </summary>
     /// <param name="code">The source code.</param>
     /// <param name="language">The language ("calor" or "csharp").</param>
     /// <returns>Maintainability score (0-1).</returns>
     public static double ScoreMaintainability(string code, string language)
     {
-        var score = 0.5; // Base score
+        // For fair scoring, give both languages the same base maintainability score
+        // Actual maintainability is subjective and language-specific syntax
+        // should not be rewarded
+        var score = 0.7; // Base score for readable code
 
-        // Check for self-documenting code
+        // Only reward language-neutral good practices
         if (HasDescriptiveNames(code))
         {
-            score += 0.2;
+            score += 0.15;
         }
 
-        // Check for appropriate documentation
-        if (language == "calor")
+        // Documentation is good in any language
+        if (HasXmlDocs(code) || HasComments(code))
         {
-            // Effect annotations document behavior
-            if (HasEffectAnnotations(code))
-            {
-                score += 0.3;
-            }
-        }
-        else
-        {
-            // XML docs or [Pure] attribute
-            if (HasXmlDocs(code) || HasPureAttribute(code))
-            {
-                score += 0.3;
-            }
+            score += 0.15;
         }
 
         return Math.Min(score, 1.0);
     }
 
+    private static bool HasComments(string code) =>
+        code.Contains("//") || code.Contains("/*");
+
     #region Code Analysis Helpers
-
-    private static bool HasEffectAnnotations(string code) =>
-        code.Contains("§E{") ||
-        code.Contains("§E[") ||
-        Regex.IsMatch(code, @"\bpure\b", RegexOptions.IgnoreCase);
-
-    private static bool IsPureByCategory(string category) =>
-        category is "flaky-test-prevention" or "cache-safety" or "side-effect-transparency";
-
-    private static bool CodeAppearsPure(string code) =>
-        !ContainsDateTimeNow(code) &&
-        !ContainsUnsafeRandom(code) &&
-        !ContainsNetworkCalls(code) &&
-        !ContainsFileOperations(code) &&
-        !ContainsConsoleOutput(code);
 
     private static bool ContainsDateTimeNow(string code) =>
         Regex.IsMatch(code, @"DateTime\.(Now|UtcNow|Today)", RegexOptions.IgnoreCase);
@@ -322,25 +218,6 @@ public static class EffectDisciplineScorer
     private static bool ContainsLogging(string code) =>
         Regex.IsMatch(code, @"\b(Logger|Log|Logging|ILogger)\b", RegexOptions.IgnoreCase) ||
         Regex.IsMatch(code, @"\.(LogInformation|LogWarning|LogError|LogDebug|Log)\b");
-
-    private static bool HasPureAttribute(string code) =>
-        code.Contains("[Pure]") ||
-        code.Contains("[System.Diagnostics.Contracts.Pure]");
-
-    private static bool IsStaticMethod(string code) =>
-        Regex.IsMatch(code, @"\bpublic\s+static\b");
-
-    private static bool UsesImmutablePatterns(string code) =>
-        code.Contains("readonly") ||
-        code.Contains("ImmutableArray") ||
-        code.Contains("ImmutableList") ||
-        code.Contains("record ") ||
-        code.Contains("init;");
-
-    private static bool UsesDependencyInjection(string code) =>
-        Regex.IsMatch(code, @"(ITimeProvider|IClock|IDateTimeProvider|IRandomGenerator)", RegexOptions.IgnoreCase) ||
-        code.Contains("Func<DateTime>") ||
-        code.Contains("Func<int>");
 
     private static bool HasDescriptiveNames(string code)
     {
