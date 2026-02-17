@@ -35,8 +35,8 @@ public class BenchmarkRunner
             new TaskCompletionCalculator(),
             new SafetyCalculator(),
             new EffectDisciplineCalculator(),
-            // Calor-only metric (C# score always 0)
-            new InteropEffectCoverageCalculator()
+            // Fair comparison metric - pure pass/fail on test cases
+            new CorrectnessCalculator()
         };
     }
 

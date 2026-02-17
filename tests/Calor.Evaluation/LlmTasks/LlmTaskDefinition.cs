@@ -168,6 +168,12 @@ public record TaskTestCase
     /// Whether this test case should trigger a contract violation (for contract testing).
     /// </summary>
     public bool ExpectsContractViolation { get; init; }
+
+    /// <summary>
+    /// Whether this is an edge case test (for correctness benchmark scoring).
+    /// Edge cases test boundary conditions, null handling, empty inputs, etc.
+    /// </summary>
+    public bool IsEdgeCase { get; init; }
 }
 
 /// <summary>

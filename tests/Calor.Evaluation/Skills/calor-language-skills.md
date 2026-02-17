@@ -114,6 +114,24 @@ Use contracts to express requirements and guarantees mentioned in the task:
 | `str` | String |
 | `void` | No return value |
 
+#### Numeric Literals and Constants
+
+**IMPORTANT: For extreme integer values, use typed literals:**
+```calor
+INT:-2147483648    // int.MinValue (-2^31)
+INT:2147483647     // int.MaxValue (2^31 - 1)
+```
+
+**WRONG - Don't try to construct MinValue with arithmetic:**
+```calor
+(- 0 2147483648)   // ❌ ERROR - 2147483648 exceeds i32 range
+```
+
+**CORRECT - Use typed literal directly:**
+```calor
+§R INT:-2147483648  // ✓ Returns int.MinValue
+```
+
 #### Expressions (Prefix Notation)
 ```calor
 (+ a b)       // a + b
@@ -324,10 +342,11 @@ Use contracts to express requirements and guarantees mentioned in the task:
 // Access element at index - use §IDX (NO braces around array name)
 §B{elem} §IDX arr 0                         // arr[0]
 §B{elem} §IDX arr i                         // arr[i]
-§B{last} §IDX arr §^ 1                      // arr[^1] - last element
+§B{last} §IDX arr (- (len arr) 1)           // arr[arr.Length - 1] - last element
 
 // WRONG: These do NOT work
 // §IDX{arr} i      ❌ ERROR - braces cause parsing issues
+// §IDX arr §^ 1    ❌ ERROR - §^ syntax not supported
 // (get arr i)      ❌ ERROR - not valid
 // (at arr i)       ❌ ERROR - not valid
 // arr[i]           ❌ ERROR - no C# indexer syntax

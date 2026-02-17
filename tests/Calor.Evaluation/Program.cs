@@ -377,6 +377,90 @@ public static class Program
 
         rootCommand.AddCommand(effectDisciplineCommand);
 
+        // Correctness benchmark command
+        var correctnessCommand = new Command("correctness-benchmark", "Run correctness benchmarks measuring edge case handling");
+
+        var correctnessProviderOption = new Option<string>(
+            aliases: new[] { "--provider", "-p" },
+            description: "LLM provider to use (claude, mock)",
+            getDefaultValue: () => "claude");
+
+        var correctnessModelOption = new Option<string?>(
+            aliases: new[] { "--model" },
+            description: "Specific model to use");
+
+        var correctnessBudgetOption = new Option<decimal>(
+            aliases: new[] { "--budget", "-b" },
+            description: "Maximum budget in USD",
+            getDefaultValue: () => 5.00m);
+
+        var correctnessOutputOption = new Option<string>(
+            aliases: new[] { "--output", "-o" },
+            description: "Output file for results",
+            getDefaultValue: () => "correctness-results.json");
+
+        var correctnessDryRunOption = new Option<bool>(
+            aliases: new[] { "--dry-run" },
+            description: "Estimate costs without making API calls");
+
+        var correctnessRefreshCacheOption = new Option<bool>(
+            aliases: new[] { "--refresh-cache" },
+            description: "Refresh cached responses");
+
+        var correctnessTasksOption = new Option<string[]>(
+            aliases: new[] { "--tasks", "-t" },
+            description: "Specific task IDs to run")
+        {
+            AllowMultipleArgumentsPerToken = true
+        };
+
+        var correctnessCategoryOption = new Option<string>(
+            aliases: new[] { "--category", "-c" },
+            description: "Run only tasks in this category");
+
+        var correctnessSampleOption = new Option<int?>(
+            aliases: new[] { "--sample", "-s" },
+            description: "Number of tasks to sample");
+
+        var correctnessManifestOption = new Option<string>(
+            aliases: new[] { "--manifest", "-m" },
+            description: "Path to task manifest file");
+
+        var correctnessVerboseOption = new Option<bool>(
+            aliases: new[] { "--verbose", "-v" },
+            description: "Enable verbose output");
+
+        correctnessCommand.AddOption(correctnessProviderOption);
+        correctnessCommand.AddOption(correctnessModelOption);
+        correctnessCommand.AddOption(correctnessBudgetOption);
+        correctnessCommand.AddOption(correctnessOutputOption);
+        correctnessCommand.AddOption(correctnessDryRunOption);
+        correctnessCommand.AddOption(correctnessRefreshCacheOption);
+        correctnessCommand.AddOption(correctnessTasksOption);
+        correctnessCommand.AddOption(correctnessCategoryOption);
+        correctnessCommand.AddOption(correctnessSampleOption);
+        correctnessCommand.AddOption(correctnessManifestOption);
+        correctnessCommand.AddOption(correctnessVerboseOption);
+
+        correctnessCommand.SetHandler(async (context) =>
+        {
+            var provider = context.ParseResult.GetValueForOption(correctnessProviderOption)!;
+            var model = context.ParseResult.GetValueForOption(correctnessModelOption);
+            var budget = context.ParseResult.GetValueForOption(correctnessBudgetOption);
+            var output = context.ParseResult.GetValueForOption(correctnessOutputOption)!;
+            var dryRun = context.ParseResult.GetValueForOption(correctnessDryRunOption);
+            var refreshCache = context.ParseResult.GetValueForOption(correctnessRefreshCacheOption);
+            var tasks = context.ParseResult.GetValueForOption(correctnessTasksOption) ?? Array.Empty<string>();
+            var category = context.ParseResult.GetValueForOption(correctnessCategoryOption);
+            var sample = context.ParseResult.GetValueForOption(correctnessSampleOption);
+            var manifest = context.ParseResult.GetValueForOption(correctnessManifestOption);
+            var verbose = context.ParseResult.GetValueForOption(correctnessVerboseOption);
+
+            await RunCorrectnessBenchmarkAsync(provider, model, budget, output, dryRun, refreshCache, tasks, category, sample, manifest, verbose);
+        });
+
+        rootCommand.AddCommand(correctnessCommand);
+
         // Default: run benchmarks if no command specified
         rootCommand.SetHandler(async () =>
         {
@@ -1391,5 +1475,264 @@ public static class Program
             Console.WriteLine("Effect discipline results are roughly equivalent between Calor and C#.");
         }
         Console.ResetColor();
+    }
+
+    private static async Task RunCorrectnessBenchmarkAsync(
+        string provider,
+        string? model,
+        decimal budget,
+        string output,
+        bool dryRun,
+        bool refreshCache,
+        string[] tasks,
+        string? category,
+        int? sample,
+        string? manifestPath,
+        bool verbose)
+    {
+        Console.WriteLine("Correctness Benchmark - Edge Case Handling");
+        Console.WriteLine("==========================================");
+        Console.WriteLine();
+        Console.WriteLine("This benchmark measures how well code handles edge cases:");
+        Console.WriteLine("  - Boundary conditions (empty inputs, null values)");
+        Console.WriteLine("  - Numeric edge cases (min/max values, overflow)");
+        Console.WriteLine("  - Special cases (division by zero, empty collections)");
+        Console.WriteLine("  - Pure pass/fail scoring - no language bias");
+        Console.WriteLine();
+
+        // Load manifest
+        LlmTaskManifest manifest;
+        if (!string.IsNullOrEmpty(manifestPath) && File.Exists(manifestPath))
+        {
+            Console.WriteLine($"Loading manifest: {manifestPath}");
+            manifest = await LlmTaskManifest.LoadAsync(manifestPath);
+        }
+        else
+        {
+            // Try default correctness manifest location
+            var defaultPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Tasks", "task-manifest-correctness.json");
+            if (!File.Exists(defaultPath))
+            {
+                defaultPath = Path.Combine("Tasks", "task-manifest-correctness.json");
+            }
+            if (!File.Exists(defaultPath))
+            {
+                defaultPath = Path.Combine(Directory.GetCurrentDirectory(), "tests", "Calor.Evaluation", "Tasks", "task-manifest-correctness.json");
+            }
+
+            if (File.Exists(defaultPath))
+            {
+                Console.WriteLine($"Loading default correctness manifest: {defaultPath}");
+                manifest = await LlmTaskManifest.LoadAsync(defaultPath);
+            }
+            else
+            {
+                Console.Error.WriteLine("No correctness task manifest found. Use --manifest to specify a path.");
+                Console.Error.WriteLine("Expected: tests/Calor.Evaluation/Tasks/task-manifest-correctness.json");
+                return;
+            }
+        }
+
+        Console.WriteLine($"Loaded {manifest.Tasks.Count} correctness task definitions");
+        Console.WriteLine();
+
+        // Create provider
+        ILlmProvider llmProvider;
+        switch (provider.ToLowerInvariant())
+        {
+            case "claude":
+                var claudeProvider = new ClaudeProvider();
+                if (!claudeProvider.IsAvailable)
+                {
+                    Console.Error.WriteLine($"Claude provider unavailable: {claudeProvider.UnavailabilityReason}");
+                    Console.Error.WriteLine("Set the ANTHROPIC_API_KEY environment variable or use --provider mock");
+                    return;
+                }
+                llmProvider = claudeProvider;
+                break;
+
+            case "mock":
+                llmProvider = MockProvider.WithWorkingImplementations();
+                Console.WriteLine("Using mock provider (no actual API calls)");
+                break;
+
+            default:
+                Console.Error.WriteLine($"Unknown provider: {provider}");
+                Console.Error.WriteLine("Available providers: claude, mock");
+                return;
+        }
+
+        // Create runner options
+        var options = new CorrectnessBenchmarkOptions
+        {
+            BudgetLimit = budget,
+            UseCache = true,
+            RefreshCache = refreshCache,
+            DryRun = dryRun,
+            Verbose = verbose,
+            TaskFilter = tasks.Length > 0 ? tasks.ToList() : null,
+            CategoryFilter = category,
+            SampleSize = sample,
+            Model = model
+        };
+
+        // Create cache
+        var cache = new LlmResponseCache();
+        var cacheStats = cache.GetStatistics();
+        Console.WriteLine($"Cache: {cacheStats.EntryCount} entries ({cacheStats.TotalSizeFormatted})");
+        Console.WriteLine();
+
+        // Create runner
+        using var runner = new CorrectnessBenchmarkRunner(llmProvider, cache);
+
+        if (dryRun)
+        {
+            Console.WriteLine("Dry run mode - estimating costs...");
+            Console.WriteLine();
+
+            // Estimate based on task count
+            var filteredTasks = FilterTasksForEstimate(manifest.Tasks, options);
+            var estimatedInputTokens = filteredTasks.Count * 800; // ~800 tokens per prompt
+            var estimatedOutputTokens = filteredTasks.Count * 400 * 2; // ~400 tokens per response, 2 languages
+            var estimatedCost = llmProvider.EstimateCost(estimatedInputTokens, estimatedOutputTokens);
+
+            Console.WriteLine("Cost Estimate:");
+            Console.WriteLine($"  Tasks to run:           {filteredTasks.Count}");
+            Console.WriteLine($"  Languages:              2 (Calor, C#)");
+            Console.WriteLine($"  Est. input tokens:      {estimatedInputTokens:N0}");
+            Console.WriteLine($"  Est. output tokens:     {estimatedOutputTokens:N0}");
+            Console.WriteLine($"  Estimated cost:         ${estimatedCost:F4}");
+            Console.WriteLine($"  Budget:                 ${budget:F2}");
+            Console.WriteLine();
+
+            if ((decimal)estimatedCost > budget)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("Warning: Estimated cost exceeds budget!");
+                Console.ResetColor();
+            }
+
+            Console.WriteLine("Category breakdown:");
+            var byCategory = filteredTasks.GroupBy(t => t.Category);
+            foreach (var group in byCategory.OrderByDescending(g => g.Count()))
+            {
+                var catInputTokens = group.Count() * 800;
+                var catOutputTokens = group.Count() * 400 * 2;
+                var catCost = llmProvider.EstimateCost(catInputTokens, catOutputTokens);
+                Console.WriteLine($"  {group.Key}: {group.Count()} tasks, ${catCost:F4}");
+            }
+
+            Console.WriteLine();
+            Console.WriteLine("Dry run - no API calls made");
+            return;
+        }
+
+        // Run tasks
+        Console.WriteLine("Running correctness benchmark tasks...");
+        Console.WriteLine();
+
+        var results = await runner.RunAllAsync(manifest, options);
+
+        // Save results
+        var jsonOptions = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        };
+        var json = JsonSerializer.Serialize(results, jsonOptions);
+        await File.WriteAllTextAsync(output, json);
+        Console.WriteLine($"Results saved to: {output}");
+        Console.WriteLine();
+
+        // Print summary
+        var summary = results.Summary;
+
+        Console.WriteLine("Correctness Benchmark Results");
+        Console.WriteLine("-----------------------------");
+        Console.WriteLine($"Total tasks:              {summary.TotalTasks}");
+        Console.WriteLine($"Calor wins:               {summary.CalorWins}");
+        Console.WriteLine($"C# wins:                  {summary.CSharpWins}");
+        Console.WriteLine($"Ties:                     {summary.Ties}");
+        Console.WriteLine();
+
+        Console.WriteLine("Correctness Scores:");
+        Console.WriteLine($"  Calor:                  {summary.AverageCalorScore:F3}");
+        Console.WriteLine($"  C#:                     {summary.AverageCSharpScore:F3}");
+        Console.WriteLine($"  Advantage ratio:        {summary.AdvantageRatio:F2}x");
+        Console.WriteLine();
+
+        Console.WriteLine("Edge Case Handling:");
+        Console.WriteLine($"  Calor:                  {summary.CalorEdgeCaseScore:P1}");
+        Console.WriteLine($"  C#:                     {summary.CSharpEdgeCaseScore:P1}");
+        Console.WriteLine();
+
+        Console.WriteLine("Test Results:");
+        Console.WriteLine($"  Tests passed:           {summary.TotalTestsPassed}/{summary.TotalTests}");
+        Console.WriteLine($"  Overall pass rate:      {(summary.TotalTests > 0 ? (double)summary.TotalTestsPassed / summary.TotalTests : 0):P1}");
+        Console.WriteLine();
+
+        Console.WriteLine($"Current spend:            ${runner.CurrentSpend:F4}");
+        Console.WriteLine($"Remaining budget:         ${runner.RemainingBudget:F2}");
+        Console.WriteLine();
+
+        if (summary.ByCategory.Count > 0)
+        {
+            Console.WriteLine("By Category:");
+            foreach (var (cat, catSummary) in summary.ByCategory.OrderByDescending(kv => kv.Value.AdvantageRatio))
+            {
+                var indicator = catSummary.AdvantageRatio > 1.05 ? "+" : (catSummary.AdvantageRatio < 0.95 ? "-" : "=");
+                Console.WriteLine($"  {indicator} {cat}:");
+                Console.WriteLine($"      Correctness: {catSummary.AdvantageRatio:F2}x (Calor={catSummary.AverageCalorScore:F2}, C#={catSummary.AverageCSharpScore:F2})");
+                Console.WriteLine($"      Edge Cases: Calor={catSummary.CalorEdgeCaseScore:P0}, C#={catSummary.CSharpEdgeCaseScore:P0}");
+            }
+        }
+
+        // Highlight the winner
+        Console.WriteLine();
+        if (summary.AdvantageRatio > 1.10)
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"Calor demonstrates {(summary.AdvantageRatio - 1) * 100:F1}% correctness advantage!");
+            Console.WriteLine("Contracts help prevent edge case bugs.");
+        }
+        else if (summary.AdvantageRatio < 0.90)
+        {
+            Console.ForegroundColor = ConsoleColor.Blue;
+            Console.WriteLine($"C# shows {(1 - summary.AdvantageRatio) * 100:F1}% correctness advantage.");
+        }
+        else
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("Correctness results are roughly equivalent between Calor and C#.");
+        }
+        Console.ResetColor();
+    }
+
+    private static List<LlmTaskDefinition> FilterTasksForEstimate(
+        List<LlmTaskDefinition> tasks,
+        CorrectnessBenchmarkOptions options)
+    {
+        var filtered = tasks.AsEnumerable();
+
+        if (options.TaskFilter != null && options.TaskFilter.Count > 0)
+        {
+            var filterSet = options.TaskFilter.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            filtered = filtered.Where(t => filterSet.Contains(t.Id));
+        }
+
+        if (!string.IsNullOrEmpty(options.CategoryFilter))
+        {
+            filtered = filtered.Where(t =>
+                t.Category.Equals(options.CategoryFilter, StringComparison.OrdinalIgnoreCase));
+        }
+
+        var result = filtered.ToList();
+
+        if (options.SampleSize.HasValue && options.SampleSize.Value < result.Count)
+        {
+            result = result.Take(options.SampleSize.Value).ToList();
+        }
+
+        return result;
     }
 }
