@@ -138,65 +138,26 @@ public class EffectDisciplineCalculator : IMetricCalculator
             details);
     }
 
+    /// <summary>
+    /// Estimates Calor discipline score based on compilation success.
+    /// With outcome-based scoring, both languages get the same base score.
+    /// </summary>
     private static double EstimateCalorDisciplineScore(EvaluationContext context)
     {
-        var score = 0.4; // Base score for having effect system available
-
-        if (!context.CalorCompilation.Success)
-            return 0.0;
-
-        var source = context.CalorSource;
-
-        // Effect declarations (§E{...})
-        if (source.Contains("§E{"))
-            score += 0.25;
-
-        // Pure functions (§E{} or §E{pure})
-        if (source.Contains("§E{}") || source.Contains("pure"))
-            score += 0.15;
-
-        // Explicit I/O effects
-        if (source.Contains("io") || source.Contains("fs:") || source.Contains("net:"))
-            score += 0.10;
-
-        // Effect closing tags indicate complete effect declarations
-        if (source.Contains("§/E{"))
-            score += 0.10;
-
-        return Math.Min(score, 1.0);
+        // Outcome-based: compilation success = 1.0, failure = 0.0
+        // No syntax-based bonuses to avoid language bias
+        return context.CalorCompilation.Success ? 1.0 : 0.0;
     }
 
+    /// <summary>
+    /// Estimates C# discipline score based on compilation success.
+    /// With outcome-based scoring, both languages get the same base score.
+    /// </summary>
     private static double EstimateCSharpDisciplineScore(EvaluationContext context)
     {
-        var score = 0.3; // Base score
-
-        if (!context.CSharpCompilation.Success)
-            return 0.0;
-
-        var source = context.CSharpSource;
-
-        // [Pure] attribute (advisory only in C#)
-        if (source.Contains("[Pure]"))
-            score += 0.15;
-
-        // Readonly fields/properties
-        if (source.Contains("readonly"))
-            score += 0.10;
-
-        // Static methods (often side-effect free)
-        if (source.Contains("static "))
-            score += 0.10;
-
-        // Immutable patterns
-        if (source.Contains("record ") || source.Contains("{ get; }"))
-            score += 0.10;
-
-        // Dependency injection pattern (parameters for dependencies)
-        if (source.Contains("ITimeProvider") || source.Contains("IRandomGenerator") ||
-            source.Contains("IClock"))
-            score += 0.15;
-
-        return Math.Min(score, 0.75); // Cap lower than Calor - no enforcement
+        // Outcome-based: compilation success = 1.0, failure = 0.0
+        // No cap, no syntax-based penalties - fair comparison
+        return context.CSharpCompilation.Success ? 1.0 : 0.0;
     }
 
     /// <summary>
