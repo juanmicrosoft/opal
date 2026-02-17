@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Calor.Compiler.CodeGen;
 using Calor.Evaluation.LlmTasks.Caching;
 using Calor.Evaluation.LlmTasks.Execution;
 using Calor.Evaluation.LlmTasks.Providers;
@@ -28,7 +29,9 @@ public sealed class CorrectnessBenchmarkRunner : IDisposable
     {
         _provider = provider;
         _cache = cache ?? new LlmResponseCache();
-        _executor = new CodeExecutor(timeoutMs: 5000);
+        // Enable contract enforcement for fair comparison - Calor's contracts should
+        // be enforced at runtime, just like C#'s ArgumentException guard clauses
+        _executor = new CodeExecutor(timeoutMs: 5000, contractMode: EmitContractMode.Debug);
         _verifier = new OutputVerifier();
     }
 
@@ -308,12 +311,43 @@ public sealed class CorrectnessBenchmarkRunner : IDisposable
 
             if (!execResult.Success)
             {
+                // If we expected a contract violation, check if we got one
+                // Fair comparison: Accept BOTH Calor's ContractViolationException
+                // AND C#'s ArgumentException/ArgumentOutOfRangeException as valid contract enforcement
+                if (testCase.ExpectsContractViolation)
+                {
+                    var isValidContractEnforcement = IsContractEnforcementException(execResult.Exception);
+                    return new CorrectnessTestResult
+                    {
+                        Index = index,
+                        IsEdgeCase = isEdgeCase,
+                        Passed = isValidContractEnforcement,
+                        ErrorMessage = isValidContractEnforcement
+                            ? null
+                            : $"Expected contract enforcement but got: {execResult.Exception?.GetType().Name}",
+                        ExecutionTimeMs = execResult.DurationMs
+                    };
+                }
+
                 return new CorrectnessTestResult
                 {
                     Index = index,
                     IsEdgeCase = isEdgeCase,
                     Passed = false,
                     ErrorMessage = execResult.Exception?.Message ?? "Execution failed",
+                    ExecutionTimeMs = execResult.DurationMs
+                };
+            }
+
+            // If we expected a contract violation but execution succeeded, that's a failure
+            if (testCase.ExpectsContractViolation)
+            {
+                return new CorrectnessTestResult
+                {
+                    Index = index,
+                    IsEdgeCase = isEdgeCase,
+                    Passed = false,
+                    ErrorMessage = "Expected contract violation but execution succeeded",
                     ExecutionTimeMs = execResult.DurationMs
                 };
             }
@@ -345,6 +379,19 @@ public sealed class CorrectnessBenchmarkRunner : IDisposable
         }
         catch (Exception ex)
         {
+            // If we expected a contract violation and got an exception, check if it's valid
+            if (testCase.ExpectsContractViolation && IsContractEnforcementException(ex))
+            {
+                return new CorrectnessTestResult
+                {
+                    Index = index,
+                    IsEdgeCase = isEdgeCase,
+                    Passed = true,
+                    ErrorMessage = null,
+                    ExecutionTimeMs = 0
+                };
+            }
+
             return new CorrectnessTestResult
             {
                 Index = index,
@@ -353,6 +400,33 @@ public sealed class CorrectnessBenchmarkRunner : IDisposable
                 ErrorMessage = $"Test execution error: {ex.Message}"
             };
         }
+    }
+
+    /// <summary>
+    /// Determines if an exception represents valid contract enforcement.
+    /// Fair comparison: accepts both Calor's ContractViolationException AND
+    /// C#'s standard argument validation exceptions (ArgumentException, etc.)
+    /// </summary>
+    private static bool IsContractEnforcementException(Exception? exception)
+    {
+        if (exception == null) return false;
+
+        var exceptionType = exception.GetType();
+        var typeName = exceptionType.Name;
+
+        // Calor's contract violation
+        if (typeName.Contains("ContractViolation")) return true;
+
+        // C#'s standard argument validation (fair comparison)
+        if (exception is ArgumentException) return true;  // Includes ArgumentNullException, ArgumentOutOfRangeException
+        if (typeName == "ArgumentException") return true;
+        if (typeName == "ArgumentNullException") return true;
+        if (typeName == "ArgumentOutOfRangeException") return true;
+
+        // Also accept InvalidOperationException as it's often used for precondition violations
+        if (exception is InvalidOperationException) return true;
+
+        return false;
     }
 
     private static object? ConvertJsonElement(JsonElement element)
