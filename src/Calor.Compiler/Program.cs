@@ -187,6 +187,8 @@ public class Program
         rootCommand.AddCommand(EffectsCommand.Create());
         rootCommand.AddCommand(VerifyCommand.Create());
         rootCommand.AddCommand(LspCommand.Create());
+        rootCommand.AddCommand(FeatureCheckCommand.Create());
+        rootCommand.AddCommand(CoverageCommand.Create());
 
         // Initialize telemetry for subcommands
         // Parse --no-telemetry early from args
@@ -223,6 +225,8 @@ public class Program
                 Console.WriteLine("  calor benchmark [options]                      Compare token economics");
                 Console.WriteLine("  calor init --ai <agent>                        Initialize for AI coding agents");
                 Console.WriteLine("  calor format <files>                           Format Calor source files");
+                Console.WriteLine("  calor feature-check <feature>                  Check C# feature support");
+                Console.WriteLine("  calor coverage <file>                          Analyze C# file for conversion coverage");
                 Console.WriteLine();
                 Console.WriteLine("Strictness options:");
                 Console.WriteLine("  --strict-api      Require §BREAKING markers for public API changes");
