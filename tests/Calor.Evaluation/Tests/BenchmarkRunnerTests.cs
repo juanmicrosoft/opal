@@ -93,8 +93,8 @@ public class BenchmarkRunnerTests
         Assert.Contains(calculators, c => c.Category == "TaskCompletion");
         Assert.Contains(calculators, c => c.Category == "Safety");
         Assert.Contains(calculators, c => c.Category == "EffectDiscipline");
-        // Calor-only metric
-        Assert.Contains(calculators, c => c.Category == "InteropEffectCoverage");
+        // Fair comparison metric
+        Assert.Contains(calculators, c => c.Category == "Correctness");
     }
 
     #endregion

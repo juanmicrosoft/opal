@@ -1,0 +1,553 @@
+{
+  "version": "1.0",
+  "description": "Code Correctness Benchmark - measures bug prevention through edge case handling",
+  "notes": "Tasks focus on common bug categories. Tests include edge cases that frequently cause bugs. Scoring is pure pass/fail on test cases.",
+  "tasks": [
+    {
+      "id": "null-001",
+      "name": "FindMaximum",
+      "category": "null-handling",
+      "difficulty": 1,
+      "description": "Find maximum value in array, handle empty/null",
+      "prompt": "Write a public function named FindMax that returns the maximum value in an integer array. Return -2147483648 (int.MinValue) if the array is null or empty.",
+      "testCases": [
+        { "input": [[3, 1, 4, 1, 5]], "expected": 5 },
+        { "input": [[42]], "expected": 42 },
+        { "input": [[-5, -2, -8]], "expected": -2 },
+        { "input": [[0]], "expected": 0 },
+        { "input": [[]], "expected": -2147483648, "isEdgeCase": true },
+        { "input": [null], "expected": -2147483648, "isEdgeCase": true }
+      ],
+      "expectedSignature": {
+        "functionName": "FindMax",
+        "parameterTypes": ["int[]"],
+        "returnType": "int"
+      },
+      "tags": ["null-safety", "arrays"]
+    },
+    {
+      "id": "null-002",
+      "name": "FindMinimum",
+      "category": "null-handling",
+      "difficulty": 1,
+      "description": "Find minimum value in array, handle empty/null",
+      "prompt": "Write a public function named FindMin that returns the minimum value in an integer array. Return 2147483647 (int.MaxValue) if the array is null or empty.",
+      "testCases": [
+        { "input": [[3, 1, 4, 1, 5]], "expected": 1 },
+        { "input": [[42]], "expected": 42 },
+        { "input": [[-5, -2, -8]], "expected": -8 },
+        { "input": [[0]], "expected": 0 },
+        { "input": [[]], "expected": 2147483647, "isEdgeCase": true },
+        { "input": [null], "expected": 2147483647, "isEdgeCase": true }
+      ],
+      "expectedSignature": {
+        "functionName": "FindMin",
+        "parameterTypes": ["int[]"],
+        "returnType": "int"
+      },
+      "tags": ["null-safety", "arrays"]
+    },
+    {
+      "id": "null-003",
+      "name": "StringLength",
+      "category": "null-handling",
+      "difficulty": 1,
+      "description": "Get string length, handle null",
+      "prompt": "Write a public function named SafeLength that returns the length of a string. Return 0 if the string is null.",
+      "testCases": [
+        { "input": ["hello"], "expected": 5 },
+        { "input": [""], "expected": 0 },
+        { "input": ["a"], "expected": 1 },
+        { "input": [null], "expected": 0, "isEdgeCase": true }
+      ],
+      "expectedSignature": {
+        "functionName": "SafeLength",
+        "parameterTypes": ["string"],
+        "returnType": "int"
+      },
+      "tags": ["null-safety", "strings"]
+    },
+    {
+      "id": "null-004",
+      "name": "FirstElement",
+      "category": "null-handling",
+      "difficulty": 1,
+      "description": "Get first element of array, handle empty/null",
+      "prompt": "Write a public function named FirstOrDefault that returns the first element of an integer array. Return 0 if the array is null or empty.",
+      "testCases": [
+        { "input": [[1, 2, 3]], "expected": 1 },
+        { "input": [[42]], "expected": 42 },
+        { "input": [[-5, 10]], "expected": -5 },
+        { "input": [[]], "expected": 0, "isEdgeCase": true },
+        { "input": [null], "expected": 0, "isEdgeCase": true }
+      ],
+      "expectedSignature": {
+        "functionName": "FirstOrDefault",
+        "parameterTypes": ["int[]"],
+        "returnType": "int"
+      },
+      "tags": ["null-safety", "arrays"]
+    },
+    {
+      "id": "null-005",
+      "name": "LastElement",
+      "category": "null-handling",
+      "difficulty": 1,
+      "description": "Get last element of array, handle empty/null",
+      "prompt": "Write a public function named LastOrDefault that returns the last element of an integer array. Return 0 if the array is null or empty.",
+      "testCases": [
+        { "input": [[1, 2, 3]], "expected": 3 },
+        { "input": [[42]], "expected": 42 },
+        { "input": [[-5, 10]], "expected": 10 },
+        { "input": [[]], "expected": 0, "isEdgeCase": true },
+        { "input": [null], "expected": 0, "isEdgeCase": true }
+      ],
+      "expectedSignature": {
+        "functionName": "LastOrDefault",
+        "parameterTypes": ["int[]"],
+        "returnType": "int"
+      },
+      "tags": ["null-safety", "arrays"]
+    },
+    {
+      "id": "arith-001",
+      "name": "SafeDivide",
+      "category": "arithmetic-safety",
+      "difficulty": 1,
+      "description": "Divide two integers, handle division by zero",
+      "prompt": "Write a public function named SafeDivide that divides integer a by integer b. Return 0 if b is zero.",
+      "testCases": [
+        { "input": [10, 2], "expected": 5 },
+        { "input": [7, 3], "expected": 2 },
+        { "input": [0, 5], "expected": 0 },
+        { "input": [-10, 2], "expected": -5 },
+        { "input": [10, -2], "expected": -5 },
+        { "input": [10, 0], "expected": 0, "isEdgeCase": true },
+        { "input": [0, 0], "expected": 0, "isEdgeCase": true }
+      ],
+      "expectedSignature": {
+        "functionName": "SafeDivide",
+        "parameterTypes": ["int", "int"],
+        "returnType": "int"
+      },
+      "tags": ["division-by-zero", "arithmetic"]
+    },
+    {
+      "id": "arith-002",
+      "name": "SafeModulo",
+      "category": "arithmetic-safety",
+      "difficulty": 1,
+      "description": "Modulo operation, handle division by zero",
+      "prompt": "Write a public function named SafeModulo that computes a modulo b. Return 0 if b is zero.",
+      "testCases": [
+        { "input": [10, 3], "expected": 1 },
+        { "input": [15, 5], "expected": 0 },
+        { "input": [7, 2], "expected": 1 },
+        { "input": [10, 0], "expected": 0, "isEdgeCase": true },
+        { "input": [0, 0], "expected": 0, "isEdgeCase": true }
+      ],
+      "expectedSignature": {
+        "functionName": "SafeModulo",
+        "parameterTypes": ["int", "int"],
+        "returnType": "int"
+      },
+      "tags": ["division-by-zero", "arithmetic"]
+    },
+    {
+      "id": "arith-003",
+      "name": "Average",
+      "category": "arithmetic-safety",
+      "difficulty": 2,
+      "description": "Calculate average of array, handle empty array",
+      "prompt": "Write a public function named Average that calculates the average of an integer array (using integer division). Return 0 if the array is null or empty.",
+      "testCases": [
+        { "input": [[1, 2, 3, 4, 5]], "expected": 3 },
+        { "input": [[10]], "expected": 10 },
+        { "input": [[1, 2]], "expected": 1 },
+        { "input": [[]], "expected": 0, "isEdgeCase": true },
+        { "input": [null], "expected": 0, "isEdgeCase": true }
+      ],
+      "expectedSignature": {
+        "functionName": "Average",
+        "parameterTypes": ["int[]"],
+        "returnType": "int"
+      },
+      "tags": ["division-by-zero", "arrays"]
+    },
+    {
+      "id": "arith-004",
+      "name": "Percentage",
+      "category": "arithmetic-safety",
+      "difficulty": 2,
+      "description": "Calculate percentage, handle division by zero",
+      "prompt": "Write a public function named Percentage that calculates what percentage value is of total (value * 100 / total). Return 0 if total is zero.",
+      "testCases": [
+        { "input": [50, 100], "expected": 50 },
+        { "input": [1, 4], "expected": 25 },
+        { "input": [3, 4], "expected": 75 },
+        { "input": [0, 100], "expected": 0 },
+        { "input": [50, 0], "expected": 0, "isEdgeCase": true }
+      ],
+      "expectedSignature": {
+        "functionName": "Percentage",
+        "parameterTypes": ["int", "int"],
+        "returnType": "int"
+      },
+      "tags": ["division-by-zero", "arithmetic"]
+    },
+    {
+      "id": "arith-005",
+      "name": "Clamp",
+      "category": "arithmetic-safety",
+      "difficulty": 1,
+      "description": "Clamp value between min and max bounds",
+      "prompt": "Write a public function named Clamp that returns value constrained between min and max. If value is less than min, return min. If value is greater than max, return max. Otherwise return value.",
+      "testCases": [
+        { "input": [5, 0, 10], "expected": 5 },
+        { "input": [15, 0, 10], "expected": 10, "isEdgeCase": true },
+        { "input": [-5, 0, 10], "expected": 0, "isEdgeCase": true },
+        { "input": [0, 0, 10], "expected": 0 },
+        { "input": [10, 0, 10], "expected": 10 },
+        { "input": [5, 5, 5], "expected": 5 }
+      ],
+      "expectedSignature": {
+        "functionName": "Clamp",
+        "parameterTypes": ["int", "int", "int"],
+        "returnType": "int"
+      },
+      "tags": ["bounds", "arithmetic"]
+    },
+    {
+      "id": "str-001",
+      "name": "Substring",
+      "category": "string-processing",
+      "difficulty": 2,
+      "description": "Extract substring safely",
+      "prompt": "Write a public function named SafeSubstring that returns a substring starting at index with given length. Return empty string if input is null, index is out of bounds, or length would exceed string bounds. Adjust length if needed to not exceed string end.",
+      "testCases": [
+        { "input": ["hello", 0, 5], "expected": "hello" },
+        { "input": ["hello", 1, 3], "expected": "ell" },
+        { "input": ["hello", 0, 10], "expected": "hello" },
+        { "input": ["hello", 5, 1], "expected": "" },
+        { "input": ["hello", -1, 3], "expected": "", "isEdgeCase": true },
+        { "input": [null, 0, 5], "expected": "", "isEdgeCase": true },
+        { "input": ["", 0, 1], "expected": "", "isEdgeCase": true }
+      ],
+      "expectedSignature": {
+        "functionName": "SafeSubstring",
+        "parameterTypes": ["string", "int", "int"],
+        "returnType": "string"
+      },
+      "tags": ["strings", "bounds"]
+    },
+    {
+      "id": "str-002",
+      "name": "CharAt",
+      "category": "string-processing",
+      "difficulty": 1,
+      "description": "Get character at index safely",
+      "prompt": "Write a public function named SafeCharAt that returns the character at the given index in a string. Return the null character (char code 0) if the string is null, empty, or index is out of bounds.",
+      "testCases": [
+        { "input": ["hello", 0], "expected": "h" },
+        { "input": ["hello", 4], "expected": "o" },
+        { "input": ["a", 0], "expected": "a" },
+        { "input": ["hello", 5], "expected": "\u0000", "isEdgeCase": true },
+        { "input": ["hello", -1], "expected": "\u0000", "isEdgeCase": true },
+        { "input": [null, 0], "expected": "\u0000", "isEdgeCase": true },
+        { "input": ["", 0], "expected": "\u0000", "isEdgeCase": true }
+      ],
+      "expectedSignature": {
+        "functionName": "SafeCharAt",
+        "parameterTypes": ["string", "int"],
+        "returnType": "char"
+      },
+      "tags": ["strings", "bounds"]
+    },
+    {
+      "id": "str-003",
+      "name": "TrimToLength",
+      "category": "string-processing",
+      "difficulty": 1,
+      "description": "Trim string to maximum length",
+      "prompt": "Write a public function named TrimToLength that returns the string trimmed to at most maxLength characters. Return empty string if input is null. Return the original string if it's already shorter than maxLength.",
+      "testCases": [
+        { "input": ["hello world", 5], "expected": "hello" },
+        { "input": ["hi", 10], "expected": "hi" },
+        { "input": ["test", 4], "expected": "test" },
+        { "input": ["test", 0], "expected": "" },
+        { "input": [null, 5], "expected": "", "isEdgeCase": true },
+        { "input": ["", 5], "expected": "" }
+      ],
+      "expectedSignature": {
+        "functionName": "TrimToLength",
+        "parameterTypes": ["string", "int"],
+        "returnType": "string"
+      },
+      "tags": ["strings", "bounds"]
+    },
+    {
+      "id": "str-004",
+      "name": "CountOccurrences",
+      "category": "string-processing",
+      "difficulty": 2,
+      "description": "Count occurrences of character in string",
+      "prompt": "Write a public function named CountChar that counts how many times a character appears in a string. Return 0 if the string is null or empty.",
+      "testCases": [
+        { "input": ["hello", "l"], "expected": 2 },
+        { "input": ["hello", "o"], "expected": 1 },
+        { "input": ["hello", "x"], "expected": 0 },
+        { "input": ["aaa", "a"], "expected": 3 },
+        { "input": [null, "a"], "expected": 0, "isEdgeCase": true },
+        { "input": ["", "a"], "expected": 0, "isEdgeCase": true }
+      ],
+      "expectedSignature": {
+        "functionName": "CountChar",
+        "parameterTypes": ["string", "char"],
+        "returnType": "int"
+      },
+      "tags": ["strings", "counting"]
+    },
+    {
+      "id": "str-005",
+      "name": "ReplaceFirst",
+      "category": "string-processing",
+      "difficulty": 2,
+      "description": "Replace first occurrence of character",
+      "prompt": "Write a public function named ReplaceFirst that replaces the first occurrence of oldChar with newChar in a string. Return empty string if input is null. Return original string if oldChar is not found.",
+      "testCases": [
+        { "input": ["hello", "l", "x"], "expected": "hexlo" },
+        { "input": ["hello", "h", "j"], "expected": "jello" },
+        { "input": ["hello", "x", "y"], "expected": "hello" },
+        { "input": [null, "a", "b"], "expected": "", "isEdgeCase": true },
+        { "input": ["", "a", "b"], "expected": "" }
+      ],
+      "expectedSignature": {
+        "functionName": "ReplaceFirst",
+        "parameterTypes": ["string", "char", "char"],
+        "returnType": "string"
+      },
+      "tags": ["strings", "replacement"]
+    },
+    {
+      "id": "coll-001",
+      "name": "SafeGet",
+      "category": "collection-operations",
+      "difficulty": 1,
+      "description": "Get element at index with default",
+      "prompt": "Write a public function named SafeGet that returns the element at the given index in an integer array. Return the defaultValue if the array is null or index is out of bounds.",
+      "testCases": [
+        { "input": [[1, 2, 3], 1, 0], "expected": 2 },
+        { "input": [[1, 2, 3], 0, 0], "expected": 1 },
+        { "input": [[1, 2, 3], 2, 0], "expected": 3 },
+        { "input": [[1, 2, 3], 5, -1], "expected": -1, "isEdgeCase": true },
+        { "input": [[1, 2, 3], -1, -1], "expected": -1, "isEdgeCase": true },
+        { "input": [[], 0, 42], "expected": 42, "isEdgeCase": true },
+        { "input": [null, 0, 99], "expected": 99, "isEdgeCase": true }
+      ],
+      "expectedSignature": {
+        "functionName": "SafeGet",
+        "parameterTypes": ["int[]", "int", "int"],
+        "returnType": "int"
+      },
+      "tags": ["arrays", "bounds"]
+    },
+    {
+      "id": "coll-002",
+      "name": "Sum",
+      "category": "collection-operations",
+      "difficulty": 1,
+      "description": "Sum all elements in array",
+      "prompt": "Write a public function named Sum that returns the sum of all elements in an integer array. Return 0 if the array is null or empty.",
+      "testCases": [
+        { "input": [[1, 2, 3, 4, 5]], "expected": 15 },
+        { "input": [[10]], "expected": 10 },
+        { "input": [[-1, 1]], "expected": 0 },
+        { "input": [[]], "expected": 0, "isEdgeCase": true },
+        { "input": [null], "expected": 0, "isEdgeCase": true }
+      ],
+      "expectedSignature": {
+        "functionName": "Sum",
+        "parameterTypes": ["int[]"],
+        "returnType": "int"
+      },
+      "tags": ["arrays", "aggregation"]
+    },
+    {
+      "id": "coll-003",
+      "name": "Contains",
+      "category": "collection-operations",
+      "difficulty": 1,
+      "description": "Check if array contains value",
+      "prompt": "Write a public function named Contains that returns true if the integer array contains the given value, false otherwise. Return false if the array is null or empty.",
+      "testCases": [
+        { "input": [[1, 2, 3], 2], "expected": true },
+        { "input": [[1, 2, 3], 4], "expected": false },
+        { "input": [[5], 5], "expected": true },
+        { "input": [[], 1], "expected": false, "isEdgeCase": true },
+        { "input": [null, 1], "expected": false, "isEdgeCase": true }
+      ],
+      "expectedSignature": {
+        "functionName": "Contains",
+        "parameterTypes": ["int[]", "int"],
+        "returnType": "bool"
+      },
+      "tags": ["arrays", "search"]
+    },
+    {
+      "id": "coll-004",
+      "name": "IndexOf",
+      "category": "collection-operations",
+      "difficulty": 1,
+      "description": "Find index of value in array",
+      "prompt": "Write a public function named IndexOf that returns the index of the first occurrence of value in an integer array. Return -1 if not found or if the array is null or empty.",
+      "testCases": [
+        { "input": [[1, 2, 3, 2], 2], "expected": 1 },
+        { "input": [[1, 2, 3], 1], "expected": 0 },
+        { "input": [[1, 2, 3], 3], "expected": 2 },
+        { "input": [[1, 2, 3], 4], "expected": -1 },
+        { "input": [[], 1], "expected": -1, "isEdgeCase": true },
+        { "input": [null, 1], "expected": -1, "isEdgeCase": true }
+      ],
+      "expectedSignature": {
+        "functionName": "IndexOf",
+        "parameterTypes": ["int[]", "int"],
+        "returnType": "int"
+      },
+      "tags": ["arrays", "search"]
+    },
+    {
+      "id": "coll-005",
+      "name": "CountValue",
+      "category": "collection-operations",
+      "difficulty": 1,
+      "description": "Count occurrences of value in array",
+      "prompt": "Write a public function named CountValue that counts how many times a value appears in an integer array. Return 0 if the array is null or empty.",
+      "testCases": [
+        { "input": [[1, 2, 2, 3, 2], 2], "expected": 3 },
+        { "input": [[1, 1, 1], 1], "expected": 3 },
+        { "input": [[1, 2, 3], 4], "expected": 0 },
+        { "input": [[], 1], "expected": 0, "isEdgeCase": true },
+        { "input": [null, 1], "expected": 0, "isEdgeCase": true }
+      ],
+      "expectedSignature": {
+        "functionName": "CountValue",
+        "parameterTypes": ["int[]", "int"],
+        "returnType": "int"
+      },
+      "tags": ["arrays", "counting"]
+    },
+    {
+      "id": "boundary-001",
+      "name": "BinarySearchIndex",
+      "category": "boundary-conditions",
+      "difficulty": 3,
+      "description": "Binary search with correct boundary handling",
+      "prompt": "Write a public function named BinarySearch that searches for a value in a sorted integer array and returns its index. Return -1 if not found or if the array is null or empty. The array is guaranteed to be sorted in ascending order.",
+      "testCases": [
+        { "input": [[1, 2, 3, 4, 5], 3], "expected": 2 },
+        { "input": [[1, 2, 3, 4, 5], 1], "expected": 0 },
+        { "input": [[1, 2, 3, 4, 5], 5], "expected": 4 },
+        { "input": [[1, 2, 3, 4, 5], 6], "expected": -1 },
+        { "input": [[1, 2, 3, 4, 5], 0], "expected": -1 },
+        { "input": [[5], 5], "expected": 0 },
+        { "input": [[5], 3], "expected": -1 },
+        { "input": [[], 1], "expected": -1, "isEdgeCase": true },
+        { "input": [null, 1], "expected": -1, "isEdgeCase": true }
+      ],
+      "expectedSignature": {
+        "functionName": "BinarySearch",
+        "parameterTypes": ["int[]", "int"],
+        "returnType": "int"
+      },
+      "tags": ["algorithms", "bounds"]
+    },
+    {
+      "id": "boundary-002",
+      "name": "InRange",
+      "category": "boundary-conditions",
+      "difficulty": 1,
+      "description": "Check if value is in inclusive range",
+      "prompt": "Write a public function named InRange that returns true if value is between min and max (inclusive), false otherwise.",
+      "testCases": [
+        { "input": [5, 1, 10], "expected": true },
+        { "input": [1, 1, 10], "expected": true },
+        { "input": [10, 1, 10], "expected": true },
+        { "input": [0, 1, 10], "expected": false, "isEdgeCase": true },
+        { "input": [11, 1, 10], "expected": false, "isEdgeCase": true },
+        { "input": [5, 5, 5], "expected": true }
+      ],
+      "expectedSignature": {
+        "functionName": "InRange",
+        "parameterTypes": ["int", "int", "int"],
+        "returnType": "bool"
+      },
+      "tags": ["bounds", "conditionals"]
+    },
+    {
+      "id": "boundary-003",
+      "name": "WrapIndex",
+      "category": "boundary-conditions",
+      "difficulty": 2,
+      "description": "Wrap array index to valid range",
+      "prompt": "Write a public function named WrapIndex that wraps an index to be within array bounds using modulo. Return 0 if length is zero or negative. For negative indices, wrap them to the end of the array.",
+      "testCases": [
+        { "input": [2, 5], "expected": 2 },
+        { "input": [5, 5], "expected": 0 },
+        { "input": [7, 5], "expected": 2 },
+        { "input": [-1, 5], "expected": 4, "isEdgeCase": true },
+        { "input": [-6, 5], "expected": 4, "isEdgeCase": true },
+        { "input": [0, 0], "expected": 0, "isEdgeCase": true },
+        { "input": [5, -1], "expected": 0, "isEdgeCase": true }
+      ],
+      "expectedSignature": {
+        "functionName": "WrapIndex",
+        "parameterTypes": ["int", "int"],
+        "returnType": "int"
+      },
+      "tags": ["bounds", "modulo"]
+    },
+    {
+      "id": "boundary-004",
+      "name": "Midpoint",
+      "category": "boundary-conditions",
+      "difficulty": 2,
+      "description": "Calculate midpoint without overflow",
+      "prompt": "Write a public function named Midpoint that calculates the midpoint between two integers without overflow. Use the formula: low + (high - low) / 2.",
+      "testCases": [
+        { "input": [0, 10], "expected": 5 },
+        { "input": [1, 5], "expected": 3 },
+        { "input": [0, 1], "expected": 0 },
+        { "input": [0, 0], "expected": 0 },
+        { "input": [2000000000, 2000000000], "expected": 2000000000 },
+        { "input": [2000000000, 2000000001], "expected": 2000000000 }
+      ],
+      "expectedSignature": {
+        "functionName": "Midpoint",
+        "parameterTypes": ["int", "int"],
+        "returnType": "int"
+      },
+      "tags": ["overflow", "arithmetic"]
+    },
+    {
+      "id": "boundary-005",
+      "name": "SafeIncrement",
+      "category": "boundary-conditions",
+      "difficulty": 2,
+      "description": "Increment without overflow",
+      "prompt": "Write a public function named SafeIncrement that increments an integer by 1, but returns int.MaxValue (2147483647) if the value is already at int.MaxValue.",
+      "testCases": [
+        { "input": [0], "expected": 1 },
+        { "input": [99], "expected": 100 },
+        { "input": [-1], "expected": 0 },
+        { "input": [2147483646], "expected": 2147483647 },
+        { "input": [2147483647], "expected": 2147483647, "isEdgeCase": true }
+      ],
+      "expectedSignature": {
+        "functionName": "SafeIncrement",
+        "parameterTypes": ["int"],
+        "returnType": "int"
+      },
+      "tags": ["overflow", "arithmetic"]
+    }
+  ]
+}

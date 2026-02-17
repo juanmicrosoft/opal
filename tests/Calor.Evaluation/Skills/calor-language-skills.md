@@ -91,6 +91,53 @@ Use contracts to express requirements and guarantees mentioned in the task:
 **Preconditions (`§Q`)** express what callers must guarantee.
 **Postconditions (`§S`)** express what the function guarantees to return.
 
+### Null-Safety Pattern for Reference Types
+
+**CRITICAL: When working with arrays or strings, always check for null BEFORE checking length or other properties.**
+
+The `(len arr)` operation will throw `NullReferenceException` if `arr` is null. Contracts are evaluated in order, so place null checks first:
+
+```calor
+// WRONG - If arr is null, (len arr) throws NullReferenceException BEFORE the contract can fail
+§Q (> (len arr) 0)              // ❌ Crashes on null input
+
+// CORRECT - Check null first, then length
+§Q (!= arr null)                // ✓ First: reject null
+§Q (> (len arr) 0)              // ✓ Then: check length (safe because arr is not null)
+```
+
+**Common patterns for reference type validation:**
+
+| Requirement | Contracts (in order) |
+|-------------|---------------------|
+| "array must not be null" | `§Q (!= arr null)` |
+| "array must not be empty" | `§Q (!= arr null)` then `§Q (> (len arr) 0)` |
+| "array must have at least N elements" | `§Q (!= arr null)` then `§Q (>= (len arr) N)` |
+| "string must not be null or empty" | `§Q (!= s null)` then `§Q (> (len s) 0)` |
+| "string must not be null" | `§Q (!= s null)` |
+
+**Example - Array Max function:**
+```calor
+§F{f001:Max:pub}
+  §I{[i32]:arr}
+  §O{i32}
+  §Q (!= arr null)              // First: array must not be null
+  §Q (> (len arr) 0)            // Then: array must have elements
+  §B{max} §IDX arr 0
+  §B{i} 1
+  §WH{wh1} (< i (len arr))
+    §B{current} §IDX arr i
+    §IF{if1} (> current max)
+      §ASSIGN max current
+    §/I{if1}
+    §ASSIGN i (+ i 1)
+  §/WH{wh1}
+  §R max
+§/F{f001}
+```
+
+**Why this matters:** Without the null check, passing `null` causes a runtime crash (`NullReferenceException`) instead of a clean contract violation (`ContractViolationException`). The null check ensures invalid inputs are rejected with a proper error message.
+
 ### Syntax Quick Reference
 
 #### Function Structure
@@ -113,6 +160,24 @@ Use contracts to express requirements and guarantees mentioned in the task:
 | `bool` | Boolean |
 | `str` | String |
 | `void` | No return value |
+
+#### Numeric Literals and Constants
+
+**IMPORTANT: For extreme integer values, use typed literals:**
+```calor
+INT:-2147483648    // int.MinValue (-2^31)
+INT:2147483647     // int.MaxValue (2^31 - 1)
+```
+
+**WRONG - Don't try to construct MinValue with arithmetic:**
+```calor
+(- 0 2147483648)   // ❌ ERROR - 2147483648 exceeds i32 range
+```
+
+**CORRECT - Use typed literal directly:**
+```calor
+§R INT:-2147483648  // ✓ Returns int.MinValue
+```
 
 #### Expressions (Prefix Notation)
 ```calor
@@ -324,10 +389,11 @@ Use contracts to express requirements and guarantees mentioned in the task:
 // Access element at index - use §IDX (NO braces around array name)
 §B{elem} §IDX arr 0                         // arr[0]
 §B{elem} §IDX arr i                         // arr[i]
-§B{last} §IDX arr §^ 1                      // arr[^1] - last element
+§B{last} §IDX arr (- (len arr) 1)           // arr[arr.Length - 1] - last element
 
 // WRONG: These do NOT work
 // §IDX{arr} i      ❌ ERROR - braces cause parsing issues
+// §IDX arr §^ 1    ❌ ERROR - §^ syntax not supported
 // (get arr i)      ❌ ERROR - not valid
 // (at arr i)       ❌ ERROR - not valid
 // arr[i]           ❌ ERROR - no C# indexer syntax
@@ -366,14 +432,20 @@ Use contracts to express requirements and guarantees mentioned in the task:
 §/F{f001}
 ```
 
-**CRITICAL: Don't mix tag-style (§IDX) inside Lisp expressions:**
+**CRITICAL: Don't mix tag-style (§IDX) inside Lisp expressions or contracts:**
 ```calor
 // WRONG: §IDX inside Lisp expression
 §ASSIGN sum (+ sum §IDX data i)     // ❌ ERROR - can't nest §IDX in (...)
 
+// WRONG: §IDX inside contract
+§S (== result §IDX arr 0)           // ❌ ERROR - can't nest §IDX in contracts
+
 // CORRECT: Use a binding first
 §B{val} §IDX data i
 §ASSIGN sum (+ sum val)             // ✓ Works - val is a simple identifier
+
+// CORRECT: For contracts referencing array elements, use simple postconditions
+§S (>= result 0)                    // ✓ Simple value constraint
 ```
 
 #### Control Flow
@@ -761,6 +833,33 @@ These examples show correct patterns for common string tasks:
 ```
 
 ## Common Mistakes to Avoid
+
+### Null-Check Ordering Mistakes (CRITICAL)
+
+**WRONG - Checking length without null check first:**
+```calor
+// WRONG: If arr is null, this throws NullReferenceException, not ContractViolationException
+§F{f001:Max:pub}
+  §I{[i32]:arr}
+  §O{i32}
+  §Q (> (len arr) 0)            // ❌ Crashes if arr is null!
+  // ...
+§/F{f001}
+```
+
+**CORRECT - Always check null BEFORE length:**
+```calor
+// CORRECT: Null check first, then length check
+§F{f001:Max:pub}
+  §I{[i32]:arr}
+  §O{i32}
+  §Q (!= arr null)              // ✓ First: reject null
+  §Q (> (len arr) 0)            // ✓ Then: check length (safe now)
+  // ...
+§/F{f001}
+```
+
+**Why this matters:** Contracts are evaluated in order. If you call `(len arr)` when `arr` is null, you get a crash instead of a proper contract violation. Always guard reference types with `(!= x null)` before accessing their properties.
 
 ### String Operation Mistakes
 
