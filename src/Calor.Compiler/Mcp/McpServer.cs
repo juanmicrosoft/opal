@@ -89,62 +89,27 @@ public sealed class McpServer
     }
 
     /// <summary>
-    /// Reads a message from the input stream using Content-Length header.
+    /// Reads a message from the input stream.
+    /// MCP stdio uses newline-delimited JSON (NDJSON) - each message is a single line.
     /// </summary>
     private async Task<string?> ReadMessageAsync(StreamReader reader, CancellationToken cancellationToken)
     {
-        // Read headers until empty line
-        int contentLength = -1;
-        string? line;
+        // Read a single line - MCP uses newline-delimited JSON
+        var line = await reader.ReadLineAsync(cancellationToken);
 
-        while ((line = await reader.ReadLineAsync(cancellationToken)) != null)
-        {
-            if (string.IsNullOrEmpty(line))
-            {
-                // Empty line signals end of headers
-                break;
-            }
-
-            if (line.StartsWith("Content-Length:", StringComparison.OrdinalIgnoreCase))
-            {
-                var lengthStr = line["Content-Length:".Length..].Trim();
-                if (int.TryParse(lengthStr, out var length))
-                {
-                    contentLength = length;
-                }
-            }
-            // Ignore other headers (e.g., Content-Type)
-        }
-
-        // Check for end of stream
         if (line == null)
         {
             return null;
         }
 
-        if (contentLength <= 0)
+        // Skip empty lines
+        if (string.IsNullOrWhiteSpace(line))
         {
-            Log("No Content-Length header found");
-            return null;
+            return await ReadMessageAsync(reader, cancellationToken);
         }
 
-        Log($"Reading message body: {contentLength} bytes");
-
-        // Read the message body
-        var buffer = new char[contentLength];
-        var totalRead = 0;
-        while (totalRead < contentLength)
-        {
-            var read = await reader.ReadAsync(buffer.AsMemory(totalRead, contentLength - totalRead), cancellationToken);
-            if (read == 0)
-            {
-                Log("Unexpected end of stream while reading body");
-                return null;
-            }
-            totalRead += read;
-        }
-
-        return new string(buffer);
+        Log($"Read message: {line.Length} bytes");
+        return line;
     }
 
     /// <summary>
@@ -182,17 +147,17 @@ public sealed class McpServer
     }
 
     /// <summary>
-    /// Writes a message with Content-Length header to the output stream.
+    /// Writes a message to the output stream.
+    /// MCP stdio uses newline-delimited JSON (NDJSON) - each message is a single line.
     /// </summary>
     private async Task WriteMessageAsync(string content)
     {
-        var bytes = Encoding.UTF8.GetBytes(content);
-        var header = $"Content-Length: {bytes.Length}\r\n\r\n";
-        var headerBytes = Encoding.ASCII.GetBytes(header);
+        // MCP uses newline-delimited JSON - write message followed by newline
+        var message = content + "\n";
+        var bytes = Encoding.UTF8.GetBytes(message);
 
-        Log($"Sending response: {bytes.Length} bytes");
+        Log($"Sending response: {content.Length} bytes");
 
-        await _output.WriteAsync(headerBytes);
         await _output.WriteAsync(bytes);
         await _output.FlushAsync();
     }
