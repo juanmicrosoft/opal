@@ -174,6 +174,8 @@ public enum TokenKind
     Init,
     Constructor,
     EndConstructor,
+    OperatorOverload,       // §OP
+    EndOperatorOverload,    // §/OP
     BaseCall,
     EndBaseCall,
     Assign,

@@ -307,23 +307,20 @@ public static class FeatureSupport
         ["operator-overload"] = new FeatureInfo
         {
             Name = "operator-overload",
-            Support = SupportLevel.ManualRequired,
-            Description = "Operator overloading requires manual conversion",
-            Workaround = "Define explicit methods instead"
+            Support = SupportLevel.Full,
+            Description = "Fully supported via §OP tags"
         },
         ["implicit-conversion"] = new FeatureInfo
         {
             Name = "implicit-conversion",
-            Support = SupportLevel.ManualRequired,
-            Description = "Implicit conversions require manual handling",
-            Workaround = "Use explicit conversion methods"
+            Support = SupportLevel.Full,
+            Description = "Fully supported via §OP tags with implicit operator"
         },
         ["explicit-conversion"] = new FeatureInfo
         {
             Name = "explicit-conversion",
-            Support = SupportLevel.ManualRequired,
-            Description = "Explicit conversions require manual handling",
-            Workaround = "Use explicit conversion methods"
+            Support = SupportLevel.Full,
+            Description = "Fully supported via §OP tags with explicit operator"
         },
 
         // Additional features based on agent feedback
@@ -351,9 +348,8 @@ public static class FeatureSupport
         ["equals-operator"] = new FeatureInfo
         {
             Name = "equals-operator",
-            Support = SupportLevel.ManualRequired,
-            Description = "Custom == and != operator overloading requires manual conversion",
-            Workaround = "Define an Equals method instead"
+            Support = SupportLevel.Full,
+            Description = "Fully supported via §OP tags with == operator"
         },
         ["primary-constructor"] = new FeatureInfo
         {
