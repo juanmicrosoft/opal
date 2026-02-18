@@ -37,6 +37,13 @@ public sealed class McpMessageHandler
         RegisterTool(new VerifyContractsTool());
         RegisterTool(new ValidateSnippetTool());
         RegisterTool(new CompatCheckTool());
+
+        // LSP-style navigation tools
+        RegisterTool(new GotoDefinitionTool());
+        RegisterTool(new FindReferencesTool());
+        RegisterTool(new SymbolInfoTool());
+        RegisterTool(new DocumentOutlineTool());
+        RegisterTool(new FindSymbolTool());
     }
 
     private void RegisterTool(IMcpTool tool)
