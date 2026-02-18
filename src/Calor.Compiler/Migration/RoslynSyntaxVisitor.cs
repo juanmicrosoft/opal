@@ -2,6 +2,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Calor.Compiler.Ast;
+using Calor.Compiler.CodeGen;
 using Calor.Compiler.Parsing;
 
 namespace Calor.Compiler.Migration;
@@ -1681,6 +1682,8 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
             CollectionExpressionSyntax collection => ConvertCollectionExpression(collection),
             ImplicitObjectCreationExpressionSyntax implicitNew => ConvertImplicitObjectCreation(implicitNew),
             SwitchExpressionSyntax switchExpr => ConvertSwitchExpression(switchExpr),
+            ThrowExpressionSyntax throwExpr => ConvertThrowExpression(throwExpr),
+            DefaultExpressionSyntax defaultExpr => ConvertDefaultExpression(defaultExpr),
             _ => CreateFallbackExpression(expression, "unknown-expression")
         };
     }
@@ -1707,6 +1710,8 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
                 new BoolLiteralNode(GetTextSpan(literal), false),
             SyntaxKind.NullLiteralExpression =>
                 new ReferenceNode(GetTextSpan(literal), "null"),
+            SyntaxKind.DefaultLiteralExpression =>
+                new ReferenceNode(GetTextSpan(literal), "default"),
             _ => CreateFallbackExpression(literal, "unknown-literal")
         };
     }
@@ -1844,14 +1849,52 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
     private ExpressionNode ConvertImplicitObjectCreation(ImplicitObjectCreationExpressionSyntax implicitNew)
     {
         // Convert target-typed new: new() or new(args)
-        // Use "default" for parameterless, otherwise create a fallback
+        // Use "default" for parameterless, otherwise emit NewExpressionNode with "object" placeholder
         if (implicitNew.ArgumentList == null || implicitNew.ArgumentList.Arguments.Count == 0)
         {
             return new ReferenceNode(GetTextSpan(implicitNew), "default");
         }
 
-        // Implicit new with arguments needs explicit type - create fallback
-        return CreateFallbackExpression(implicitNew, "implicit-new-with-args");
+        _context.RecordFeatureUsage("target-typed-new");
+        _context.IncrementConverted();
+        var args = implicitNew.ArgumentList.Arguments
+            .Select(a => ConvertExpression(a.Expression)).ToList();
+        var initializers = new List<ObjectInitializerAssignment>();
+        if (implicitNew.Initializer != null)
+        {
+            foreach (var expr in implicitNew.Initializer.Expressions)
+            {
+                if (expr is AssignmentExpressionSyntax assignment)
+                    initializers.Add(new ObjectInitializerAssignment(
+                        assignment.Left.ToString(), ConvertExpression(assignment.Right)));
+            }
+        }
+        return new NewExpressionNode(GetTextSpan(implicitNew), "object", new List<string>(), args, initializers);
+    }
+
+    private ExpressionNode ConvertThrowExpression(ThrowExpressionSyntax throwExpr)
+    {
+        _context.RecordFeatureUsage("throw-expression");
+        _context.IncrementConverted();
+        var inner = ConvertExpression(throwExpr.Expression);
+        if (inner is NewExpressionNode newExpr && newExpr.Arguments.Count > 0)
+            return new ErrExpressionNode(GetTextSpan(throwExpr), newExpr.Arguments[0]);
+        return new ErrExpressionNode(GetTextSpan(throwExpr), inner);
+    }
+
+    private ExpressionNode ConvertDefaultExpression(DefaultExpressionSyntax defaultExpr)
+    {
+        _context.RecordFeatureUsage("default-expression");
+        _context.IncrementConverted();
+        var typeName = defaultExpr.Type.ToString();
+        return typeName switch
+        {
+            "int" or "Int32" or "long" or "Int64" or "short" or "byte" => new IntLiteralNode(GetTextSpan(defaultExpr), 0),
+            "double" or "float" or "decimal" or "Double" or "Single" => new FloatLiteralNode(GetTextSpan(defaultExpr), 0.0),
+            "bool" or "Boolean" => new BoolLiteralNode(GetTextSpan(defaultExpr), false),
+            "string" or "String" => new ReferenceNode(GetTextSpan(defaultExpr), "null"),
+            _ => new ReferenceNode(GetTextSpan(defaultExpr), "default")
+        };
     }
 
     private UnaryOperationNode ConvertPrefixUnaryExpression(PrefixUnaryExpressionSyntax prefix)
@@ -2556,6 +2599,20 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
         _context.RecordFeatureUsage("null-conditional");
 
         var target = ConvertExpression(condAccess.Expression);
+
+        // When WhenNotNull is a method call (e.g., obj?.Method(x)),
+        // decompose and convert args through the AST pipeline
+        if (condAccess.WhenNotNull is InvocationExpressionSyntax invocation
+            && invocation.Expression is MemberBindingExpressionSyntax memberBinding)
+        {
+            _context.RecordFeatureUsage("null-conditional-method");
+            var methodName = memberBinding.Name.Identifier.Text;
+            var convertedArgs = invocation.ArgumentList.Arguments
+                .Select(a => ConvertExpression(a.Expression));
+            var csharpEmitter = new CSharpEmitter();
+            var argsStr = string.Join(", ", convertedArgs.Select(a => a.Accept(csharpEmitter)));
+            return new NullConditionalNode(GetTextSpan(condAccess), target, $"{methodName}({argsStr})");
+        }
 
         // WhenNotNull is a MemberBindingExpression which starts with '.' (e.g., ".Status")
         // We need to strip the leading dot since the emitter adds its own "?."

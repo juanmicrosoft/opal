@@ -379,16 +379,16 @@ public static class FeatureSupport
         ["target-typed-new"] = new FeatureInfo
         {
             Name = "target-typed-new",
-            Support = SupportLevel.NotSupported,
-            Description = "Target-typed new expressions (new()) are not supported",
-            Workaround = "Use explicit type in new expression: new TypeName()"
+            Support = SupportLevel.Partial,
+            Description = "Target-typed new with arguments is converted using 'object' placeholder type",
+            Workaround = "Review and replace 'object' with the correct type name"
         },
         ["null-conditional-method"] = new FeatureInfo
         {
             Name = "null-conditional-method",
-            Support = SupportLevel.NotSupported,
-            Description = "Null-conditional method calls (obj?.Method()) are not supported",
-            Workaround = "Use explicit null check: if (obj != null) obj.Method()"
+            Support = SupportLevel.Partial,
+            Description = "Null-conditional method calls (obj?.Method()) are converted with AST-based args",
+            Workaround = "Review converted null-conditional method calls for correctness"
         },
         ["named-argument"] = new FeatureInfo
         {
@@ -400,16 +400,16 @@ public static class FeatureSupport
         ["declaration-pattern"] = new FeatureInfo
         {
             Name = "declaration-pattern",
-            Support = SupportLevel.NotSupported,
-            Description = "Declaration patterns (is Type varName) are not supported",
-            Workaround = "Check type separately and cast to a new variable"
+            Support = SupportLevel.Partial,
+            Description = "Declaration patterns (is Type varName) are converted via TypeOperationNode",
+            Workaround = "Review converted type checks for variable binding correctness"
         },
         ["throw-expression"] = new FeatureInfo
         {
             Name = "throw-expression",
-            Support = SupportLevel.NotSupported,
-            Description = "Throw expressions (?? throw new ...) are not supported",
-            Workaround = "Use explicit if-throw statement"
+            Support = SupportLevel.Partial,
+            Description = "Throw expressions are converted to §ERR nodes",
+            Workaround = "Review converted §ERR expressions for error semantics"
         },
         ["nested-generic-type"] = new FeatureInfo
         {

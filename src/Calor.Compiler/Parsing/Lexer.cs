@@ -127,6 +127,7 @@ public sealed class Lexer
         ["BASE"] = TokenKind.Base,
         ["/BASE"] = TokenKind.EndBase,
         ["NEW"] = TokenKind.New,
+        ["/NEW"] = TokenKind.EndNew,
         ["FLD"] = TokenKind.FieldDef,
 
         // Properties and Constructors

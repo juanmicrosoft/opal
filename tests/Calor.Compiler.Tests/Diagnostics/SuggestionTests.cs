@@ -204,13 +204,13 @@ public class SuggestionTests
     public void Lexer_UnknownClosingTag_ErrorMessage_ShowsSingleSlash()
     {
         var diagnostics = new DiagnosticBag();
-        var lexer = new Lexer("§/NEW", diagnostics);
+        var lexer = new Lexer("§/NEWX", diagnostics);
         lexer.TokenizeAll();
 
         Assert.True(diagnostics.HasErrors);
         var error = diagnostics.First(d => d.IsError);
-        Assert.Contains("§/NEW", error.Message);
-        Assert.DoesNotContain("§//NEW", error.Message);
+        Assert.Contains("§/NEWX", error.Message);
+        Assert.DoesNotContain("§//NEWX", error.Message);
     }
 
     [Fact]

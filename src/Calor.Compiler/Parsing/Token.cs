@@ -161,6 +161,7 @@ public enum TokenKind
     Base,
     EndBase,
     New,
+    EndNew,
     FieldDef,
 
     // Phase 9: Properties and Constructors

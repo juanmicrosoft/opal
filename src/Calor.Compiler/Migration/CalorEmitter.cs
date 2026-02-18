@@ -1220,6 +1220,10 @@ public sealed class CalorEmitter : IAstVisitor<string>
     public string Visit(FieldAccessNode node)
     {
         var target = node.Target.Accept(this);
+        if (node.Target is ThisExpressionNode)
+            target = "this";
+        else if (node.Target is BaseExpressionNode)
+            target = "base";
         return $"{target}.{node.FieldName}";
     }
 
@@ -1240,7 +1244,7 @@ public sealed class CalorEmitter : IAstVisitor<string>
             initStr = $" {{ {string.Join(", ", inits)} }}";
         }
 
-        return $"§NEW{{{node.TypeName}{typeArgs}}}{argsStr}{initStr}";
+        return $"§NEW{{{node.TypeName}{typeArgs}}}{argsStr}{initStr} §/NEW";
     }
 
     public string Visit(CallExpressionNode node)
