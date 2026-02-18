@@ -56,7 +56,7 @@ public sealed class McpMessageHandler
             return request.Method switch
             {
                 "initialize" => HandleInitialize(request),
-                "initialized" => null, // Notification, no response
+                "notifications/initialized" => null, // Notification, no response
                 "tools/list" => HandleToolsList(request),
                 "tools/call" => await HandleToolsCallAsync(request),
                 "ping" => HandlePing(request),
