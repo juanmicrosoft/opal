@@ -99,7 +99,7 @@ public class McpServerTests
         var handler = new McpMessageHandler();
         var request = new JsonRpcRequest
         {
-            Method = "initialized"
+            Method = "notifications/initialized"
         };
 
         var response = await handler.HandleRequestAsync(request);
