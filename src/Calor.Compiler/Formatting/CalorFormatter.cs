@@ -504,7 +504,7 @@ public sealed class CalorFormatter
             NoneExpressionNode none => none.TypeName != null ? $"§NN{{{none.TypeName}}}" : "§NN",
             OkExpressionNode ok => $"§OK {FormatExpression(ok.Value)}",
             ErrExpressionNode err => $"§ERR {FormatExpression(err.Error)}",
-            NewExpressionNode newExpr => $"§NEW{{{newExpr.TypeName}}} {string.Join(" ", newExpr.Arguments.Select(FormatExpression))}".TrimEnd(),
+            NewExpressionNode newExpr => $"§NEW{{{newExpr.TypeName}}} {string.Join(" ", newExpr.Arguments.Select(FormatExpression))} §/NEW".TrimEnd(),
             RecordCreationNode rec => FormatRecordCreation(rec),
             FieldAccessNode field => $"{FormatExpression(field.Target)}.{field.FieldName}",
             ArrayAccessNode arr => $"{FormatExpression(arr.Array)}[{FormatExpression(arr.Index)}]",
@@ -547,7 +547,7 @@ public sealed class CalorFormatter
     private string FormatRecordCreation(RecordCreationNode rec)
     {
         var fields = string.Join(" ", rec.Fields.Select(f => $"§SET{{{f.FieldName}}} {FormatExpression(f.Value)}"));
-        return $"§NEW{{{rec.TypeName}}} {fields}".TrimEnd();
+        return $"§NEW{{{rec.TypeName}}} {fields} §/NEW".TrimEnd();
     }
 
     private string FormatLambda(LambdaExpressionNode lambda)

@@ -4734,7 +4734,7 @@ public sealed class Parser
 
         // Check for optional end tag
         var endSpan = startToken.Span;
-        if (Check(TokenKind.Identifier) && Current.Text == "/NEW")
+        if (Check(TokenKind.EndNew))
         {
             endSpan = Advance().Span;
         }

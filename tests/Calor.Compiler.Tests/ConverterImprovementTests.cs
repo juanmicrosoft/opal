@@ -1,0 +1,679 @@
+using Calor.Compiler.Ast;
+using Calor.Compiler.Formatting;
+using Calor.Compiler.Migration;
+using Calor.Compiler.Parsing;
+using Xunit;
+
+namespace Calor.Compiler.Tests;
+
+/// <summary>
+/// Tests for C#→Calor converter improvements:
+/// - §ERR reduction (throw expressions, default, target-typed new, null-conditional methods)
+/// - §/NEW closing tag emission
+/// - §THIS lowercase in member access
+/// </summary>
+public class ConverterImprovementTests
+{
+    private readonly CSharpToCalorConverter _converter = new();
+
+    #region A1: Throw Expressions
+
+    [Fact]
+    public void Migration_ThrowExpression_ConvertsToErr()
+    {
+        var csharp = """
+            public class Service
+            {
+                public string Process(string? input)
+                {
+                    return input ?? throw new Exception("bad");
+                }
+            }
+            """;
+
+        var result = _converter.Convert(csharp);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        var cls = Assert.Single(result.Ast!.Classes);
+        var method = Assert.Single(cls.Methods);
+        var ret = Assert.IsType<ReturnStatementNode>(method.Body[0]);
+
+        // The null-coalescing (??) is converted as BinaryOperationNode; right side should be ErrExpressionNode
+        var binary = Assert.IsType<BinaryOperationNode>(ret.Expression);
+        Assert.IsType<ErrExpressionNode>(binary.Right);
+    }
+
+    [Fact]
+    public void Migration_ThrowExpressionInTernary_ConvertsToErr()
+    {
+        var csharp = """
+            public class Service
+            {
+                public int Check(bool flag)
+                {
+                    return flag ? 42 : throw new InvalidOperationException("nope");
+                }
+            }
+            """;
+
+        var result = _converter.Convert(csharp);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        var cls = Assert.Single(result.Ast!.Classes);
+        var method = Assert.Single(cls.Methods);
+        var ret = Assert.IsType<ReturnStatementNode>(method.Body[0]);
+        var conditional = Assert.IsType<ConditionalExpressionNode>(ret.Expression);
+        Assert.IsType<ErrExpressionNode>(conditional.WhenFalse);
+    }
+
+    #endregion
+
+    #region A2: Default Expressions
+
+    [Fact]
+    public void Migration_DefaultLiteral_ConvertsToDefault()
+    {
+        var csharp = """
+            public class Service
+            {
+                public int GetValue()
+                {
+                    return default;
+                }
+            }
+            """;
+
+        var result = _converter.Convert(csharp);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        var cls = Assert.Single(result.Ast!.Classes);
+        var method = Assert.Single(cls.Methods);
+        var ret = Assert.IsType<ReturnStatementNode>(method.Body[0]);
+        var refNode = Assert.IsType<ReferenceNode>(ret.Expression);
+        Assert.Equal("default", refNode.Name);
+    }
+
+    [Fact]
+    public void Migration_DefaultOfInt_ConvertsToZero()
+    {
+        var csharp = """
+            public class Service
+            {
+                public int GetValue()
+                {
+                    return default(int);
+                }
+            }
+            """;
+
+        var result = _converter.Convert(csharp);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        var cls = Assert.Single(result.Ast!.Classes);
+        var method = Assert.Single(cls.Methods);
+        var ret = Assert.IsType<ReturnStatementNode>(method.Body[0]);
+        var intLit = Assert.IsType<IntLiteralNode>(ret.Expression);
+        Assert.Equal(0, intLit.Value);
+    }
+
+    [Fact]
+    public void Migration_DefaultOfBool_ConvertsToFalse()
+    {
+        var csharp = """
+            public class Service
+            {
+                public bool GetValue()
+                {
+                    return default(bool);
+                }
+            }
+            """;
+
+        var result = _converter.Convert(csharp);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        var cls = Assert.Single(result.Ast!.Classes);
+        var method = Assert.Single(cls.Methods);
+        var ret = Assert.IsType<ReturnStatementNode>(method.Body[0]);
+        var boolLit = Assert.IsType<BoolLiteralNode>(ret.Expression);
+        Assert.False(boolLit.Value);
+    }
+
+    [Fact]
+    public void Migration_DefaultOfString_ConvertsToNull()
+    {
+        var csharp = """
+            public class Service
+            {
+                public string GetValue()
+                {
+                    return default(string);
+                }
+            }
+            """;
+
+        var result = _converter.Convert(csharp);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        var cls = Assert.Single(result.Ast!.Classes);
+        var method = Assert.Single(cls.Methods);
+        var ret = Assert.IsType<ReturnStatementNode>(method.Body[0]);
+        var refNode = Assert.IsType<ReferenceNode>(ret.Expression);
+        Assert.Equal("null", refNode.Name);
+    }
+
+    #endregion
+
+    #region A3: Target-Typed New With Arguments
+
+    [Fact]
+    public void Migration_TargetTypedNewWithArgs_ConvertsToNew()
+    {
+        var csharp = """
+            using System.Collections.Generic;
+            public class Service
+            {
+                public List<int> Create()
+                {
+                    List<int> list = new(16);
+                    return list;
+                }
+            }
+            """;
+
+        var result = _converter.Convert(csharp);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        var cls = Assert.Single(result.Ast!.Classes);
+        var method = Assert.Single(cls.Methods);
+
+        // First statement should be a bind statement with a NewExpressionNode
+        var bindStmt = Assert.IsType<BindStatementNode>(method.Body[0]);
+        var newExpr = Assert.IsType<NewExpressionNode>(bindStmt.Initializer);
+        Assert.Equal("object", newExpr.TypeName);
+        Assert.Single(newExpr.Arguments);
+    }
+
+    #endregion
+
+    #region A4: Null-Conditional Method Calls
+
+    [Fact]
+    public void Migration_NullConditionalMethod_ConvertsArgs()
+    {
+        var csharp = """
+            public class Service
+            {
+                public string? GetName(Service? obj, int x)
+                {
+                    return obj?.ToString(x);
+                }
+                public string ToString(int value) { return ""; }
+            }
+            """;
+
+        var result = _converter.Convert(csharp);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        var cls = Assert.Single(result.Ast!.Classes);
+        var getNameMethod = cls.Methods[0];
+
+        // Should contain a NullConditionalNode in the return statement
+        var ret = Assert.IsType<ReturnStatementNode>(getNameMethod.Body[0]);
+        var nullCond = Assert.IsType<NullConditionalNode>(ret.Expression);
+        Assert.Contains("ToString(", nullCond.MemberName);
+    }
+
+    #endregion
+
+    #region B: §/NEW Closing Tag
+
+    [Fact]
+    public void CalorEmitter_NewExpression_EmitsClosingTag()
+    {
+        var span = new TextSpan(0, 0, 0, 0);
+        var newExpr = new NewExpressionNode(span, "List", new List<string> { "int" },
+            new List<ExpressionNode>());
+        var emitter = new CalorEmitter();
+        var output = newExpr.Accept(emitter);
+
+        Assert.Contains("§/NEW", output);
+    }
+
+    [Fact]
+    public void CalorFormatter_NewExpression_EmitsClosingTag()
+    {
+        var csharp = """
+            public class Service
+            {
+                public void Run()
+                {
+                    var list = new System.Collections.Generic.List<int>();
+                }
+            }
+            """;
+
+        var result = _converter.Convert(csharp);
+        Assert.True(result.Success, GetErrorMessage(result));
+
+        var formatter = new CalorFormatter();
+        var formatted = formatter.Format(result.Ast!);
+
+        // Any §NEW tag should have a corresponding §/NEW
+        if (formatted.Contains("§NEW{"))
+        {
+            Assert.Contains("§/NEW", formatted);
+        }
+    }
+
+    #endregion
+
+    #region C: §THIS in Member Access
+
+    [Fact]
+    public void CalorEmitter_ThisFieldAccess_EmitsLowercase()
+    {
+        var span = new TextSpan(0, 0, 0, 0);
+        var thisExpr = new ThisExpressionNode(span);
+        var fieldAccess = new FieldAccessNode(span, thisExpr, "Name");
+        var emitter = new CalorEmitter();
+        var output = fieldAccess.Accept(emitter);
+
+        Assert.Equal("this.Name", output);
+        Assert.DoesNotContain("§THIS", output);
+    }
+
+    [Fact]
+    public void CalorEmitter_BaseFieldAccess_EmitsLowercase()
+    {
+        var span = new TextSpan(0, 0, 0, 0);
+        var baseExpr = new BaseExpressionNode(span);
+        var fieldAccess = new FieldAccessNode(span, baseExpr, "Name");
+        var emitter = new CalorEmitter();
+        var output = fieldAccess.Accept(emitter);
+
+        Assert.Equal("base.Name", output);
+        Assert.DoesNotContain("§BASE", output);
+    }
+
+    [Fact]
+    public void Migration_ThisMethodCall_EmitsLowercaseThis()
+    {
+        var csharp = """
+            public class Service
+            {
+                public void Run()
+                {
+                    this.Process();
+                }
+                public void Process() { }
+            }
+            """;
+
+        var result = _converter.Convert(csharp);
+        Assert.True(result.Success, GetErrorMessage(result));
+
+        var emitter = new CalorEmitter();
+        var output = emitter.Emit(result.Ast!);
+
+        // Should contain this.Process, not §THIS.Process
+        Assert.Contains("this.Process", output);
+        Assert.DoesNotContain("§THIS.Process", output);
+    }
+
+    #endregion
+
+    #region Edge Cases: Throw Expression with Existing Variable
+
+    [Fact]
+    public void Migration_ThrowExpressionWithVariable_ConvertsToErr()
+    {
+        var csharp = """
+            public class Service
+            {
+                public string Process(string? input, Exception ex)
+                {
+                    return input ?? throw ex;
+                }
+            }
+            """;
+
+        var result = _converter.Convert(csharp);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        var cls = Assert.Single(result.Ast!.Classes);
+        var method = Assert.Single(cls.Methods);
+        var ret = Assert.IsType<ReturnStatementNode>(method.Body[0]);
+        var binary = Assert.IsType<BinaryOperationNode>(ret.Expression);
+
+        // throw ex → ErrExpressionNode wrapping a ReferenceNode
+        var err = Assert.IsType<ErrExpressionNode>(binary.Right);
+        Assert.IsType<ReferenceNode>(err.Error);
+    }
+
+    #endregion
+
+    #region Edge Cases: Default Expression with Custom Type
+
+    [Fact]
+    public void Migration_DefaultOfCustomType_ConvertsToDefaultReference()
+    {
+        var csharp = """
+            public class MyClass { }
+            public class Service
+            {
+                public MyClass GetValue()
+                {
+                    return default(MyClass);
+                }
+            }
+            """;
+
+        var result = _converter.Convert(csharp);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        var service = result.Ast!.Classes.First(c => c.Name == "Service");
+        var method = Assert.Single(service.Methods);
+        var ret = Assert.IsType<ReturnStatementNode>(method.Body[0]);
+        // Unknown type falls through to "default" reference
+        var refNode = Assert.IsType<ReferenceNode>(ret.Expression);
+        Assert.Equal("default", refNode.Name);
+    }
+
+    #endregion
+
+    #region Edge Cases: Target-Typed New with Initializer
+
+    [Fact]
+    public void Migration_TargetTypedNewWithInitializer_ConvertsToNew()
+    {
+        var csharp = """
+            public class Options
+            {
+                public int Timeout { get; set; }
+                public bool Verbose { get; set; }
+            }
+            public class Service
+            {
+                public Options Create()
+                {
+                    Options opts = new(42) { Verbose = true };
+                    return opts;
+                }
+            }
+            """;
+
+        var result = _converter.Convert(csharp);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        var service = result.Ast!.Classes.First(c => c.Name == "Service");
+        var method = Assert.Single(service.Methods);
+        var bindStmt = Assert.IsType<BindStatementNode>(method.Body[0]);
+        var newExpr = Assert.IsType<NewExpressionNode>(bindStmt.Initializer);
+        Assert.Equal("object", newExpr.TypeName);
+        Assert.Single(newExpr.Arguments);
+        Assert.Single(newExpr.Initializers);
+        Assert.Equal("Verbose", newExpr.Initializers[0].PropertyName);
+    }
+
+    #endregion
+
+    #region Negative Tests: §ERR Fallback Removal
+
+    [Fact]
+    public void Migration_ThrowExpression_DoesNotProduceFallback()
+    {
+        var csharp = """
+            public class Service
+            {
+                public string Process(string? input)
+                {
+                    return input ?? throw new Exception("bad");
+                }
+            }
+            """;
+
+        var result = _converter.Convert(csharp);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        // The AST should not contain any FallbackExpressionNode for throw expressions
+        var cls = Assert.Single(result.Ast!.Classes);
+        var method = Assert.Single(cls.Methods);
+        AssertNoFallbackExpressions(method.Body);
+    }
+
+    [Fact]
+    public void Migration_DefaultExpressions_DoNotProduceFallback()
+    {
+        var csharp = """
+            public class Service
+            {
+                public int A() { return default(int); }
+                public bool B() { return default(bool); }
+                public string C() { return default(string); }
+                public int D() { return default; }
+            }
+            """;
+
+        var result = _converter.Convert(csharp);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        var cls = Assert.Single(result.Ast!.Classes);
+        foreach (var method in cls.Methods)
+        {
+            AssertNoFallbackExpressions(method.Body);
+        }
+    }
+
+    [Fact]
+    public void Migration_TargetTypedNew_DoesNotProduceFallback()
+    {
+        var csharp = """
+            using System.Collections.Generic;
+            public class Service
+            {
+                public List<int> Create()
+                {
+                    List<int> list = new(16);
+                    return list;
+                }
+            }
+            """;
+
+        var result = _converter.Convert(csharp);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        var cls = Assert.Single(result.Ast!.Classes);
+        var method = Assert.Single(cls.Methods);
+        AssertNoFallbackExpressions(method.Body);
+    }
+
+    #endregion
+
+    #region Parser Roundtrip: §/NEW
+
+    [Fact]
+    public void Parser_NewExpressionWithClosingTag_ParsesCorrectly()
+    {
+        var calorSource = """
+            §M{m1:Test}
+            §CL{c1:Service}
+            §MT{m2:Create:pub}
+              §O{string}
+              §B{string:x} §NEW{StringBuilder} §A "hello" §/NEW
+              §R x
+            §/MT{m2}
+            §/CL{c1}
+            §/M{m1}
+            """;
+
+        var compilationResult = Program.Compile(calorSource);
+
+        Assert.False(compilationResult.HasErrors,
+            string.Join("\n", compilationResult.Diagnostics.Select(d => d.Message)));
+    }
+
+    [Fact]
+    public void Parser_NewExpressionWithoutArgs_ClosingTagParsesCorrectly()
+    {
+        var calorSource = """
+            §M{m1:Test}
+            §CL{c1:Service}
+            §MT{m2:Create:pub}
+              §O{string}
+              §B{List<i32>:items} §NEW{List<i32>} §/NEW
+              §R items
+            §/MT{m2}
+            §/CL{c1}
+            §/M{m1}
+            """;
+
+        var compilationResult = Program.Compile(calorSource);
+
+        Assert.False(compilationResult.HasErrors,
+            string.Join("\n", compilationResult.Diagnostics.Select(d => d.Message)));
+    }
+
+    [Fact]
+    public void Parser_NewExpressionWithoutClosingTag_StillParses()
+    {
+        // Backward compatibility: §/NEW is optional
+        var calorSource = """
+            §M{m1:Test}
+            §CL{c1:Service}
+            §MT{m2:Create:pub}
+              §O{string}
+              §B{string:x} §NEW{StringBuilder} §A "hello"
+              §R x
+            §/MT{m2}
+            §/CL{c1}
+            §/M{m1}
+            """;
+
+        var compilationResult = Program.Compile(calorSource);
+
+        Assert.False(compilationResult.HasErrors,
+            string.Join("\n", compilationResult.Diagnostics.Select(d => d.Message)));
+    }
+
+    #endregion
+
+    #region CalorFormatter: §/NEW in Record Creation
+
+    [Fact]
+    public void CalorFormatter_RecordCreation_EmitsClosingTag()
+    {
+        var csharp = """
+            public record Person(string Name, int Age);
+            public class Service
+            {
+                public Person Create()
+                {
+                    return new Person("Alice", 30);
+                }
+            }
+            """;
+
+        var result = _converter.Convert(csharp);
+        Assert.True(result.Success, GetErrorMessage(result));
+
+        var formatter = new CalorFormatter();
+        var formatted = formatter.Format(result.Ast!);
+
+        // Record creation should have §/NEW closing tag
+        if (formatted.Contains("§NEW{"))
+        {
+            Assert.Contains("§/NEW", formatted);
+        }
+    }
+
+    [Fact]
+    public void CalorEmitter_NewExpressionZeroArgs_EmitsClosingTag()
+    {
+        var span = new TextSpan(0, 0, 0, 0);
+        var newExpr = new NewExpressionNode(span, "List", new List<string>(),
+            new List<ExpressionNode>());
+        var emitter = new CalorEmitter();
+        var output = newExpr.Accept(emitter);
+
+        Assert.Contains("§NEW{List}", output);
+        Assert.Contains("§/NEW", output);
+    }
+
+    #endregion
+
+    #region §/NEW Emitter→Parser Roundtrip via C# Conversion
+
+    [Fact]
+    public void Roundtrip_NewExpression_EmitsAndParsesClosingTag()
+    {
+        var csharp = """
+            public class MyException : System.Exception
+            {
+                public MyException(string msg) : base(msg) { }
+            }
+            public class Service
+            {
+                public void Run()
+                {
+                    var ex = new MyException("test error");
+                }
+            }
+            """;
+
+        // C# → Calor (emitter produces §/NEW)
+        var conversionResult = _converter.Convert(csharp);
+        Assert.True(conversionResult.Success, GetErrorMessage(conversionResult));
+        Assert.Contains("§/NEW", conversionResult.CalorSource!);
+
+        // Calor → C# (parser consumes §/NEW)
+        var compilationResult = Program.Compile(conversionResult.CalorSource!);
+        Assert.False(compilationResult.HasErrors,
+            "Roundtrip failed:\n" +
+            string.Join("\n", compilationResult.Diagnostics.Select(d => d.Message)));
+    }
+
+    #endregion
+
+    #region Helpers
+
+    private static string GetErrorMessage(ConversionResult result)
+    {
+        if (result.Success) return string.Empty;
+        return string.Join("\n", result.Issues.Select(i => i.ToString()));
+    }
+
+    /// <summary>
+    /// Recursively checks that no FallbackExpressionNode exists in the statement list.
+    /// </summary>
+    private static void AssertNoFallbackExpressions(IReadOnlyList<StatementNode> statements)
+    {
+        foreach (var stmt in statements)
+        {
+            if (stmt is ReturnStatementNode ret)
+                AssertExpressionNotFallback(ret.Expression);
+            else if (stmt is BindStatementNode bind && bind.Initializer != null)
+                AssertExpressionNotFallback(bind.Initializer);
+        }
+    }
+
+    private static void AssertExpressionNotFallback(ExpressionNode? expr)
+    {
+        if (expr == null) return;
+        Assert.IsNotType<FallbackExpressionNode>(expr);
+        // Check nested expressions
+        if (expr is BinaryOperationNode bin)
+        {
+            AssertExpressionNotFallback(bin.Left);
+            AssertExpressionNotFallback(bin.Right);
+        }
+        else if (expr is ConditionalExpressionNode cond)
+        {
+            AssertExpressionNotFallback(cond.Condition);
+            AssertExpressionNotFallback(cond.WhenTrue);
+            AssertExpressionNotFallback(cond.WhenFalse);
+        }
+    }
+
+    #endregion
+}
