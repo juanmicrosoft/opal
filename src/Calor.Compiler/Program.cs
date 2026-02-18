@@ -190,6 +190,7 @@ public class Program
         rootCommand.AddCommand(McpCommand.Create());
         rootCommand.AddCommand(FeatureCheckCommand.Create());
         rootCommand.AddCommand(CoverageCommand.Create());
+        rootCommand.AddCommand(SelfTestCommand.Create());
 
         // Initialize telemetry for subcommands
         // Parse --no-telemetry early from args
