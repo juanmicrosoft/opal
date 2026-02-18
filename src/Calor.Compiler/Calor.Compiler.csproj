@@ -123,6 +123,36 @@
     <Message Importance="low" Text="Synced skill file: $(CanonicalSkillFile) -> $(EmbeddedSkillFile)" />
   </Target>
 
+  <!-- Sync self-test scenario files from canonical E2E source before build -->
+  <!-- Canonical source: tests/E2E/scenarios/{name}/input.calr + output.g.cs -->
+  <!-- Synced to: src/Calor.Compiler/Resources/SelfTest/{name}.calr + {name}.g.cs -->
+  <PropertyGroup>
+    <E2EScenariosDir>$(MSBuildThisFileDirectory)..\..\tests\E2E\scenarios</E2EScenariosDir>
+    <SelfTestDir>$(MSBuildThisFileDirectory)Resources\SelfTest</SelfTestDir>
+  </PropertyGroup>
+
+  <Target Name="SyncSelfTestFiles" BeforeTargets="BeforeBuild" Condition="Exists('$(E2EScenariosDir)')">
+    <!-- Auto-discover: any E2E scenario dir with input.calr + output.g.cs gets synced -->
+    <!-- Renames input.calr → {scenarioDir}.calr, output.g.cs → {scenarioDir}.g.cs -->
+    <!-- Note: bash $() must be escaped as %24() to prevent MSBuild property expansion -->
+    <Exec Command="for dir in &quot;$(E2EScenariosDir)&quot;/*/; do name=%24(basename &quot;%24dir&quot;); if [ -f &quot;%24dir/input.calr&quot; ] &amp;&amp; [ -f &quot;%24dir/output.g.cs&quot; ]; then cp -p &quot;%24dir/input.calr&quot; &quot;$(SelfTestDir)/%24name.calr&quot;; cp -p &quot;%24dir/output.g.cs&quot; &quot;$(SelfTestDir)/%24name.g.cs&quot;; fi; done"
+          Condition="'$(OS)' != 'Windows_NT'" />
+    <Exec Command="for /d %%d in (&quot;$(E2EScenariosDir)\*&quot;) do if exist &quot;%%d\input.calr&quot; if exist &quot;%%d\output.g.cs&quot; (copy /Y &quot;%%d\input.calr&quot; &quot;$(SelfTestDir)\%%~nxd.calr&quot; >nul &amp; copy /Y &quot;%%d\output.g.cs&quot; &quot;$(SelfTestDir)\%%~nxd.g.cs&quot; >nul)"
+          Condition="'$(OS)' == 'Windows_NT'" />
+    <Message Importance="low" Text="Synced self-test scenarios from E2E" />
+  </Target>
+
+  <ItemGroup>
+    <!-- Exclude golden .g.cs files from C# compilation — they are only embedded resources -->
+    <Compile Remove="Resources\SelfTest\*.g.cs" />
+    <EmbeddedResource Include="Resources\SelfTest\*.calr">
+      <LogicalName>Calor.Compiler.Resources.SelfTest.%(Filename).calr</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Resources\SelfTest\*.g.cs">
+      <LogicalName>Calor.Compiler.Resources.SelfTest.%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
   <ItemGroup>
     <EmbeddedResource Include="Resources\Skills\*.md">
       <LogicalName>Calor.Compiler.Resources.Skills.%(Filename)%(Extension)</LogicalName>
