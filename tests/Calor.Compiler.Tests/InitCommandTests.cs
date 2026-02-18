@@ -6,12 +6,17 @@ namespace Calor.Compiler.Tests;
 public class InitCommandTests : IDisposable
 {
     private readonly string _testDirectory;
+    private readonly string _claudeJsonPath;
 
     public InitCommandTests()
     {
         _testDirectory = Path.Combine(Path.GetTempPath(), $"calor-init-test-{Guid.NewGuid():N}");
         Directory.CreateDirectory(_testDirectory);
+        _claudeJsonPath = Path.Combine(_testDirectory, ".claude.json");
     }
+
+    private ClaudeInitializer CreateInitializer() =>
+        new() { ClaudeJsonPathOverride = _claudeJsonPath };
 
     public void Dispose()
     {
@@ -119,7 +124,7 @@ public class InitCommandTests : IDisposable
     [Fact]
     public async Task ClaudeInitializer_Initialize_CreatesSkillsDirectories()
     {
-        var initializer = new ClaudeInitializer();
+        var initializer = CreateInitializer();
 
         var result = await initializer.InitializeAsync(_testDirectory, force: false);
 
@@ -131,7 +136,7 @@ public class InitCommandTests : IDisposable
     [Fact]
     public async Task ClaudeInitializer_Initialize_CreatesCalorSkill()
     {
-        var initializer = new ClaudeInitializer();
+        var initializer = CreateInitializer();
 
         var result = await initializer.InitializeAsync(_testDirectory, force: false);
 
@@ -147,7 +152,7 @@ public class InitCommandTests : IDisposable
     [Fact]
     public async Task ClaudeInitializer_Initialize_CreatesConvertSkill()
     {
-        var initializer = new ClaudeInitializer();
+        var initializer = CreateInitializer();
 
         var result = await initializer.InitializeAsync(_testDirectory, force: false);
 
@@ -159,7 +164,7 @@ public class InitCommandTests : IDisposable
     [Fact]
     public async Task ClaudeInitializer_Initialize_CreatesClaudeMdWithMarkers()
     {
-        var initializer = new ClaudeInitializer();
+        var initializer = CreateInitializer();
 
         var result = await initializer.InitializeAsync(_testDirectory, force: false);
 
@@ -178,7 +183,7 @@ public class InitCommandTests : IDisposable
     [Fact]
     public async Task ClaudeInitializer_Initialize_SkipsExistingSkillFilesWithoutForce()
     {
-        var initializer = new ClaudeInitializer();
+        var initializer = CreateInitializer();
 
         // First initialization
         await initializer.InitializeAsync(_testDirectory, force: false);
@@ -202,7 +207,7 @@ public class InitCommandTests : IDisposable
     [Fact]
     public async Task ClaudeInitializer_Initialize_OverwritesSkillsWithForce()
     {
-        var initializer = new ClaudeInitializer();
+        var initializer = CreateInitializer();
 
         // First initialization
         await initializer.InitializeAsync(_testDirectory, force: false);
@@ -226,7 +231,7 @@ public class InitCommandTests : IDisposable
     [Fact]
     public async Task ClaudeInitializer_Initialize_ReplacesExistingCalorSection()
     {
-        var initializer = new ClaudeInitializer();
+        var initializer = CreateInitializer();
         var claudeMdPath = Path.Combine(_testDirectory, "CLAUDE.md");
 
         // Create CLAUDE.md with user content and an existing Calor section
@@ -270,7 +275,7 @@ This should be preserved.
     [Fact]
     public async Task ClaudeInitializer_Initialize_AppendsCalorSectionWhenNoMarkers()
     {
-        var initializer = new ClaudeInitializer();
+        var initializer = CreateInitializer();
         var claudeMdPath = Path.Combine(_testDirectory, "CLAUDE.md");
 
         // Create CLAUDE.md without Calor section markers
@@ -310,7 +315,7 @@ Run `dotnet build` to compile.
     [Fact]
     public async Task ClaudeInitializer_Initialize_PreservesUserContentBeforeAndAfterSection()
     {
-        var initializer = new ClaudeInitializer();
+        var initializer = CreateInitializer();
         var claudeMdPath = Path.Combine(_testDirectory, "CLAUDE.md");
 
         // First init creates the file with markers
@@ -343,7 +348,7 @@ Run `dotnet build` to compile.
     [Fact]
     public async Task ClaudeInitializer_Initialize_RunsMultipleTimesIdempotently()
     {
-        var initializer = new ClaudeInitializer();
+        var initializer = CreateInitializer();
         var claudeMdPath = Path.Combine(_testDirectory, "CLAUDE.md");
 
         // First init
@@ -466,7 +471,7 @@ Run `dotnet build` to compile.
     [Fact]
     public async Task ClaudeInitializer_Initialize_ClaudeMdContainsAiGuidelines()
     {
-        var initializer = new ClaudeInitializer();
+        var initializer = CreateInitializer();
 
         await initializer.InitializeAsync(_testDirectory, force: false);
 
