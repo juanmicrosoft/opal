@@ -1,0 +1,370 @@
+---
+title: "mcp"
+section: "cli"
+order: 8
+---
+
+
+Start a Model Context Protocol (MCP) server for AI agent integration.
+
+```bash
+calor mcp [options]
+```
+
+---
+
+## Overview
+
+The `mcp` command starts an MCP server that exposes Calor compiler capabilities to AI agents like Claude. This enables agents to:
+
+- **Compile and verify** Calor code
+- **Type check** source for semantic errors
+- **Navigate code** with goto-definition and find-references
+- **Analyze** code for bugs and migration potential
+- **Convert** between C# and Calor
+
+The server communicates via **newline-delimited JSON (NDJSON)** over stdio, following the [MCP specification](https://modelcontextprotocol.io/).
+
+---
+
+## Quick Start
+
+```bash
+# Start the MCP server
+calor mcp
+
+# With verbose logging (for debugging)
+calor mcp --verbose
+```
+
+---
+
+## Options
+
+| Option | Short | Default | Description |
+|:-------|:------|:--------|:------------|
+| `--verbose` | `-v` | `false` | Enable verbose logging to stderr |
+
+---
+
+## Claude Code Integration
+
+When you run `calor init --ai claude`, the MCP server is automatically configured in `~/.claude.json`:
+
+```json
+{
+  "projects": {
+    "/path/to/your/project": {
+      "mcpServers": {
+        "calor": {
+          "command": "calor",
+          "args": ["mcp"]
+        }
+      }
+    }
+  }
+}
+```
+
+Claude Code will automatically start the MCP server when you open the project.
+
+---
+
+## Available Tools
+
+The MCP server exposes 19 tools organized by category:
+
+### Compilation & Verification
+
+| Tool | Description |
+|:-----|:------------|
+| `calor_compile` | Compile Calor source to C# |
+| `calor_typecheck` | Type check source code, returns categorized errors |
+| `calor_verify` | Verify contracts with Z3 SMT solver |
+| `calor_verify_contracts` | Alias for verify with improved discoverability |
+| `calor_diagnose` | Get syntax diagnostics for a file |
+
+### Code Navigation (LSP-style)
+
+| Tool | Description |
+|:-----|:------------|
+| `calor_goto_definition` | Find definition of symbol at position |
+| `calor_find_references` | Find all usages of a symbol |
+| `calor_symbol_info` | Get type, contracts, and signature for a symbol |
+| `calor_document_outline` | Get hierarchical structure of a file |
+| `calor_find_symbol` | Search symbols by name across files |
+
+### Analysis & Migration
+
+| Tool | Description |
+|:-----|:------------|
+| `calor_analyze` | Advanced verification (dataflow, taint, bug patterns) |
+| `calor_assess` | Score C# files for migration potential |
+| `calor_convert` | Convert between C# and Calor |
+| `calor_compile_check_compat` | Check compatibility of generated C# |
+
+### Code Quality
+
+| Tool | Description |
+|:-----|:------------|
+| `calor_lint` | Check agent-optimized format issues |
+| `calor_format` | Format source to canonical style |
+| `calor_validate_snippet` | Validate incremental code snippets |
+
+### Syntax Help
+
+| Tool | Description |
+|:-----|:------------|
+| `calor_syntax_help` | Get syntax documentation |
+| `calor_syntax_lookup` | Look up specific syntax elements |
+| `calor_ids` | Generate unique IDs for code elements |
+
+---
+
+## Tool Details
+
+### calor_typecheck
+
+Type check Calor source and return categorized errors.
+
+**Input:**
+```json
+{
+  "source": "§M{m001:Test}...",
+  "filePath": "optional/path.calr"
+}
+```
+
+**Output:**
+```json
+{
+  "success": false,
+  "errorCount": 1,
+  "warningCount": 0,
+  "typeErrors": [
+    {
+      "code": "Calor0200",
+      "message": "Type mismatch: expected i32, got str",
+      "line": 5,
+      "column": 10,
+      "severity": "error",
+      "category": "type_mismatch"
+    }
+  ]
+}
+```
+
+**Error Categories:**
+- `type_mismatch` - Incompatible types
+- `undefined_reference` - Unknown symbol
+- `duplicate_definition` - Symbol already defined
+- `invalid_reference` - Invalid use of symbol
+- `other` - Other errors
+
+---
+
+### calor_verify_contracts
+
+Verify function contracts using Z3 SMT solver.
+
+**Input:**
+```json
+{
+  "source": "§M{m001:Test}\n§F{f001:Div:pub}\n§I{i32:a}\n§I{i32:b}\n§O{i32}\n§Q (!= b 0)\n§R (/ a b)\n§/F{f001}\n§/M{m001}",
+  "timeout": 5000
+}
+```
+
+**Output:**
+```json
+{
+  "success": true,
+  "summary": {
+    "total": 1,
+    "proven": 1,
+    "unproven": 0,
+    "disproven": 0,
+    "unsupported": 0,
+    "skipped": 0
+  },
+  "functions": [
+    {
+      "functionId": "f001",
+      "functionName": "Div",
+      "contracts": [
+        {
+          "type": "precondition",
+          "index": 0,
+          "status": "proven"
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Contract Statuses:**
+- `proven` - Z3 proved the contract holds
+- `unproven` - Could not prove or disprove
+- `disproven` - Found counterexample (includes `counterexample` field)
+- `unsupported` - Contract uses unsupported features
+- `skipped` - Verification skipped
+
+---
+
+### calor_goto_definition
+
+Find the definition location of a symbol.
+
+**Input:**
+```json
+{
+  "source": "...",
+  "filePath": "optional/path.calr",
+  "line": 10,
+  "column": 15
+}
+```
+
+**Output:**
+```json
+{
+  "found": true,
+  "filePath": "path.calr",
+  "line": 3,
+  "column": 1,
+  "symbolName": "MyFunction",
+  "symbolKind": "function",
+  "preview": "§F{f001:MyFunction:pub}"
+}
+```
+
+---
+
+### calor_find_references
+
+Find all references to a symbol.
+
+**Input:**
+```json
+{
+  "source": "...",
+  "line": 5,
+  "column": 10,
+  "includeDefinition": true
+}
+```
+
+**Output:**
+```json
+{
+  "success": true,
+  "symbolName": "calculateTotal",
+  "referenceCount": 3,
+  "references": [
+    {
+      "line": 5,
+      "column": 10,
+      "isDefinition": true,
+      "kind": "function",
+      "context": "§F{f001:calculateTotal:pub}"
+    },
+    {
+      "line": 15,
+      "column": 5,
+      "isDefinition": false,
+      "kind": "reference",
+      "context": "§C{calculateTotal} §A items §/C"
+    }
+  ]
+}
+```
+
+---
+
+### calor_document_outline
+
+Get a hierarchical outline of all symbols in a file.
+
+**Input:**
+```json
+{
+  "source": "...",
+  "includeDetails": true
+}
+```
+
+**Output:**
+```json
+{
+  "success": true,
+  "moduleName": "Calculator",
+  "moduleId": "m001",
+  "symbols": [
+    {
+      "name": "add",
+      "kind": "function",
+      "line": 2,
+      "detail": "(a: i32, b: i32) -> i32",
+      "children": [
+        {"name": "a", "kind": "parameter", "detail": "i32"},
+        {"name": "b", "kind": "parameter", "detail": "i32"}
+      ]
+    }
+  ],
+  "summary": {
+    "functionCount": 2,
+    "classCount": 1,
+    "interfaceCount": 0,
+    "enumCount": 0,
+    "delegateCount": 0
+  }
+}
+```
+
+---
+
+## Protocol Details
+
+### Request Format
+
+```json
+{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"calor_typecheck","arguments":{"source":"..."}}}
+```
+
+### Response Format
+
+```json
+{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"{...}"}]}}
+```
+
+### Supported Methods
+
+| Method | Description |
+|:-------|:------------|
+| `initialize` | Initialize the MCP connection |
+| `tools/list` | List available tools |
+| `tools/call` | Execute a tool |
+| `ping` | Health check |
+
+---
+
+## Debugging
+
+To debug MCP communication:
+
+```bash
+# Run with verbose logging
+calor mcp --verbose 2>mcp.log
+
+# In another terminal, watch the log
+tail -f mcp.log
+```
+
+---
+
+## See Also
+
+- [Claude Integration](/getting-started/claude-integration/) - Full Claude Code setup guide
+- [calor init](/cli/init/) - Initialize project with MCP configuration
+- [calor diagnose](/cli/diagnose/) - Standalone diagnostics
