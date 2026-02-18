@@ -36,6 +36,7 @@ public sealed class McpMessageHandler
         RegisterTool(new TypeCheckTool());
         RegisterTool(new VerifyContractsTool());
         RegisterTool(new ValidateSnippetTool());
+        RegisterTool(new CompatCheckTool());
     }
 
     private void RegisterTool(IMcpTool tool)
