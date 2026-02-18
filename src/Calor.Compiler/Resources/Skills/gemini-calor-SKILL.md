@@ -90,7 +90,7 @@ ReadDict<K,V>         IReadOnlyDictionary<K,V>
 ## Lisp-Style Expressions
 
 ```
-(+ a b)               Add
+(+ a b)               Add / String concatenation
 (- a b)               Subtract
 (* a b)               Multiply
 (/ a b)               Divide
@@ -472,7 +472,6 @@ Use angle brackets inline for generic types:
 §NEW{TypeName}            Create new instance
   §A arg1                 Constructor arguments
   §A arg2
-§/NEW                     (optional closing tag)
 ```
 
 ### Template: Object Creation

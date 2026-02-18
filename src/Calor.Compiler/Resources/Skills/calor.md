@@ -210,7 +210,7 @@ INT:2147483647     // int.MaxValue (2^31 - 1)
 ### Expressions (Prefix Notation)
 
 ```calor
-(+ a b)       // a + b
+(+ a b)       // a + b (also string concatenation)
 (- a b)       // a - b
 (* a b)       // a * b
 (/ a b)       // a / b
