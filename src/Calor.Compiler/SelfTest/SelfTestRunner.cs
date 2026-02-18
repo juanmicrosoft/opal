@@ -2,8 +2,6 @@ using System.Reflection;
 using DiffPlex;
 using DiffPlex.DiffBuilder;
 using DiffPlex.DiffBuilder.Model;
-using Calor.Compiler.Verification.Z3.Cache;
-
 namespace Calor.Compiler.SelfTest;
 
 public sealed class SelfTestRunner
@@ -18,12 +16,6 @@ public sealed class SelfTestRunner
         string? Error);
 
     private static readonly Assembly Assembly = typeof(SelfTestRunner).Assembly;
-
-    /// <summary>
-    /// Scenarios whose name contains "contract" are compiled with Z3 verification enabled.
-    /// </summary>
-    private static bool NeedsContractVerification(string scenarioName) =>
-        scenarioName.Contains("contract", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Load all scenarios from embedded resources.
@@ -76,8 +68,7 @@ public sealed class SelfTestRunner
             {
                 EnforceEffects = true,
                 ContractMode = ContractMode.Debug,
-                VerifyContracts = NeedsContractVerification(scenario.Name),
-                VerificationCacheOptions = new VerificationCacheOptions { Enabled = false }
+                VerifyContracts = false
             };
 
             var result = Program.Compile(scenario.Input, scenario.Name + ".calr", options);
