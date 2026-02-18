@@ -403,13 +403,10 @@ public class McpServerTests
     [Fact]
     public async Task McpServer_ProcessMessage_InitializeFlow()
     {
-        var inputMessage = """
-            {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}
-            """;
-        var inputBytes = Encoding.UTF8.GetBytes(inputMessage);
-        var fullInput = $"Content-Length: {inputBytes.Length}\r\n\r\n{inputMessage}";
+        // MCP uses newline-delimited JSON (NDJSON)
+        var inputMessage = """{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}""" + "\n";
 
-        using var input = new MemoryStream(Encoding.UTF8.GetBytes(fullInput));
+        using var input = new MemoryStream(Encoding.UTF8.GetBytes(inputMessage));
         using var output = new MemoryStream();
 
         var server = new McpServer(input, output);
@@ -420,7 +417,6 @@ public class McpServerTests
         output.Position = 0;
         var response = Encoding.UTF8.GetString(output.ToArray());
 
-        Assert.Contains("Content-Length:", response);
         Assert.Contains("jsonrpc", response);
         Assert.Contains("calor", response);
     }
@@ -428,11 +424,10 @@ public class McpServerTests
     [Fact]
     public async Task McpServer_ProcessMessage_ToolsListFlow()
     {
-        var inputMessage = """{"jsonrpc":"2.0","id":1,"method":"tools/list"}""";
-        var inputBytes = Encoding.UTF8.GetBytes(inputMessage);
-        var fullInput = $"Content-Length: {inputBytes.Length}\r\n\r\n{inputMessage}";
+        // MCP uses newline-delimited JSON (NDJSON)
+        var inputMessage = """{"jsonrpc":"2.0","id":1,"method":"tools/list"}""" + "\n";
 
-        using var input = new MemoryStream(Encoding.UTF8.GetBytes(fullInput));
+        using var input = new MemoryStream(Encoding.UTF8.GetBytes(inputMessage));
         using var output = new MemoryStream();
 
         var server = new McpServer(input, output);
@@ -455,18 +450,14 @@ public class McpServerTests
     [Fact]
     public async Task McpServer_ProcessMessage_MultipleMessages()
     {
+        // MCP uses newline-delimited JSON (NDJSON) - each message on its own line
         var msg1 = """{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}""";
-        var msg2 = """{"jsonrpc":"2.0","method":"initialized"}""";
+        var msg2 = """{"jsonrpc":"2.0","method":"notifications/initialized"}""";
         var msg3 = """{"jsonrpc":"2.0","id":2,"method":"tools/list"}""";
 
-        var fullInput = new StringBuilder();
-        foreach (var msg in new[] { msg1, msg2, msg3 })
-        {
-            var bytes = Encoding.UTF8.GetBytes(msg);
-            fullInput.Append($"Content-Length: {bytes.Length}\r\n\r\n{msg}");
-        }
+        var fullInput = string.Join("\n", msg1, msg2, msg3) + "\n";
 
-        using var input = new MemoryStream(Encoding.UTF8.GetBytes(fullInput.ToString()));
+        using var input = new MemoryStream(Encoding.UTF8.GetBytes(fullInput));
         using var output = new MemoryStream();
 
         var server = new McpServer(input, output);
@@ -475,7 +466,7 @@ public class McpServerTests
         output.Position = 0;
         var response = Encoding.UTF8.GetString(output.ToArray());
 
-        // Should have responses for initialize and tools/list (initialized is a notification)
+        // Should have responses for initialize and tools/list (notifications/initialized doesn't get a response)
         Assert.Contains("protocolVersion", response);
         Assert.Contains("calor_compile", response);
     }
@@ -548,11 +539,10 @@ public class McpServerTests
     [Fact]
     public async Task McpServer_ProcessMessage_AssessToolFlow()
     {
-        var inputMessage = """{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"calor_assess","arguments":{"source":"public class Test { public void Method() { } }"}}}""";
-        var inputBytes = Encoding.UTF8.GetBytes(inputMessage);
-        var fullInput = $"Content-Length: {inputBytes.Length}\r\n\r\n{inputMessage}";
+        // MCP uses newline-delimited JSON (NDJSON)
+        var inputMessage = """{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"calor_assess","arguments":{"source":"public class Test { public void Method() { } }"}}}""" + "\n";
 
-        using var input = new MemoryStream(Encoding.UTF8.GetBytes(fullInput));
+        using var input = new MemoryStream(Encoding.UTF8.GetBytes(inputMessage));
         using var output = new MemoryStream();
 
         var server = new McpServer(input, output);
@@ -675,14 +665,12 @@ public class McpServerTests
     public async Task McpServer_ProcessMessage_DiagnoseToolWithSuggestions()
     {
         // Test the full MCP server flow with diagnose tool
-        // Note: The § character is multi-byte in UTF-8, so we must calculate Content-Length correctly
+        // MCP uses newline-delimited JSON (NDJSON)
         var source = "§M{m001:Test} §F{f001:Add} §O{i32} §R (abss -5) §/F{f001} §/M{m001}";
         var jsonSource = JsonSerializer.Serialize(source); // Properly escape for JSON
-        var inputMessage = $"{{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{{\"name\":\"calor_diagnose\",\"arguments\":{{\"source\":{jsonSource}}}}}}}";
-        var inputBytes = Encoding.UTF8.GetBytes(inputMessage);
-        var fullInput = $"Content-Length: {inputBytes.Length}\r\n\r\n{inputMessage}";
+        var inputMessage = $"{{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{{\"name\":\"calor_diagnose\",\"arguments\":{{\"source\":{jsonSource}}}}}}}\n";
 
-        using var input = new MemoryStream(Encoding.UTF8.GetBytes(fullInput));
+        using var input = new MemoryStream(Encoding.UTF8.GetBytes(inputMessage));
         using var output = new MemoryStream();
 
         var server = new McpServer(input, output);
