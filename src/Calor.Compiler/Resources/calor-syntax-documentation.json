@@ -5,20 +5,20 @@
       "id": "object_instantiation",
       "csharpConstruct": "object instantiation",
       "keywords": ["new", "object", "instantiation", "create", "constructor", "instance", "instantiate"],
-      "calorSyntax": "§NEW{ClassName}(arg1, arg2)§/NEW",
+      "calorSyntax": "§NEW{ClassName}(arg1, arg2)",
       "description": "Creates a new instance of a class. The class name goes in braces, constructor arguments in parentheses.",
       "examples": [
         {
           "csharp": "var user = new User(\"John\", 25);",
-          "calor": "§B{user}=§NEW{User}(\"John\", 25)§/NEW§/B"
+          "calor": "§B{user}=§NEW{User}(\"John\", 25)§/B"
         },
         {
           "csharp": "var list = new List<int>();",
-          "calor": "§B{list}=§NEW{List<i32>}()§/NEW§/B"
+          "calor": "§B{list}=§NEW{List<i32>}()§/B"
         },
         {
           "csharp": "return new Result(value);",
-          "calor": "§R §NEW{Result}(value)§/NEW §/R"
+          "calor": "§R §NEW{Result}(value) §/R"
         }
       ]
     },
@@ -305,7 +305,7 @@
       "examples": [
         {
           "csharp": "throw new ArgumentException(\"Invalid\");",
-          "calor": "§TH §NEW{ArgumentException}(\"Invalid\")§/NEW §/TH"
+          "calor": "§TH §NEW{ArgumentException}(\"Invalid\") §/TH"
         },
         {
           "csharp": "throw;",
@@ -517,7 +517,7 @@
         },
         {
           "csharp": "using var connection = new SqlConnection(connStr);",
-          "calor": "§USE{connection}=§NEW{SqlConnection}(connStr)§/NEW\n  ...\n§/USE"
+          "calor": "§USE{connection}=§NEW{SqlConnection}(connStr)\n  ...\n§/USE"
         }
       ]
     },
@@ -794,7 +794,7 @@
   "tags": {
     "§NEW": {
       "name": "New Instance",
-      "syntax": "§NEW{ClassName}(args)§/NEW",
+      "syntax": "§NEW{ClassName}(args)",
       "description": "Creates a new instance of a class using its constructor.",
       "csharpEquivalent": "new ClassName(args)"
     },

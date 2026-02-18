@@ -168,7 +168,7 @@ Task<T>                       Async return type
 
 ### Arithmetic
 ```
-(+ a b)                       Add
+(+ a b)                       Add / String concatenation
 (- a b)                       Subtract
 (* a b)                       Multiply
 (/ a b)                       Divide
@@ -874,13 +874,12 @@ Inline form: `§C{Target} §A arg §/C`
 §NEW{TypeName}                Create instance
   §A arg1                     Constructor arguments
   §A arg2
-§/NEW
 ```
 
 ### Template: Object Creation
 ```calor
-§B{Person:person} §NEW{Person} §A "Alice" §A 30 §/NEW
-§B{List<i32>:numbers} §NEW{List<i32>} §/NEW
+§B{Person:person} §NEW{Person} §A "Alice" §A 30
+§B{List<i32>:numbers} §NEW{List<i32>}
 ```
 
 ---
@@ -964,7 +963,7 @@ Underlying types: `i8`, `u8`, `i16`, `u16`, `i32`, `u32`, `i64`, `u64`
   §FLD{List<T>:_items:pri}
 
   §CTOR{ctor001:pub}
-    §ASSIGN _items §NEW{List<T>} §/NEW
+    §ASSIGN _items §NEW{List<T>}
   §/CTOR{ctor001}
 
   §MT{m001:Add:pub}
@@ -1330,14 +1329,14 @@ Alternative: `§SW{id}` and `§/SW{id}`
 ## 29. USING DIRECTIVES
 
 ```
-§USING{namespace}             Using directive
+§U{namespace}                 Using directive
 ```
 
 ### Template: Using Statements
 ```calor
-§USING{System}
-§USING{System.Collections.Generic}
-§USING{System.Linq}
+§U{System}
+§U{System.Collections.Generic}
+§U{System.Linq}
 
 §M{m001:MyModule}
   ...
