@@ -19,6 +19,27 @@ public class ClaudeInitializer : IAiInitializer
     private const string SectionStart = "<!-- BEGIN CalorC SECTION - DO NOT EDIT -->";
     private const string SectionEnd = "<!-- END CalorC SECTION -->";
 
+    /// <summary>
+    /// Atomically writes content to a file by writing to a temp file in the same
+    /// directory and then renaming. This prevents corruption when Claude Code
+    /// reads/writes the same file concurrently.
+    /// </summary>
+    private static async Task AtomicWriteAsync(string filePath, string content)
+    {
+        var dir = Path.GetDirectoryName(filePath) ?? ".";
+        var tempPath = Path.Combine(dir, $".{Path.GetFileName(filePath)}.{Guid.NewGuid():N}.tmp");
+        try
+        {
+            await File.WriteAllTextAsync(tempPath, content);
+            File.Move(tempPath, filePath, overwrite: true);
+        }
+        catch
+        {
+            try { File.Delete(tempPath); } catch { /* best effort cleanup */ }
+            throw;
+        }
+    }
+
     public string AgentName => "Claude Code";
 
     /// <summary>
@@ -288,7 +309,7 @@ public class ClaudeInitializer : IAiInitializer
                 }
             };
 
-            await File.WriteAllTextAsync(settingsPath, JsonSerializer.Serialize(settings, JsonOptions));
+            await AtomicWriteAsync(settingsPath, JsonSerializer.Serialize(settings, JsonOptions));
             return HookSettingsResult.Created;
         }
 
@@ -313,7 +334,7 @@ public class ClaudeInitializer : IAiInitializer
                         PostToolUse = new[] { writePostHookConfig }
                     }
                 };
-                await File.WriteAllTextAsync(settingsPath, JsonSerializer.Serialize(settings, JsonOptions));
+                await AtomicWriteAsync(settingsPath, JsonSerializer.Serialize(settings, JsonOptions));
                 return HookSettingsResult.Updated;
             }
             // Otherwise, leave the file unchanged
@@ -380,7 +401,7 @@ public class ClaudeInitializer : IAiInitializer
             return HookSettingsResult.Unchanged;
         }
 
-        await File.WriteAllTextAsync(settingsPath, newJson);
+        await AtomicWriteAsync(settingsPath, newJson);
         return HookSettingsResult.Updated;
     }
 
@@ -493,7 +514,7 @@ public class ClaudeInitializer : IAiInitializer
             return McpConfigResult.Unchanged;
         }
 
-        await File.WriteAllTextAsync(claudeJsonPath, newJson);
+        await AtomicWriteAsync(claudeJsonPath, newJson);
         return McpConfigResult.Updated;
     }
 }
