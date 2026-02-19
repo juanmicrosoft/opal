@@ -1701,6 +1701,7 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         if (!node.IsStruct && node.IsSealed) modifiers += " sealed";
         if (node.IsStatic) modifiers += " static";
         if (node.IsReadOnly) modifiers += " readonly";
+        if (node.IsPartial) modifiers += " partial";
 
         var keyword = node.IsStruct ? "struct" : "class";
 
