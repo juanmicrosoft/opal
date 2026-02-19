@@ -93,10 +93,6 @@ public class InitCommandIntegrationTests : IDisposable
 
         // Assert - Claude files should exist
         Assert.True(claudeResult.Success);
-        Assert.True(Directory.Exists(Path.Combine(_testDirectory, ".claude", "skills", "calor")));
-        Assert.True(Directory.Exists(Path.Combine(_testDirectory, ".claude", "skills", "calor-convert")));
-        Assert.True(File.Exists(Path.Combine(_testDirectory, ".claude", "skills", "calor", "SKILL.md")));
-        Assert.True(File.Exists(Path.Combine(_testDirectory, ".claude", "skills", "calor-convert", "SKILL.md")));
         Assert.True(File.Exists(Path.Combine(_testDirectory, "CLAUDE.md")));
     }
 
@@ -122,7 +118,6 @@ public class InitCommandIntegrationTests : IDisposable
         // Assert - Claude files should now exist
         Assert.True(claudeResult.Success);
         Assert.True(File.Exists(Path.Combine(_testDirectory, "CLAUDE.md")));
-        Assert.True(File.Exists(Path.Combine(_testDirectory, ".claude", "skills", "calor", "SKILL.md")));
 
         // Assert - MSBuild targets should still be present (not removed)
         var csprojContent = await File.ReadAllTextAsync(csprojPath);

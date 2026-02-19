@@ -5,8 +5,8 @@ namespace Calor.Compiler.Init;
 
 /// <summary>
 /// Initializer for Google Gemini CLI AI agent.
-/// Creates .gemini/skills/ directory with Calor skills, GEMINI.md project file,
-/// and configures hooks to enforce Calor-first development.
+/// Creates GEMINI.md project file and configures hooks to enforce Calor-first development.
+/// MCP tools provide syntax guidance on-demand (replacing skill files).
 /// Unlike Codex, Gemini CLI supports hooks (as of v0.26.0+).
 /// </summary>
 public class GeminiInitializer : IAiInitializer
@@ -24,50 +24,6 @@ public class GeminiInitializer : IAiInitializer
 
         try
         {
-            // Create .gemini/skills/calor/ directory
-            var calorSkillDir = Path.Combine(targetDirectory, ".gemini", "skills", "calor");
-            Directory.CreateDirectory(calorSkillDir);
-
-            // Create .gemini/skills/calor-convert/ directory
-            var convertSkillDir = Path.Combine(targetDirectory, ".gemini", "skills", "calor-convert");
-            Directory.CreateDirectory(convertSkillDir);
-
-            // Create .gemini/skills/calor-analyze/ directory
-            var analyzeSkillDir = Path.Combine(targetDirectory, ".gemini", "skills", "calor-analyze");
-            Directory.CreateDirectory(analyzeSkillDir);
-
-            // Write skill files (Gemini uses SKILL.md format with YAML frontmatter)
-            var calorSkillPath = Path.Combine(calorSkillDir, "SKILL.md");
-            var convertSkillPath = Path.Combine(convertSkillDir, "SKILL.md");
-            var analyzeSkillPath = Path.Combine(analyzeSkillDir, "SKILL.md");
-
-            if (await WriteFileIfNeeded(calorSkillPath, EmbeddedResourceHelper.ReadSkill("gemini-calor-SKILL.md"), force))
-            {
-                createdFiles.Add(calorSkillPath);
-            }
-            else
-            {
-                warnings.Add($"Skipped existing file: {calorSkillPath}");
-            }
-
-            if (await WriteFileIfNeeded(convertSkillPath, EmbeddedResourceHelper.ReadSkill("gemini-calor-convert-SKILL.md"), force))
-            {
-                createdFiles.Add(convertSkillPath);
-            }
-            else
-            {
-                warnings.Add($"Skipped existing file: {convertSkillPath}");
-            }
-
-            if (await WriteFileIfNeeded(analyzeSkillPath, EmbeddedResourceHelper.ReadSkill("gemini-calor-analyze-SKILL.md"), force))
-            {
-                createdFiles.Add(analyzeSkillPath);
-            }
-            else
-            {
-                warnings.Add($"Skipped existing file: {analyzeSkillPath}");
-            }
-
             // Create or update GEMINI.md from template with section-aware handling
             var geminiMdPath = Path.Combine(targetDirectory, "GEMINI.md");
             var template = EmbeddedResourceHelper.ReadTemplate("GEMINI.md.template");
@@ -83,6 +39,9 @@ public class GeminiInitializer : IAiInitializer
             {
                 updatedFiles.Add(geminiMdPath);
             }
+
+            // Ensure .gemini directory exists for settings.json
+            Directory.CreateDirectory(Path.Combine(targetDirectory, ".gemini"));
 
             // Configure Gemini CLI hooks for Calor-first enforcement.
             // IMPORTANT: Hooks must run before MCP merge. On force + invalid JSON,
@@ -141,17 +100,6 @@ public class GeminiInitializer : IAiInitializer
         {
             return InitResult.Failed($"Failed to initialize: {ex.Message}");
         }
-    }
-
-    private static async Task<bool> WriteFileIfNeeded(string path, string content, bool force)
-    {
-        if (File.Exists(path) && !force)
-        {
-            return false;
-        }
-
-        await File.WriteAllTextAsync(path, content);
-        return true;
     }
 
     private enum GeminiMdUpdateResult

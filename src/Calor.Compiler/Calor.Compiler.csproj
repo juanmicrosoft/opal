@@ -112,18 +112,6 @@
     <PackageReference Include="DiffPlex" Version="1.7.2" />
   </ItemGroup>
 
-  <!-- Sync skill files from canonical source before build -->
-  <!-- The canonical source is: tests/Calor.Evaluation/Skills/calor-language-skills.md -->
-  <!-- It gets copied to: src/Calor.Compiler/Resources/Skills/calor.md for embedding -->
-  <Target Name="SyncSkillFiles" BeforeTargets="BeforeBuild" Condition="Exists('$(MSBuildThisFileDirectory)..\..\tests\Calor.Evaluation\Skills\calor-language-skills.md')">
-    <PropertyGroup>
-      <CanonicalSkillFile>$(MSBuildThisFileDirectory)..\..\tests\Calor.Evaluation\Skills\calor-language-skills.md</CanonicalSkillFile>
-      <EmbeddedSkillFile>$(MSBuildThisFileDirectory)Resources\Skills\calor.md</EmbeddedSkillFile>
-    </PropertyGroup>
-    <Copy SourceFiles="$(CanonicalSkillFile)" DestinationFiles="$(EmbeddedSkillFile)" SkipUnchangedFiles="true" />
-    <Message Importance="low" Text="Synced skill file: $(CanonicalSkillFile) -&gt; $(EmbeddedSkillFile)" />
-  </Target>
-
   <!-- Sync self-test scenario files from canonical E2E source before build -->
   <!-- Canonical source: tests/E2E/scenarios/{name}/input.calr + output.g.cs -->
   <!-- Synced to: src/Calor.Compiler/Resources/SelfTest/{name}.calr + {name}.g.cs -->
@@ -153,9 +141,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Resources\Skills\*.md">
-      <LogicalName>Calor.Compiler.Resources.Skills.%(Filename)%(Extension)</LogicalName>
-    </EmbeddedResource>
     <EmbeddedResource Include="Resources\Templates\*.template">
       <LogicalName>Calor.Compiler.Resources.Templates.%(Filename)%(Extension)</LogicalName>
     </EmbeddedResource>
@@ -164,6 +149,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Resources\calor-syntax-documentation.json">
       <LogicalName>Calor.Compiler.Resources.calor-syntax-documentation.json</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\tests\Calor.Evaluation\Skills\calor-language-skills.md">
+      <LogicalName>Calor.Compiler.Resources.calor-language-skills.md</LogicalName>
     </EmbeddedResource>
   </ItemGroup>
 

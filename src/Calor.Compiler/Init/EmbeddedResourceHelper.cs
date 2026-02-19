@@ -12,7 +12,7 @@ public static class EmbeddedResourceHelper
     /// <summary>
     /// Reads an embedded resource as a string.
     /// </summary>
-    /// <param name="name">The logical name of the resource (e.g., "Calor.Compiler.Resources.Skills.calr.md")</param>
+    /// <param name="name">The logical name of the resource (e.g., "Calor.Compiler.Resources.Templates.CLAUDE.md.template")</param>
     /// <returns>The resource content as a string.</returns>
     /// <exception cref="InvalidOperationException">If the resource is not found.</exception>
     public static string ReadResource(string name)
@@ -47,16 +47,6 @@ public static class EmbeddedResourceHelper
         // Fall back to assembly version
         var assemblyVersion = Assembly.GetName().Version;
         return assemblyVersion?.ToString(3) ?? "0.0.0";
-    }
-
-    /// <summary>
-    /// Reads a skill file from embedded resources.
-    /// </summary>
-    /// <param name="filename">The skill filename (e.g., "calor.md")</param>
-    /// <returns>The skill content.</returns>
-    public static string ReadSkill(string filename)
-    {
-        return ReadResource($"Calor.Compiler.Resources.Skills.{filename}");
     }
 
     /// <summary>
