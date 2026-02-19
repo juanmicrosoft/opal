@@ -487,7 +487,7 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         // Check if this is an interpolated string (contains ${identifier})
         // Only match Calor interpolation syntax: ${identifier}, not format placeholders ${0}
         // Calor interpolation uses identifiers (letters, underscores), not numbers
-        var interpolationRegex = new System.Text.RegularExpressions.Regex(@"\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}");
+        var interpolationRegex = new System.Text.RegularExpressions.Regex(@"\$\{([a-zA-Z_][a-zA-Z0-9_]*(?:\??\.[a-zA-Z_][a-zA-Z0-9_]*)*)\}");
         if (interpolationRegex.IsMatch(node.Value))
         {
             // Convert Calor interpolation ${expr} to C# interpolation {expr}
@@ -1679,6 +1679,7 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         var modifiers = "public";
         if (node.IsAbstract) modifiers += " abstract";
         if (!node.IsStruct && node.IsSealed) modifiers += " sealed";
+        if (node.IsStatic) modifiers += " static";
         if (node.IsReadOnly) modifiers += " readonly";
 
         var keyword = node.IsStruct ? "struct" : "class";

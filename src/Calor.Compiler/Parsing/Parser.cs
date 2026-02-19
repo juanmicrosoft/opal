@@ -4354,10 +4354,11 @@ public sealed class Parser
         var attrs = ParseAttributes();
         var csharpAttrs = ParseCSharpAttributes();
 
-        // Positional: [id:name:modifiers?]
+        // Positional: [id:name:modifiers?] or [id:name:baseClass:modifiers?]
         var id = attrs["_pos0"] ?? "";
         var name = attrs["_pos1"] ?? "";
-        var modifiers = attrs["_pos2"] ?? "";
+        var pos2 = attrs["_pos2"] ?? "";
+        var pos3 = attrs["_pos3"];
 
         if (string.IsNullOrEmpty(id))
         {
@@ -4368,12 +4369,47 @@ public sealed class Parser
             _diagnostics.ReportMissingRequiredAttribute(startToken.Span, "CLASS", "name");
         }
 
+        // Disambiguate positionals:
+        // 4 positionals (pos3 exists): pos2 is baseClass (or visibility to ignore), pos3 is modifiers
+        // 3 positionals (pos3 null): if pos2 is all known modifiers/visibility → modifiers; else baseClass
+        string modifiers;
+        string? baseClass = null;
+
+        if (pos3 != null)
+        {
+            // 4 positionals: §CL{id:name:BaseClass:modifiers}
+            if (IsVisibilityKeyword(pos2))
+            {
+                // pos2 is a visibility like "pub" — ignore it, modifiers = pos3
+                modifiers = pos3;
+            }
+            else
+            {
+                baseClass = pos2;
+                modifiers = pos3;
+            }
+        }
+        else
+        {
+            // 3 positionals: §CL{id:name:modifiers_or_base}
+            if (IsClassModifierOrVisibility(pos2))
+            {
+                modifiers = pos2;
+            }
+            else
+            {
+                // Not a known modifier — treat as base class
+                baseClass = string.IsNullOrEmpty(pos2) ? null : pos2;
+                modifiers = "";
+            }
+        }
+
         var isAbstract = modifiers.Contains("abs", StringComparison.OrdinalIgnoreCase);
         var isSealed = modifiers.Contains("seal", StringComparison.OrdinalIgnoreCase);
+        var isStatic = modifiers.Contains("stat", StringComparison.OrdinalIgnoreCase);
+        var isPartial = modifiers.Contains("partial", StringComparison.OrdinalIgnoreCase);
         var isStruct = modifiers.Contains("struct", StringComparison.OrdinalIgnoreCase);
         var isReadOnly = modifiers.Contains("readonly", StringComparison.OrdinalIgnoreCase);
-
-        string? baseClass = null;
         var implementedInterfaces = new List<string>();
 
         // NEW: Parse optional type parameters §CL{...}<T, U>
@@ -4476,7 +4512,7 @@ public sealed class Parser
         }
 
         var span = startToken.Span.Union(endToken.Span);
-        return new ClassDefinitionNode(span, id, name, isAbstract, isSealed, isPartial: false, isStatic: false, baseClass,
+        return new ClassDefinitionNode(span, id, name, isAbstract, isSealed, isPartial, isStatic, baseClass,
             implementedInterfaces, typeParameters, fields, properties, constructors, methods, events, attrs, csharpAttrs,
             isStruct: isStruct, isReadOnly: isReadOnly);
     }
@@ -6732,6 +6768,45 @@ public sealed class Parser
 
         var span = startToken.Span.Union(endToken.Span);
         return new EnumExtensionNode(span, id, enumName, methods, attrs);
+    }
+
+    #endregion
+
+    #region Class Modifier Helpers
+
+    private static bool IsVisibilityKeyword(string value)
+    {
+        return value.Equals("pub", StringComparison.OrdinalIgnoreCase)
+            || value.Equals("pri", StringComparison.OrdinalIgnoreCase)
+            || value.Equals("pro", StringComparison.OrdinalIgnoreCase)
+            || value.Equals("int", StringComparison.OrdinalIgnoreCase)
+            || value.Equals("public", StringComparison.OrdinalIgnoreCase)
+            || value.Equals("private", StringComparison.OrdinalIgnoreCase)
+            || value.Equals("protected", StringComparison.OrdinalIgnoreCase)
+            || value.Equals("internal", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static readonly HashSet<string> ClassModifierKeywords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "abs", "abstract", "seal", "sealed", "stat", "static",
+        "partial", "struct", "readonly",
+        "pub", "pri", "pro", "int",
+        "public", "private", "protected", "internal"
+    };
+
+    private static bool IsClassModifierOrVisibility(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return true; // empty string is "no modifiers" — treat as modifiers field
+
+        // value may be comma-separated ("abs,sealed") or space-separated ("abs seal")
+        foreach (var part in value.Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries))
+        {
+            var trimmed = part.Trim();
+            if (trimmed.Length > 0 && !ClassModifierKeywords.Contains(trimmed))
+                return false;
+        }
+        return true;
     }
 
     #endregion
