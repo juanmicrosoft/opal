@@ -283,7 +283,7 @@ public enum TokenKind
     StrLiteral,         // STR:"hello"
     BoolLiteral,        // BOOL:true
     FloatLiteral,       // FLOAT:3.14
-    DecimalLiteral,     // DECIMAL:18.00M or 18.00m
+    DecimalLiteral,     // DECIMAL:18.00M or DEC:18.00 or 18.00m
 
     // Identifiers and values
     Identifier,

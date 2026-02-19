@@ -684,8 +684,8 @@ public sealed class Lexer
             {
                 return ScanTypedFloatLiteral();
             }
-            // DECIMAL:digits or DECIMAL:-digits or DECIMAL:.digits
-            if (upperText == "DECIMAL" && (char.IsDigit(lookahead) || lookahead == '-' || lookahead == '.'))
+            // DECIMAL:digits or DEC:digits (decimal literal)
+            if ((upperText == "DECIMAL" || upperText == "DEC") && (char.IsDigit(lookahead) || lookahead == '-' || lookahead == '.'))
             {
                 return ScanTypedDecimalLiteral();
             }
@@ -835,6 +835,20 @@ public sealed class Lexer
         if (Current == '.')
         {
             Advance();
+            while (char.IsDigit(Current))
+            {
+                Advance();
+            }
+        }
+
+        // Handle scientific notation
+        if (Current is 'e' or 'E')
+        {
+            Advance();
+            if (Current is '+' or '-')
+            {
+                Advance();
+            }
             while (char.IsDigit(Current))
             {
                 Advance();

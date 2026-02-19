@@ -122,10 +122,13 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         AppendLine("#nullable enable");
         AppendLine();
 
-        // Always include System and Calor.Runtime
-        var emittedUsings = new HashSet<string>(StringComparer.Ordinal) { "System", "Calor.Runtime" };
+        // Always include System, Calor.Runtime, and commonly-needed namespaces
+        var emittedUsings = new HashSet<string>(StringComparer.Ordinal)
+            { "System", "Calor.Runtime", "System.Collections.Generic", "System.Linq" };
         AppendLine("using System;");
         AppendLine("using Calor.Runtime;");
+        AppendLine("using System.Collections.Generic;");
+        AppendLine("using System.Linq;");
 
         // Emit user-defined using directives
         foreach (var usingDirective in node.Usings)
@@ -539,7 +542,8 @@ public sealed class CSharpEmitter : IAstVisitor<string>
 
     public string Visit(FloatLiteralNode node)
     {
-        return node.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var str = node.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return node.IsDecimal ? str + "m" : str;
     }
 
     public string Visit(DecimalLiteralNode node)

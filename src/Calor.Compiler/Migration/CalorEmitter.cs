@@ -1153,12 +1153,14 @@ public sealed class CalorEmitter : IAstVisitor<string>
 
     public string Visit(FloatLiteralNode node)
     {
-        return node.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return node.IsDecimal
+            ? $"DEC:{node.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)}"
+            : node.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
     }
 
     public string Visit(DecimalLiteralNode node)
     {
-        return node.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) + "M";
+        return "DEC:" + node.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
     }
 
     public string Visit(StringLiteralNode node)
@@ -1357,8 +1359,9 @@ public sealed class CalorEmitter : IAstVisitor<string>
 
         if (node.Initializer.Count > 0)
         {
-            var elements = string.Join(", ", node.Initializer.Select(e => e.Accept(this)));
-            return $"{{{elements}}}";
+            var elements = node.Initializer.Select(e => $"§A {e.Accept(this)}");
+            var id = string.IsNullOrEmpty(node.Name) ? "_arr" : node.Name;
+            return $"§ARR{{{elementType}:{id}}} {string.Join(" ", elements)} §/ARR{{{id}}}";
         }
         else if (node.Size != null)
         {

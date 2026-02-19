@@ -2019,6 +2019,7 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
                 SyntaxKind.NumericLiteralExpression when literal.Token.Value is long => "i64",
                 SyntaxKind.NumericLiteralExpression when literal.Token.Value is float => "f32",
                 SyntaxKind.NumericLiteralExpression when literal.Token.Value is double => "f64",
+                SyntaxKind.NumericLiteralExpression when literal.Token.Value is decimal => "decimal",
                 SyntaxKind.TrueLiteralExpression or SyntaxKind.FalseLiteralExpression => "bool",
                 SyntaxKind.CharacterLiteralExpression => "char",
                 _ => null

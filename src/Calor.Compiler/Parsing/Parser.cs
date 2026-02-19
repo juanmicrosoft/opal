@@ -1592,7 +1592,7 @@ public sealed class Parser
                 // Provide helpful message based on what was found
                 var hint = token.Kind switch
                 {
-                    TokenKind.IntLiteral or TokenKind.FloatLiteral =>
+                    TokenKind.IntLiteral or TokenKind.FloatLiteral or TokenKind.DecimalLiteral =>
                         "Operators come before arguments: (+ 1 2) not (1 + 2)",
                     TokenKind.StrLiteral =>
                         "Operators come before arguments: (contains str \"x\") not (str contains \"x\")",
@@ -1732,6 +1732,9 @@ public sealed class Parser
                 break;
             case TokenKind.FloatLiteral:
                 expr = ParseFloatLiteral();
+                break;
+            case TokenKind.DecimalLiteral:
+                expr = ParseDecimalLiteral();
                 break;
             case TokenKind.Identifier:
                 expr = ParseBareReference(); // Bare variable reference
@@ -2231,7 +2234,8 @@ public sealed class Parser
         }
 
         if (Check(TokenKind.IntLiteral) || Check(TokenKind.StrLiteral) ||
-            Check(TokenKind.BoolLiteral) || Check(TokenKind.FloatLiteral))
+            Check(TokenKind.BoolLiteral) || Check(TokenKind.FloatLiteral) ||
+            Check(TokenKind.DecimalLiteral))
         {
             var literal = ParseExpression();
             return new LiteralPatternNode(literal.Span, literal);
@@ -2988,7 +2992,7 @@ public sealed class Parser
                     sb.Append(' ');
                 sb.Append(Advance().Value?.ToString() ?? "");
             }
-            else if (Check(TokenKind.FloatLiteral))
+            else if (Check(TokenKind.FloatLiteral) || Check(TokenKind.DecimalLiteral))
             {
                 // Add space before floats if there's content before them
                 if (sb.Length > 0 && !char.IsWhiteSpace(sb[sb.Length - 1]) && sb[sb.Length - 1] != '(')
@@ -3222,7 +3226,7 @@ public sealed class Parser
         {
             return Advance().Value ?? 0;
         }
-        if (Check(TokenKind.FloatLiteral))
+        if (Check(TokenKind.FloatLiteral) || Check(TokenKind.DecimalLiteral))
         {
             return Advance().Value ?? 0.0;
         }
@@ -4892,8 +4896,18 @@ public sealed class Parser
             }
         }
 
-        // Parse object initializer assignments (Identifier = Expression lines before §/NEW)
+        // Parse object initializer assignments:
+        // Format 1: §INIT{PropName} expression (tag-based)
+        // Format 2: PropName = expression (inline, between §NEW and §/NEW)
         var initializers = new List<ObjectInitializerAssignment>();
+        while (Check(TokenKind.Init))
+        {
+            Advance(); // consume §INIT
+            var initAttrs = ParseAttributes();
+            var propName = initAttrs["_pos0"] ?? "";
+            var value = ParseExpression();
+            initializers.Add(new ObjectInitializerAssignment(propName, value));
+        }
         while (!IsAtEnd && !Check(TokenKind.EndNew) && Check(TokenKind.Identifier))
         {
             // Peek ahead to check for "Identifier =" pattern
