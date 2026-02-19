@@ -192,6 +192,24 @@ public static class FeatureSupport
             Support = SupportLevel.Full,
             Description = "Bare array initializers are converted to Calor array nodes"
         },
+        ["object-initializer"] = new FeatureInfo
+        {
+            Name = "object-initializer",
+            Support = SupportLevel.Full,
+            Description = "Object initializers are converted to Calor §NEW with property assignments"
+        },
+        ["anonymous-type"] = new FeatureInfo
+        {
+            Name = "anonymous-type",
+            Support = SupportLevel.Full,
+            Description = "Anonymous types are converted to Calor §ANON blocks"
+        },
+        ["foreach-index"] = new FeatureInfo
+        {
+            Name = "foreach-index",
+            Support = SupportLevel.Full,
+            Description = "Indexed foreach via §EACH with optional index variable"
+        },
         ["ref-parameter"] = new FeatureInfo
         {
             Name = "ref-parameter",
