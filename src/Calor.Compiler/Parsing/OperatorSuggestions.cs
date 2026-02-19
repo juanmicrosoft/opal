@@ -63,8 +63,14 @@ public static class OperatorSuggestions
         // Async operations
         "await",
 
+        // Null-coalescing
+        "??",
+
         // Type operations
-        "cast", "as", "is"
+        "cast", "as", "is",
+
+        // Type reflection
+        "typeof"
     };
 
     /// <summary>
@@ -74,7 +80,7 @@ public static class OperatorSuggestions
     {
         // C# keywords with Calor equivalents
         ["nameof"] = "Use a string literal instead: \"VariableName\"",
-        ["typeof"] = "Type reflection is not supported in Calor. Use type names directly in expressions.",
+        ["typeof"] = "Use (typeof Type) in Lisp expressions",
         ["sizeof"] = "Size operations are not supported in Calor. Use constants for known sizes.",
         ["default"] = "Use explicit default values (0 for numbers, \"\" for strings, §NN for None).",
         ["new"] = "Use §NEW for object creation: §NEW[Type] §A arg1 §A arg2",
@@ -104,7 +110,7 @@ public static class OperatorSuggestions
         ["-="] = "Use (set x (- x value))",
         ["*="] = "Use (set x (* x value))",
         ["/="] = "Use (set x (/ x value))",
-        ["??"] = "Use (unwrap-or option default) for null-coalescing",
+        ["??"] = "Use (?? x default) for null-coalescing in Lisp expressions",
         ["?."] = "Use pattern matching or (map-opt option fn) for null-conditional",
         ["?["] = "Use (if (is-some opt) (nth (unwrap opt) i) default)",
         ["!."] = "Use (unwrap option) to assert non-null",
