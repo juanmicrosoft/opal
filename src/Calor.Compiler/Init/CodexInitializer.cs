@@ -2,8 +2,8 @@ namespace Calor.Compiler.Init;
 
 /// <summary>
 /// Initializer for OpenAI Codex CLI AI agent.
-/// Creates .codex/skills/ directory with Calor skills, AGENTS.md project file,
-/// and configures MCP server in .codex/config.toml for Calor compiler tools.
+/// Creates AGENTS.md project file and configures MCP server in .codex/config.toml for Calor compiler tools.
+/// MCP tools provide syntax guidance on-demand (replacing skill files).
 /// Note: Codex does not support hooks, so Calor-first enforcement is guidance-based only.
 /// </summary>
 public class CodexInitializer : IAiInitializer
@@ -23,50 +23,6 @@ public class CodexInitializer : IAiInitializer
 
         try
         {
-            // Create .codex/skills/calor/ directory
-            var calorSkillDir = Path.Combine(targetDirectory, ".codex", "skills", "calor");
-            Directory.CreateDirectory(calorSkillDir);
-
-            // Create .codex/skills/calor-convert/ directory
-            var convertSkillDir = Path.Combine(targetDirectory, ".codex", "skills", "calor-convert");
-            Directory.CreateDirectory(convertSkillDir);
-
-            // Create .codex/skills/calor-analyze/ directory
-            var analyzeSkillDir = Path.Combine(targetDirectory, ".codex", "skills", "calor-analyze");
-            Directory.CreateDirectory(analyzeSkillDir);
-
-            // Write skill files (Codex uses SKILL.md format with YAML frontmatter)
-            var calorSkillPath = Path.Combine(calorSkillDir, "SKILL.md");
-            var convertSkillPath = Path.Combine(convertSkillDir, "SKILL.md");
-            var analyzeSkillPath = Path.Combine(analyzeSkillDir, "SKILL.md");
-
-            if (await WriteFileIfNeeded(calorSkillPath, EmbeddedResourceHelper.ReadSkill("codex-calor-SKILL.md"), force))
-            {
-                createdFiles.Add(calorSkillPath);
-            }
-            else
-            {
-                warnings.Add($"Skipped existing file: {calorSkillPath}");
-            }
-
-            if (await WriteFileIfNeeded(convertSkillPath, EmbeddedResourceHelper.ReadSkill("codex-calor-convert-SKILL.md"), force))
-            {
-                createdFiles.Add(convertSkillPath);
-            }
-            else
-            {
-                warnings.Add($"Skipped existing file: {convertSkillPath}");
-            }
-
-            if (await WriteFileIfNeeded(analyzeSkillPath, EmbeddedResourceHelper.ReadSkill("codex-calor-analyze-SKILL.md"), force))
-            {
-                createdFiles.Add(analyzeSkillPath);
-            }
-            else
-            {
-                warnings.Add($"Skipped existing file: {analyzeSkillPath}");
-            }
-
             // Create or update AGENTS.md from template with section-aware handling
             var agentsMdPath = Path.Combine(targetDirectory, "AGENTS.md");
             var template = EmbeddedResourceHelper.ReadTemplate("AGENTS.md.template");
@@ -124,17 +80,6 @@ public class CodexInitializer : IAiInitializer
         {
             return InitResult.Failed($"Failed to initialize: {ex.Message}");
         }
-    }
-
-    private static async Task<bool> WriteFileIfNeeded(string path, string content, bool force)
-    {
-        if (File.Exists(path) && !force)
-        {
-            return false;
-        }
-
-        await File.WriteAllTextAsync(path, content);
-        return true;
     }
 
     private enum AgentsMdUpdateResult

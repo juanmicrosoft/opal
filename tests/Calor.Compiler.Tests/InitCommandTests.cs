@@ -27,26 +27,6 @@ public class InitCommandTests : IDisposable
     }
 
     [Fact]
-    public void EmbeddedResourceHelper_ReadSkill_ReturnsCalorSkill()
-    {
-        var content = EmbeddedResourceHelper.ReadSkill("calor.md");
-
-        Assert.NotEmpty(content);
-        Assert.Contains("Calor", content);
-        Assert.Contains("§M", content);
-    }
-
-    [Fact]
-    public void EmbeddedResourceHelper_ReadSkill_ReturnsConvertSkill()
-    {
-        var content = EmbeddedResourceHelper.ReadSkill("calor-convert.md");
-
-        Assert.NotEmpty(content);
-        Assert.Contains("Convert", content);
-        Assert.Contains("Type Mappings", content);
-    }
-
-    [Fact]
     public void EmbeddedResourceHelper_ReadTemplate_ReturnsClaudeMdTemplate()
     {
         var content = EmbeddedResourceHelper.ReadTemplate("CLAUDE.md.template");
@@ -122,46 +102,6 @@ public class InitCommandTests : IDisposable
     }
 
     [Fact]
-    public async Task ClaudeInitializer_Initialize_CreatesSkillsDirectories()
-    {
-        var initializer = CreateInitializer();
-
-        var result = await initializer.InitializeAsync(_testDirectory, force: false);
-
-        Assert.True(result.Success);
-        Assert.True(Directory.Exists(Path.Combine(_testDirectory, ".claude", "skills", "calor")));
-        Assert.True(Directory.Exists(Path.Combine(_testDirectory, ".claude", "skills", "calor-convert")));
-    }
-
-    [Fact]
-    public async Task ClaudeInitializer_Initialize_CreatesCalorSkill()
-    {
-        var initializer = CreateInitializer();
-
-        var result = await initializer.InitializeAsync(_testDirectory, force: false);
-
-        var skillPath = Path.Combine(_testDirectory, ".claude", "skills", "calor", "SKILL.md");
-        Assert.True(File.Exists(skillPath));
-        Assert.Contains(skillPath, result.CreatedFiles);
-
-        var content = await File.ReadAllTextAsync(skillPath);
-        Assert.Contains("Calor", content);
-        Assert.Contains("name: calor", content); // YAML frontmatter
-    }
-
-    [Fact]
-    public async Task ClaudeInitializer_Initialize_CreatesConvertSkill()
-    {
-        var initializer = CreateInitializer();
-
-        var result = await initializer.InitializeAsync(_testDirectory, force: false);
-
-        var skillPath = Path.Combine(_testDirectory, ".claude", "skills", "calor-convert", "SKILL.md");
-        Assert.True(File.Exists(skillPath));
-        Assert.Contains(skillPath, result.CreatedFiles);
-    }
-
-    [Fact]
     public async Task ClaudeInitializer_Initialize_CreatesClaudeMdWithMarkers()
     {
         var initializer = CreateInitializer();
@@ -178,54 +118,6 @@ public class InitCommandTests : IDisposable
         Assert.Matches(@"calor v\d+\.\d+\.\d+", content);
         Assert.Contains("<!-- BEGIN CalorC SECTION - DO NOT EDIT -->", content);
         Assert.Contains("<!-- END CalorC SECTION -->", content);
-    }
-
-    [Fact]
-    public async Task ClaudeInitializer_Initialize_SkipsExistingSkillFilesWithoutForce()
-    {
-        var initializer = CreateInitializer();
-
-        // First initialization
-        await initializer.InitializeAsync(_testDirectory, force: false);
-
-        // Modify a skill file
-        var skillPath = Path.Combine(_testDirectory, ".claude", "skills", "calor", "SKILL.md");
-        await File.WriteAllTextAsync(skillPath, "Custom skill content");
-
-        // Second initialization without force
-        var result = await initializer.InitializeAsync(_testDirectory, force: false);
-
-        Assert.True(result.Success);
-        Assert.NotEmpty(result.Warnings);
-        Assert.Contains(result.Warnings, w => w.Contains(skillPath));
-
-        // Skill file should not be overwritten
-        var content = await File.ReadAllTextAsync(skillPath);
-        Assert.Equal("Custom skill content", content);
-    }
-
-    [Fact]
-    public async Task ClaudeInitializer_Initialize_OverwritesSkillsWithForce()
-    {
-        var initializer = CreateInitializer();
-
-        // First initialization
-        await initializer.InitializeAsync(_testDirectory, force: false);
-
-        // Modify a skill file
-        var skillPath = Path.Combine(_testDirectory, ".claude", "skills", "calor", "SKILL.md");
-        await File.WriteAllTextAsync(skillPath, "Custom skill content");
-
-        // Second initialization with force
-        var result = await initializer.InitializeAsync(_testDirectory, force: true);
-
-        Assert.True(result.Success);
-        Assert.Contains(skillPath, result.CreatedFiles);
-
-        // Skill file should be overwritten
-        var content = await File.ReadAllTextAsync(skillPath);
-        Assert.Contains("Calor", content);
-        Assert.DoesNotContain("Custom skill content", content);
     }
 
     [Fact]
@@ -377,7 +269,6 @@ Run `dotnet build` to compile.
 
         Assert.True(result.Success);
         Assert.Contains(result.Messages, m => m.Contains("Google Gemini"));
-        Assert.True(Directory.Exists(Path.Combine(_testDirectory, ".gemini", "skills", "calor")));
         Assert.True(File.Exists(Path.Combine(_testDirectory, "GEMINI.md")));
         Assert.True(File.Exists(Path.Combine(_testDirectory, ".gemini", "settings.json")));
     }
@@ -391,10 +282,6 @@ Run `dotnet build` to compile.
 
         Assert.True(result.Success);
         Assert.Contains("GitHub Copilot", result.Messages[0]);
-
-        // Verify skill files are created
-        Assert.True(File.Exists(Path.Combine(_testDirectory, ".github", "copilot", "skills", "calor", "SKILL.md")));
-        Assert.True(File.Exists(Path.Combine(_testDirectory, ".github", "copilot", "skills", "calor-convert", "SKILL.md")));
 
         // Verify copilot-instructions.md is created
         Assert.True(File.Exists(Path.Combine(_testDirectory, ".github", "copilot-instructions.md")));

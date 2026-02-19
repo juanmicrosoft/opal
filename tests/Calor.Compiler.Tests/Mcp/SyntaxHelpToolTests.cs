@@ -336,4 +336,66 @@ This is CUSTOM_UNIQUE_MARKER content for testing the CALOR_SKILL_FILE environmen
     }
 
     #endregion
+
+    #region Embedded Resource Fallback Tests
+
+    [Fact]
+    public void EmbeddedResource_CalorLanguageSkills_ExistsAndIsNonEmpty()
+    {
+        // Verify the embedded resource that serves as the last-resort fallback
+        // for NuGet-installed users (where filesystem paths don't exist) is
+        // actually bundled in the assembly and contains meaningful content.
+        var content = Init.EmbeddedResourceHelper.ReadResource(
+            "Calor.Compiler.Resources.calor-language-skills.md");
+
+        Assert.False(string.IsNullOrWhiteSpace(content),
+            "Embedded calor-language-skills.md should not be empty");
+        // Verify it has markdown section headers (the format ExtractRelevantSections expects)
+        Assert.Contains("## ", content);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_EmbeddedFallback_ReturnsContentWhenFilesystemFails()
+    {
+        // Simulate the NuGet-installed scenario: env var points to a nonexistent file,
+        // and no filesystem skill file is reachable. The embedded resource should kick in.
+        var originalValue = Environment.GetEnvironmentVariable(SyntaxHelpTool.SkillFilePathEnvVar);
+        var originalDir = Directory.GetCurrentDirectory();
+
+        try
+        {
+            // Point env var to nonexistent file (disables path 1)
+            Environment.SetEnvironmentVariable(
+                SyntaxHelpTool.SkillFilePathEnvVar, "/nonexistent/path/skill.md");
+
+            // Change working directory to temp (no Calor.sln or .git — disables path 2)
+            var tempDir = Path.Combine(Path.GetTempPath(), $"calor-test-{Guid.NewGuid():N}");
+            Directory.CreateDirectory(tempDir);
+            Directory.SetCurrentDirectory(tempDir);
+
+            SyntaxHelpTool.ResetCacheForTesting();
+
+            var tool = new SyntaxHelpTool();
+            var args = JsonDocument.Parse("""{"feature": "contracts"}""").RootElement;
+
+            var result = await tool.ExecuteAsync(args);
+
+            Assert.False(result.IsError, "Should not error — embedded fallback should provide content");
+            var text = result.Content[0].Text!;
+            Assert.Contains("feature", text);
+            Assert.Contains("contracts", text.ToLower());
+
+            // Cleanup temp dir
+            Directory.Delete(tempDir, true);
+        }
+        finally
+        {
+            // Restore environment
+            Directory.SetCurrentDirectory(originalDir);
+            Environment.SetEnvironmentVariable(SyntaxHelpTool.SkillFilePathEnvVar, originalValue);
+            SyntaxHelpTool.ResetCacheForTesting();
+        }
+    }
+
+    #endregion
 }

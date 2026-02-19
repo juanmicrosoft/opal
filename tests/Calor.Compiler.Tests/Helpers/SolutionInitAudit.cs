@@ -38,8 +38,6 @@ public static class SolutionInitAudit
 
         // Check for AI files in solution root
         result.HasClaudeMd = File.Exists(Path.Combine(solutionDir, "CLAUDE.md"));
-        result.HasSkills = Directory.Exists(Path.Combine(solutionDir, ".claude", "skills", "calor")) &&
-                          File.Exists(Path.Combine(solutionDir, ".claude", "skills", "calor", "SKILL.md"));
         result.HasHooks = File.Exists(Path.Combine(solutionDir, ".claude", "settings.json"));
 
         // Check for CODEX files
@@ -136,11 +134,6 @@ public class AuditResult
     public bool HasClaudeMd { get; set; }
 
     /// <summary>
-    /// Whether Calor skills exist in .claude/skills/calor/.
-    /// </summary>
-    public bool HasSkills { get; set; }
-
-    /// <summary>
     /// Whether hooks are configured in .claude/settings.json.
     /// </summary>
     public bool HasHooks { get; set; }
@@ -172,6 +165,6 @@ public class AuditResult
     public override string ToString()
     {
         return $"Audit: {InitializedProjects}/{TotalProjects} projects initialized ({InitializationRate:F1}%), " +
-               $"CLAUDE.md={HasClaudeMd}, Skills={HasSkills}, Hooks={HasHooks}";
+               $"CLAUDE.md={HasClaudeMd}, Hooks={HasHooks}";
     }
 }
