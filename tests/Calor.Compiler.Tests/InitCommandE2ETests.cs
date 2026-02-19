@@ -67,28 +67,6 @@ public class InitCommandE2ETests : IDisposable
         await csprojInitializer.InitializeAsync(csprojPath);
         await GitAttributesInitializer.InitializeAsync(_testDirectory);
 
-        // Assert - All skill directories exist
-        Assert.True(Directory.Exists(Path.Combine(_testDirectory, ".claude", "skills", "calor")));
-        Assert.True(Directory.Exists(Path.Combine(_testDirectory, ".claude", "skills", "calor-convert")));
-        Assert.True(Directory.Exists(Path.Combine(_testDirectory, ".claude", "skills", "calor-semantics")));
-        Assert.True(Directory.Exists(Path.Combine(_testDirectory, ".claude", "skills", "calor-analyze")));
-
-        // Assert - All skill files exist and have content
-        var calorSkillPath = Path.Combine(_testDirectory, ".claude", "skills", "calor", "SKILL.md");
-        var convertSkillPath = Path.Combine(_testDirectory, ".claude", "skills", "calor-convert", "SKILL.md");
-        var semanticsSkillPath = Path.Combine(_testDirectory, ".claude", "skills", "calor-semantics", "SKILL.md");
-        var analyzeSkillPath = Path.Combine(_testDirectory, ".claude", "skills", "calor-analyze", "SKILL.md");
-
-        Assert.True(File.Exists(calorSkillPath));
-        Assert.True(File.Exists(convertSkillPath));
-        Assert.True(File.Exists(semanticsSkillPath));
-        Assert.True(File.Exists(analyzeSkillPath));
-
-        Assert.True((await File.ReadAllTextAsync(calorSkillPath)).Length > 100);
-        Assert.True((await File.ReadAllTextAsync(convertSkillPath)).Length > 100);
-        Assert.True((await File.ReadAllTextAsync(semanticsSkillPath)).Length > 100);
-        Assert.True((await File.ReadAllTextAsync(analyzeSkillPath)).Length > 100);
-
         // Assert - CLAUDE.md exists with correct content
         var claudeMdPath = Path.Combine(_testDirectory, "CLAUDE.md");
         Assert.True(File.Exists(claudeMdPath));
@@ -169,24 +147,6 @@ public class InitCommandE2ETests : IDisposable
         await csprojInitializer.InitializeAsync(csprojPath);
         await GitAttributesInitializer.InitializeAsync(_testDirectory);
 
-        // Assert - All skill directories exist
-        Assert.True(Directory.Exists(Path.Combine(_testDirectory, ".codex", "skills", "calor")));
-        Assert.True(Directory.Exists(Path.Combine(_testDirectory, ".codex", "skills", "calor-convert")));
-        Assert.True(Directory.Exists(Path.Combine(_testDirectory, ".codex", "skills", "calor-analyze")));
-
-        // Assert - All skill files exist and have content
-        var calorSkillPath = Path.Combine(_testDirectory, ".codex", "skills", "calor", "SKILL.md");
-        var convertSkillPath = Path.Combine(_testDirectory, ".codex", "skills", "calor-convert", "SKILL.md");
-        var analyzeSkillPath = Path.Combine(_testDirectory, ".codex", "skills", "calor-analyze", "SKILL.md");
-
-        Assert.True(File.Exists(calorSkillPath));
-        Assert.True(File.Exists(convertSkillPath));
-        Assert.True(File.Exists(analyzeSkillPath));
-
-        Assert.True((await File.ReadAllTextAsync(calorSkillPath)).Length > 100);
-        Assert.True((await File.ReadAllTextAsync(convertSkillPath)).Length > 100);
-        Assert.True((await File.ReadAllTextAsync(analyzeSkillPath)).Length > 100);
-
         // Assert - AGENTS.md exists with correct content
         var agentsMdPath = Path.Combine(_testDirectory, "AGENTS.md");
         Assert.True(File.Exists(agentsMdPath));
@@ -226,24 +186,6 @@ public class InitCommandE2ETests : IDisposable
         await geminiInitializer.InitializeAsync(_testDirectory, force: false);
         await csprojInitializer.InitializeAsync(csprojPath);
         await GitAttributesInitializer.InitializeAsync(_testDirectory);
-
-        // Assert - All skill directories exist
-        Assert.True(Directory.Exists(Path.Combine(_testDirectory, ".gemini", "skills", "calor")));
-        Assert.True(Directory.Exists(Path.Combine(_testDirectory, ".gemini", "skills", "calor-convert")));
-        Assert.True(Directory.Exists(Path.Combine(_testDirectory, ".gemini", "skills", "calor-analyze")));
-
-        // Assert - All skill files exist and have content
-        var calorSkillPath = Path.Combine(_testDirectory, ".gemini", "skills", "calor", "SKILL.md");
-        var convertSkillPath = Path.Combine(_testDirectory, ".gemini", "skills", "calor-convert", "SKILL.md");
-        var analyzeSkillPath = Path.Combine(_testDirectory, ".gemini", "skills", "calor-analyze", "SKILL.md");
-
-        Assert.True(File.Exists(calorSkillPath));
-        Assert.True(File.Exists(convertSkillPath));
-        Assert.True(File.Exists(analyzeSkillPath));
-
-        Assert.True((await File.ReadAllTextAsync(calorSkillPath)).Length > 100);
-        Assert.True((await File.ReadAllTextAsync(convertSkillPath)).Length > 100);
-        Assert.True((await File.ReadAllTextAsync(analyzeSkillPath)).Length > 100);
 
         // Assert - GEMINI.md exists with correct content
         var geminiMdPath = Path.Combine(_testDirectory, "GEMINI.md");
@@ -298,24 +240,6 @@ public class InitCommandE2ETests : IDisposable
         await githubInitializer.InitializeAsync(_testDirectory, force: false);
         await csprojInitializer.InitializeAsync(csprojPath);
         await GitAttributesInitializer.InitializeAsync(_testDirectory);
-
-        // Assert - All skill directories exist
-        Assert.True(Directory.Exists(Path.Combine(_testDirectory, ".github", "copilot", "skills", "calor")));
-        Assert.True(Directory.Exists(Path.Combine(_testDirectory, ".github", "copilot", "skills", "calor-convert")));
-        Assert.True(Directory.Exists(Path.Combine(_testDirectory, ".github", "copilot", "skills", "calor-analyze")));
-
-        // Assert - All skill files exist and have content
-        var calorSkillPath = Path.Combine(_testDirectory, ".github", "copilot", "skills", "calor", "SKILL.md");
-        var convertSkillPath = Path.Combine(_testDirectory, ".github", "copilot", "skills", "calor-convert", "SKILL.md");
-        var analyzeSkillPath = Path.Combine(_testDirectory, ".github", "copilot", "skills", "calor-analyze", "SKILL.md");
-
-        Assert.True(File.Exists(calorSkillPath));
-        Assert.True(File.Exists(convertSkillPath));
-        Assert.True(File.Exists(analyzeSkillPath));
-
-        Assert.True((await File.ReadAllTextAsync(calorSkillPath)).Length > 100);
-        Assert.True((await File.ReadAllTextAsync(convertSkillPath)).Length > 100);
-        Assert.True((await File.ReadAllTextAsync(analyzeSkillPath)).Length > 100);
 
         // Assert - copilot-instructions.md exists with correct content
         var instructionsPath = Path.Combine(_testDirectory, ".github", "copilot-instructions.md");
@@ -381,21 +305,17 @@ public class InitCommandE2ETests : IDisposable
 
         // Assert - All agent-specific files exist
         // Claude
-        Assert.True(File.Exists(Path.Combine(_testDirectory, ".claude", "skills", "calor", "SKILL.md")));
         Assert.True(File.Exists(Path.Combine(_testDirectory, ".claude", "settings.json")));
         Assert.True(File.Exists(Path.Combine(_testDirectory, "CLAUDE.md")));
 
         // Codex
-        Assert.True(File.Exists(Path.Combine(_testDirectory, ".codex", "skills", "calor", "SKILL.md")));
         Assert.True(File.Exists(Path.Combine(_testDirectory, "AGENTS.md")));
 
         // Gemini
-        Assert.True(File.Exists(Path.Combine(_testDirectory, ".gemini", "skills", "calor", "SKILL.md")));
         Assert.True(File.Exists(Path.Combine(_testDirectory, ".gemini", "settings.json")));
         Assert.True(File.Exists(Path.Combine(_testDirectory, "GEMINI.md")));
 
         // GitHub
-        Assert.True(File.Exists(Path.Combine(_testDirectory, ".github", "copilot", "skills", "calor", "SKILL.md")));
         Assert.True(File.Exists(Path.Combine(_testDirectory, ".github", "copilot-instructions.md")));
         Assert.True(File.Exists(Path.Combine(_testDirectory, ".vscode", "mcp.json")));
 

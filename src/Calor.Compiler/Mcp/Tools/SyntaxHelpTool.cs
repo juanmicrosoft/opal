@@ -73,15 +73,17 @@ public sealed class SyntaxHelpTool : McpToolBase
             }
         }
 
-        // 4. Fall back to embedded resource
+        // 4. Fall back to embedded resource (always available in NuGet tool installations)
         try
         {
-            return EmbeddedResourceHelper.ReadSkill("calor.md");
+            return EmbeddedResourceHelper.ReadResource("Calor.Compiler.Resources.calor-language-skills.md");
         }
         catch
         {
-            return "";
+            // Resource not found
         }
+
+        return "";
     }
 
     /// <summary>

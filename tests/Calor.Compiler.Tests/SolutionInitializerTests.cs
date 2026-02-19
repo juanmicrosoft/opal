@@ -86,7 +86,6 @@ public class SolutionInitializerTests : IDisposable
 
         // AI files should be in solution directory, not project directories
         Assert.True(File.Exists(Path.Combine(_testDir, "CLAUDE.md")));
-        Assert.True(Directory.Exists(Path.Combine(_testDir, ".claude", "skills", "calor")));
         Assert.True(File.Exists(Path.Combine(_testDir, ".claude", "settings.json")));
 
         // AI files should NOT be in project directories

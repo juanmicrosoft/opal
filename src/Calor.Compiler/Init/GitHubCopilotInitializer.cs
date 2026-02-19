@@ -5,8 +5,8 @@ namespace Calor.Compiler.Init;
 
 /// <summary>
 /// Initializer for GitHub Copilot AI agent.
-/// Creates .github/copilot/skills/ directory with Calor skills, copilot-instructions.md project file,
-/// and configures MCP servers in .vscode/mcp.json for Copilot Agent mode.
+/// Creates copilot-instructions.md project file and configures MCP servers in .vscode/mcp.json for Copilot Agent mode.
+/// MCP tools provide syntax guidance on-demand (replacing skill files).
 /// Note: GitHub Copilot does not support hooks, so Calor-first enforcement is guidance-based with MCP tool support.
 /// </summary>
 public class GitHubCopilotInitializer : IAiInitializer
@@ -30,50 +30,6 @@ public class GitHubCopilotInitializer : IAiInitializer
 
         try
         {
-            // Create .github/copilot/skills/calor/ directory
-            var calorSkillDir = Path.Combine(targetDirectory, ".github", "copilot", "skills", "calor");
-            Directory.CreateDirectory(calorSkillDir);
-
-            // Create .github/copilot/skills/calor-convert/ directory
-            var convertSkillDir = Path.Combine(targetDirectory, ".github", "copilot", "skills", "calor-convert");
-            Directory.CreateDirectory(convertSkillDir);
-
-            // Create .github/copilot/skills/calor-analyze/ directory
-            var analyzeSkillDir = Path.Combine(targetDirectory, ".github", "copilot", "skills", "calor-analyze");
-            Directory.CreateDirectory(analyzeSkillDir);
-
-            // Write skill files (GitHub Copilot uses SKILL.md format with YAML frontmatter)
-            var calorSkillPath = Path.Combine(calorSkillDir, "SKILL.md");
-            var convertSkillPath = Path.Combine(convertSkillDir, "SKILL.md");
-            var analyzeSkillPath = Path.Combine(analyzeSkillDir, "SKILL.md");
-
-            if (await WriteFileIfNeeded(calorSkillPath, EmbeddedResourceHelper.ReadSkill("github-calor-SKILL.md"), force))
-            {
-                createdFiles.Add(calorSkillPath);
-            }
-            else
-            {
-                warnings.Add($"Skipped existing file: {calorSkillPath}");
-            }
-
-            if (await WriteFileIfNeeded(convertSkillPath, EmbeddedResourceHelper.ReadSkill("github-calor-convert-SKILL.md"), force))
-            {
-                createdFiles.Add(convertSkillPath);
-            }
-            else
-            {
-                warnings.Add($"Skipped existing file: {convertSkillPath}");
-            }
-
-            if (await WriteFileIfNeeded(analyzeSkillPath, EmbeddedResourceHelper.ReadSkill("github-calor-analyze-SKILL.md"), force))
-            {
-                createdFiles.Add(analyzeSkillPath);
-            }
-            else
-            {
-                warnings.Add($"Skipped existing file: {analyzeSkillPath}");
-            }
-
             // Create or update copilot-instructions.md from template with section-aware handling
             var instructionsPath = Path.Combine(targetDirectory, ".github", "copilot-instructions.md");
             var template = EmbeddedResourceHelper.ReadTemplate("copilot-instructions.md.template");
@@ -130,17 +86,6 @@ public class GitHubCopilotInitializer : IAiInitializer
         {
             return InitResult.Failed($"Failed to initialize: {ex.Message}");
         }
-    }
-
-    private static async Task<bool> WriteFileIfNeeded(string path, string content, bool force)
-    {
-        if (File.Exists(path) && !force)
-        {
-            return false;
-        }
-
-        await File.WriteAllTextAsync(path, content);
-        return true;
     }
 
     private enum InstructionsUpdateResult

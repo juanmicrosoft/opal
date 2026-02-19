@@ -5,8 +5,8 @@ namespace Calor.Compiler.Init;
 
 /// <summary>
 /// Initializer for Claude Code AI agent.
-/// Creates .claude/skills/ directory with Calor skills, CLAUDE.md project file,
-/// and configures hooks to enforce Calor-first development.
+/// Creates CLAUDE.md project file and configures hooks to enforce Calor-first development.
+/// MCP tools provide syntax guidance on-demand (replacing skill files).
 /// </summary>
 public class ClaudeInitializer : IAiInitializer
 {
@@ -59,64 +59,6 @@ public class ClaudeInitializer : IAiInitializer
             // Claude Code resolves project config by git root, not by working directory.
             var effectiveDir = FindGitRoot(targetDirectory) ?? targetDirectory;
 
-            // Create .claude/skills/calor/ directory
-            var calorSkillDir = Path.Combine(effectiveDir, ".claude", "skills", "calor");
-            Directory.CreateDirectory(calorSkillDir);
-
-            // Create .claude/skills/calor-convert/ directory
-            var convertSkillDir = Path.Combine(effectiveDir, ".claude", "skills", "calor-convert");
-            Directory.CreateDirectory(convertSkillDir);
-
-            // Create .claude/skills/calor-semantics/ directory
-            var semanticsSkillDir = Path.Combine(effectiveDir, ".claude", "skills", "calor-semantics");
-            Directory.CreateDirectory(semanticsSkillDir);
-
-            // Create .claude/skills/calor-analyze/ directory
-            var analyzeSkillDir = Path.Combine(effectiveDir, ".claude", "skills", "calor-analyze");
-            Directory.CreateDirectory(analyzeSkillDir);
-
-            // Write skill files (Claude uses SKILL.md format with YAML frontmatter)
-            var calorSkillPath = Path.Combine(calorSkillDir, "SKILL.md");
-            var convertSkillPath = Path.Combine(convertSkillDir, "SKILL.md");
-            var semanticsSkillPath = Path.Combine(semanticsSkillDir, "SKILL.md");
-            var analyzeSkillPath = Path.Combine(analyzeSkillDir, "SKILL.md");
-
-            if (await WriteFileIfNeeded(calorSkillPath, EmbeddedResourceHelper.ReadSkill("claude-calor-SKILL.md"), force))
-            {
-                createdFiles.Add(calorSkillPath);
-            }
-            else
-            {
-                warnings.Add($"Skipped existing file: {calorSkillPath}");
-            }
-
-            if (await WriteFileIfNeeded(convertSkillPath, EmbeddedResourceHelper.ReadSkill("claude-calor-convert-SKILL.md"), force))
-            {
-                createdFiles.Add(convertSkillPath);
-            }
-            else
-            {
-                warnings.Add($"Skipped existing file: {convertSkillPath}");
-            }
-
-            if (await WriteFileIfNeeded(semanticsSkillPath, EmbeddedResourceHelper.ReadSkill("claude-calor-semantics-SKILL.md"), force))
-            {
-                createdFiles.Add(semanticsSkillPath);
-            }
-            else
-            {
-                warnings.Add($"Skipped existing file: {semanticsSkillPath}");
-            }
-
-            if (await WriteFileIfNeeded(analyzeSkillPath, EmbeddedResourceHelper.ReadSkill("claude-calor-analyze-SKILL.md"), force))
-            {
-                createdFiles.Add(analyzeSkillPath);
-            }
-            else
-            {
-                warnings.Add($"Skipped existing file: {analyzeSkillPath}");
-            }
-
             // Create or update CLAUDE.md from template with section-aware handling
             var claudeMdPath = Path.Combine(effectiveDir, "CLAUDE.md");
             var template = EmbeddedResourceHelper.ReadTemplate("CLAUDE.md.template");
@@ -132,6 +74,9 @@ public class ClaudeInitializer : IAiInitializer
             {
                 updatedFiles.Add(claudeMdPath);
             }
+
+            // Ensure .claude directory exists for settings.json
+            Directory.CreateDirectory(Path.Combine(effectiveDir, ".claude"));
 
             // Configure Claude Code hooks for Calor-first enforcement (in .claude/settings.json)
             var settingsPath = Path.Combine(effectiveDir, ".claude", "settings.json");
@@ -180,17 +125,6 @@ public class ClaudeInitializer : IAiInitializer
         {
             return InitResult.Failed($"Failed to initialize: {ex.Message}");
         }
-    }
-
-    private static async Task<bool> WriteFileIfNeeded(string path, string content, bool force)
-    {
-        if (File.Exists(path) && !force)
-        {
-            return false;
-        }
-
-        await File.WriteAllTextAsync(path, content);
-        return true;
     }
 
     private enum ClaudeMdUpdateResult

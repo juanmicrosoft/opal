@@ -113,7 +113,6 @@ public class SolutionInitializationIntegrationTests : IDisposable
         _output.WriteLine(audit.ToString());
 
         Assert.True(audit.HasClaudeMd, "CLAUDE.md should exist in solution root");
-        Assert.True(audit.HasSkills, "Calor skills should exist");
         Assert.True(audit.HasHooks, "Hooks should be configured");
     }
 
@@ -175,7 +174,6 @@ public class SolutionInitializationIntegrationTests : IDisposable
 
             var audit = SolutionInitAudit.Audit(testDir);
             Assert.True(audit.HasClaudeMd, "CLAUDE.md should exist");
-            Assert.True(audit.HasSkills, "Skills should exist");
             Assert.True(audit.HasHooks, "Hooks should be configured");
             Assert.Equal(3, audit.InitializedProjects);
         }

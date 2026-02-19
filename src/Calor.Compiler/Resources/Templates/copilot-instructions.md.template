@@ -5,18 +5,18 @@ This is an **Calor-first project**. All new code MUST be written in Calor. Exist
 
 ### MANDATORY Rules for AI Agents
 
-**Rule 0: Load syntax reference before writing Calor**
-- Before writing ANY `.calr` code, ALWAYS read the Calor skill file first
-- See `.github/copilot/skills/calor/SKILL.md` for the authoritative syntax reference
+**Rule 0: Look up syntax reference before writing Calor**
+- Before writing ANY `.calr` code, use `calor_syntax_help` or `calor_syntax_lookup` MCP tools for syntax guidance
+- These provide the authoritative syntax reference on-demand
 - Applies to: new files, conversions, and edits to existing .calr files
 
 **Rule 1: Never create new `.cs` files**
 - All new code MUST be written in Calor (`.calr` files)
 - Calor files compile automatically during `dotnet build`
-- See the Calor skill files in `.github/copilot/skills/` for syntax assistance
+- Use `calor_syntax_help` or `calor_syntax_lookup` MCP tools for syntax assistance
 
 **Rule 2: Convert C# to Calor before modifying**
-- Before modifying ANY `.cs` file, convert it to Calor first
+- Before modifying ANY `.cs` file, convert it to Calor first using `calor_convert` MCP tool
 - Make your changes in the new `.calr` file, not the original `.cs` file
 - Delete the original `.cs` file after successful conversion
 - Run `calor analyze <file.cs>` to understand the file's complexity before conversion
@@ -32,7 +32,7 @@ This is an **Calor-first project**. All new code MUST be written in Calor. Exist
 
 ### Workflow for Any Code Change
 
-1. **Always first** → Read the Calor skill file to load syntax reference
+1. **Always first** → Use `calor_syntax_help` MCP tool to get syntax reference
 2. **New feature/file?** → Create `.calr` file
 3. **Modify existing `.calr` file?** → Edit directly
 4. **Modify existing `.cs` file?** → Convert to `.calr` first
@@ -43,20 +43,44 @@ This is an **Calor-first project**. All new code MUST be written in Calor. Exist
 - `.g.cs` - Generated C# files (never edit)
 - `.cs` - Legacy C# files (**convert to Calor before modifying**)
 
-#### Available Skills
-- `calor` - Write Calor code with v2+ syntax (see `.github/copilot/skills/calor/SKILL.md`)
-- `calor-convert` - Convert C# to Calor (see `.github/copilot/skills/calor-convert/SKILL.md`)
-- `calor-analyze` - Deep security and bug analysis (see `.github/copilot/skills/calor-analyze/SKILL.md`)
-
 #### Available MCP Tools
-The following tools are available via MCP (Model Context Protocol) in Copilot Agent mode:
+
+**Compilation & Verification:**
 - `calor_compile` - Compile Calor files to C#
 - `calor_verify` - Verify contracts and correctness
+- `calor_verify_contracts` - Verify function contracts
+
+**Analysis & Security:**
 - `calor_analyze` - Analyze files for migration potential
+- `calor_assess` - Assess code quality and security
+
+**Code Transformation:**
 - `calor_convert` - Convert between C# and Calor
-- `calor_typecheck` - Type-check Calor source files
+- `calor_format` - Format Calor source files
+- `calor_lint` - Lint Calor source files
+
+**Diagnostics & Validation:**
 - `calor_diagnose` - Validate syntax and show all errors at once
+- `calor_typecheck` - Type-check Calor source files
 - `calor_validate_snippet` - Validate a Calor code snippet inline
+- `calor_compile_check_compat` - Check compilation compatibility
+
+**Syntax & Documentation:**
+- `calor_syntax_help` - Get comprehensive Calor syntax help
+- `calor_syntax_lookup` - Look up specific syntax constructs
+
+**Navigation (LSP-style):**
+- `calor_goto_definition` - Go to symbol definition
+- `calor_find_references` - Find all references to a symbol
+- `calor_symbol_info` - Get information about a symbol
+- `calor_document_outline` - Get document outline/structure
+- `calor_find_symbol` - Find symbols by name
+
+**ID Management:**
+- `calor_ids` - Manage Calor block IDs
+
+**Testing:**
+- `calor_self_test` - Run Calor self-test suite
 
 #### Key Commands
 ```bash
