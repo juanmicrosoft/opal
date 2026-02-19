@@ -550,6 +550,12 @@ public sealed class CSharpEmitter : IAstVisitor<string>
     public string Visit(FloatLiteralNode node)
     {
         var str = node.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        // Ensure float literals always contain a decimal point so they aren't
+        // reinterpreted as integers in the generated C# code.
+        if (!node.IsDecimal && !str.Contains('.') && !str.Contains('E') && !str.Contains('e'))
+        {
+            str += ".0";
+        }
         return node.IsDecimal ? str + "m" : str;
     }
 

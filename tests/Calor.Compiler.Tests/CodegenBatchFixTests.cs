@@ -497,6 +497,106 @@ public class CodegenBatchFixTests
         Assert.Contains("-42.5m", result);
     }
 
+    // ========== Fix 6: Float literals preserve decimal point ==========
+
+    [Fact]
+    public void Fix6_FloatLiteral_WholeNumber_EmitsDecimalPoint()
+    {
+        // FLOAT:1.0 should produce 1.0, not bare 1 (which would be int)
+        var source = @"
+§M{m1:Test}
+§F{f001:Main:pub}
+  §O{void}
+  §B{~x:f64} FLOAT:1.0
+§/F{f001}
+§/M{m1}
+";
+
+        var result = ParseAndEmit(source);
+
+        Assert.Contains("1.0", result);
+        Assert.DoesNotContain("1.0m", result);
+    }
+
+    [Fact]
+    public void Fix6_FloatLiteral_InListObject_PreservesType()
+    {
+        // Float literals inside §LIST{:object} should emit with decimal point
+        var source = @"
+§M{m1:Test}
+§F{f001:Main:pub}
+  §O{void}
+  §LIST{l1:object}
+    FLOAT:1.0
+    FLOAT:2.0
+  §/LIST{l1}
+§/F{f001}
+§/M{m1}
+";
+
+        var result = ParseAndEmit(source);
+
+        Assert.Contains("1.0", result);
+        Assert.Contains("2.0", result);
+    }
+
+    [Fact]
+    public void Fix6_FloatLiteral_WithFraction_Unchanged()
+    {
+        // FLOAT:3.14 should stay 3.14 (already has decimal point)
+        var source = @"
+§M{m1:Test}
+§F{f001:Main:pub}
+  §O{void}
+  §B{~x:f64} FLOAT:3.14
+§/F{f001}
+§/M{m1}
+";
+
+        var result = ParseAndEmit(source);
+
+        Assert.Contains("3.14", result);
+        Assert.DoesNotContain("3.14m", result);
+    }
+
+    [Fact]
+    public void Fix6_FloatLiteral_NegativeWholeNumber_EmitsDecimalPoint()
+    {
+        // FLOAT:-1.0 should produce -1.0, not bare -1
+        var source = @"
+§M{m1:Test}
+§F{f001:Main:pub}
+  §O{void}
+  §B{~x:f64} FLOAT:-1.0
+§/F{f001}
+§/M{m1}
+";
+
+        var result = ParseAndEmit(source);
+
+        Assert.Contains("-1.0", result);
+        Assert.DoesNotContain("-1.0m", result);
+    }
+
+    [Fact]
+    public void Fix6_FloatLiteral_ScientificNotation_Unchanged()
+    {
+        // Scientific notation like 1E10 should stay as-is (already a double in C#)
+        var source = @"
+§M{m1:Test}
+§F{f001:Main:pub}
+  §O{void}
+  §B{~x:f64} FLOAT:1E10
+§/F{f001}
+§/M{m1}
+";
+
+        var result = ParseAndEmit(source);
+
+        // Should contain the scientific notation form, not have .0 appended
+        Assert.DoesNotContain("1E10.0", result);
+    }
+
     #region Helpers
 
     private static string ParseAndEmit(string source)
