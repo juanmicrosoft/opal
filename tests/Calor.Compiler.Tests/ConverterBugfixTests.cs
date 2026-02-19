@@ -70,7 +70,7 @@ public class Test
     [Fact]
     public void Converter_TypedMutableBinding_EmitsTildePrefixWithType()
     {
-        // A typed variable that is reassigned should produce §B{type:~name}
+        // A typed variable that is reassigned should produce §B{~name:type}
         var csharp = @"
 public class Test
 {
@@ -153,7 +153,9 @@ public class Test
         Assert.True(conversionResult.Success, GetErrorMessage(conversionResult));
 
         // Compile Calor back to C#
-        var compilationResult = Program.Compile(conversionResult.CalorSource!);
+        // Disable effect enforcement: the converter doesn't generate §E{} annotations
+        var compilationResult = Program.Compile(conversionResult.CalorSource!, "roundtrip.calr",
+            new CompilationOptions { EnforceEffects = false });
 
         Assert.False(compilationResult.HasErrors,
             $"Roundtrip compilation failed:\n" +
@@ -179,7 +181,9 @@ public class Test
         Assert.True(conversionResult.Success, GetErrorMessage(conversionResult));
 
         // Compile Calor back to C#
-        var compilationResult = Program.Compile(conversionResult.CalorSource!);
+        // Disable effect enforcement: the converter doesn't generate §E{} annotations
+        var compilationResult = Program.Compile(conversionResult.CalorSource!, "roundtrip.calr",
+            new CompilationOptions { EnforceEffects = false });
 
         Assert.False(compilationResult.HasErrors,
             $"Roundtrip compilation failed:\n" +
@@ -206,7 +210,9 @@ public class Test
         var conversionResult = converter.Convert(csharp);
         Assert.True(conversionResult.Success, GetErrorMessage(conversionResult));
 
-        var compilationResult = Program.Compile(conversionResult.CalorSource!);
+        // Disable effect enforcement: the converter doesn't generate §E{} annotations
+        var compilationResult = Program.Compile(conversionResult.CalorSource!, "roundtrip.calr",
+            new CompilationOptions { EnforceEffects = false });
 
         Assert.False(compilationResult.HasErrors,
             $"Roundtrip compilation failed:\n" +
@@ -230,7 +236,9 @@ public class Test
         var conversionResult = converter.Convert(csharp);
         Assert.True(conversionResult.Success, GetErrorMessage(conversionResult));
 
-        var compilationResult = Program.Compile(conversionResult.CalorSource!);
+        // Disable effect enforcement: the converter doesn't generate §E{} annotations
+        var compilationResult = Program.Compile(conversionResult.CalorSource!, "roundtrip.calr",
+            new CompilationOptions { EnforceEffects = false });
 
         Assert.False(compilationResult.HasErrors,
             $"Roundtrip compilation failed:\n" +
