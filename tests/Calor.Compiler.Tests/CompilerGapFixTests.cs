@@ -102,6 +102,7 @@ public class CompilerGapFixTests
     [Fact]
     public void Struct_SealedStruct()
     {
+        // C# structs are implicitly sealed, so "sealed" is correctly omitted from output
         var source = @"
 §M{m1:TestMod}
 §CL{c1:MyVal:struct seal}
@@ -111,7 +112,9 @@ public class CompilerGapFixTests
 
         var result = ParseAndEmit(source);
 
-        Assert.Contains("sealed struct MyVal", result);
+        // Struct emitted correctly (sealed is implicit for structs in C#)
+        Assert.Contains("public struct MyVal", result);
+        Assert.DoesNotContain("sealed struct", result);
     }
 
     [Fact]

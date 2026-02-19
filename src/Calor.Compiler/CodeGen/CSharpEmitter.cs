@@ -496,7 +496,7 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         // Check if this is an interpolated string (contains ${identifier})
         // Only match Calor interpolation syntax: ${identifier}, not format placeholders ${0}
         // Calor interpolation uses identifiers (letters, underscores), not numbers
-        var interpolationRegex = new System.Text.RegularExpressions.Regex(@"\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}");
+        var interpolationRegex = new System.Text.RegularExpressions.Regex(@"\$\{([a-zA-Z_][a-zA-Z0-9_]*(?:\??\.[a-zA-Z_][a-zA-Z0-9_]*)*)\}");
         if (interpolationRegex.IsMatch(node.Value))
         {
             // Convert Calor interpolation ${expr} to C# interpolation {expr}
@@ -1689,7 +1689,11 @@ public sealed class CSharpEmitter : IAstVisitor<string>
 
         var modifiers = "public";
         if (node.IsAbstract) modifiers += " abstract";
-        if (node.IsSealed) modifiers += " sealed";
+        if (!node.IsStruct && node.IsSealed) modifiers += " sealed";
+        if (node.IsStatic) modifiers += " static";
+        if (node.IsReadOnly) modifiers += " readonly";
+
+        var keyword = node.IsStruct ? "struct" : "class";
 
         // Build type parameters
         var typeParams = "";
@@ -1722,8 +1726,7 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         baseList.AddRange(node.ImplementedInterfaces);
         var inheritance = baseList.Count > 0 ? " : " + string.Join(", ", baseList) : "";
 
-        var typeKeyword = node.IsStruct ? "struct" : "class";
-        AppendLine($"{modifiers} {typeKeyword} {name}{typeParams}{inheritance}{whereClause}");
+        AppendLine($"{modifiers} {keyword} {name}{typeParams}{inheritance}{whereClause}");
         AppendLine("{");
         Indent();
 
@@ -1861,6 +1864,12 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         var parameters = string.Join(", ", node.Parameters.Select(p =>
             $"{MapTypeName(p.TypeName)} {SanitizeIdentifier(p.Name)}"));
 
+        // Operator overload detection: op_ prefix methods emit C# operator syntax
+        if (node.Name.StartsWith("op_"))
+        {
+            return EmitOperatorMethod(node, modifiers, mappedReturnType, parameters);
+        }
+
         // Abstract methods have no body
         if (node.IsAbstract)
         {
@@ -1966,6 +1975,113 @@ public sealed class CSharpEmitter : IAstVisitor<string>
                     var check = Visit(ensures);
                     AppendLine(check);
                 }
+            }
+        }
+
+        Dedent();
+        AppendLine("}");
+
+        return "";
+    }
+
+    private static readonly Dictionary<string, string> CilNameToOperator = new()
+    {
+        ["op_Addition"] = "+",
+        ["op_Subtraction"] = "-",
+        ["op_Multiply"] = "*",
+        ["op_Division"] = "/",
+        ["op_Modulus"] = "%",
+        ["op_Equality"] = "==",
+        ["op_Inequality"] = "!=",
+        ["op_LessThan"] = "<",
+        ["op_GreaterThan"] = ">",
+        ["op_LessThanOrEqual"] = "<=",
+        ["op_GreaterThanOrEqual"] = ">=",
+        ["op_UnaryNegation"] = "-",
+        ["op_UnaryPlus"] = "+",
+        ["op_LogicalNot"] = "!",
+        ["op_BitwiseAnd"] = "&",
+        ["op_BitwiseOr"] = "|",
+        ["op_ExclusiveOr"] = "^",
+    };
+
+    private string EmitOperatorMethod(MethodNode node, List<string> modifiers, string mappedReturnType, string parameters)
+    {
+        var modStr = string.Join(" ", modifiers);
+
+        if (node.Name == "op_Implicit")
+        {
+            AppendLine($"{modStr} implicit operator {mappedReturnType}({parameters})");
+        }
+        else if (node.Name == "op_Explicit")
+        {
+            AppendLine($"{modStr} explicit operator {mappedReturnType}({parameters})");
+        }
+        else if (CilNameToOperator.TryGetValue(node.Name, out var op))
+        {
+            AppendLine($"{modStr} {mappedReturnType} operator {op}({parameters})");
+        }
+        else
+        {
+            // Unknown operator — fall back to regular method
+            AppendLine($"{modStr} {mappedReturnType} {SanitizeIdentifier(node.Name)}({parameters})");
+        }
+
+        AppendLine("{");
+        Indent();
+
+        // Emit explicit preconditions
+        foreach (var requires in node.Preconditions)
+        {
+            var check = Visit(requires);
+            AppendLine(check);
+        }
+
+        var returnType = node.Output?.TypeName ?? "void";
+        var hasReturnValue = returnType.ToUpperInvariant() != "VOID";
+
+        // Handle postconditions
+        if (node.Postconditions.Count > 0 && hasReturnValue)
+        {
+            AppendLine($"{mappedReturnType} __result__ = default;");
+            AppendLine();
+
+            foreach (var statement in node.Body)
+            {
+                if (statement is ReturnStatementNode returnStmt && returnStmt.Expression != null)
+                {
+                    var expr = returnStmt.Expression.Accept(this);
+                    AppendLine($"__result__ = {expr};");
+                }
+                else
+                {
+                    var stmtCode = statement.Accept(this);
+                    AppendLine(stmtCode);
+                }
+            }
+
+            AppendLine();
+
+            foreach (var ensures in node.Postconditions)
+            {
+                var check = Visit(ensures).Replace("result", "__result__");
+                AppendLine(check);
+            }
+
+            AppendLine("return __result__;");
+        }
+        else
+        {
+            foreach (var statement in node.Body)
+            {
+                var stmtCode = statement.Accept(this);
+                AppendLine(stmtCode);
+            }
+
+            foreach (var ensures in node.Postconditions)
+            {
+                var check = Visit(ensures);
+                AppendLine(check);
             }
         }
 

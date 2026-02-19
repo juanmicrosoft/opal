@@ -206,9 +206,14 @@ public sealed class ClassDefinitionNode : TypeDefinitionNode
     public bool IsStatic { get; }
 
     /// <summary>
-    /// True if this is a struct (emits 'struct' instead of 'class').
+    /// True if this is a struct (value type).
     /// </summary>
     public bool IsStruct { get; }
+
+    /// <summary>
+    /// True if this is a readonly struct.
+    /// </summary>
+    public bool IsReadOnly { get; }
 
     /// <summary>
     /// The base class (if any).
@@ -267,7 +272,7 @@ public sealed class ClassDefinitionNode : TypeDefinitionNode
         IReadOnlyList<ClassFieldNode> fields,
         IReadOnlyList<MethodNode> methods,
         AttributeCollection attributes)
-        : this(span, id, name, isAbstract, isSealed, isPartial: false, isStatic: false, isStruct: false, baseClass, implementedInterfaces,
+        : this(span, id, name, isAbstract, isSealed, isPartial: false, isStatic: false, baseClass, implementedInterfaces,
                typeParameters, fields, Array.Empty<PropertyNode>(), Array.Empty<ConstructorNode>(), methods,
                Array.Empty<EventDefinitionNode>(), attributes, Array.Empty<CalorAttributeNode>())
     {
@@ -287,7 +292,7 @@ public sealed class ClassDefinitionNode : TypeDefinitionNode
         IReadOnlyList<ConstructorNode> constructors,
         IReadOnlyList<MethodNode> methods,
         AttributeCollection attributes)
-        : this(span, id, name, isAbstract, isSealed, isPartial: false, isStatic: false, isStruct: false, baseClass, implementedInterfaces,
+        : this(span, id, name, isAbstract, isSealed, isPartial: false, isStatic: false, baseClass, implementedInterfaces,
                typeParameters, fields, properties, constructors, methods,
                Array.Empty<EventDefinitionNode>(), attributes, Array.Empty<CalorAttributeNode>())
     {
@@ -308,7 +313,7 @@ public sealed class ClassDefinitionNode : TypeDefinitionNode
         IReadOnlyList<MethodNode> methods,
         AttributeCollection attributes,
         IReadOnlyList<CalorAttributeNode> csharpAttributes)
-        : this(span, id, name, isAbstract, isSealed, isPartial: false, isStatic: false, isStruct: false, baseClass, implementedInterfaces,
+        : this(span, id, name, isAbstract, isSealed, isPartial: false, isStatic: false, baseClass, implementedInterfaces,
                typeParameters, fields, properties, constructors, methods,
                Array.Empty<EventDefinitionNode>(), attributes, csharpAttributes)
     {
@@ -331,7 +336,7 @@ public sealed class ClassDefinitionNode : TypeDefinitionNode
         IReadOnlyList<MethodNode> methods,
         AttributeCollection attributes,
         IReadOnlyList<CalorAttributeNode> csharpAttributes)
-        : this(span, id, name, isAbstract, isSealed, isPartial, isStatic, isStruct: false, baseClass, implementedInterfaces,
+        : this(span, id, name, isAbstract, isSealed, isPartial, isStatic, baseClass, implementedInterfaces,
                typeParameters, fields, properties, constructors, methods,
                Array.Empty<EventDefinitionNode>(), attributes, csharpAttributes)
     {
@@ -345,7 +350,6 @@ public sealed class ClassDefinitionNode : TypeDefinitionNode
         bool isSealed,
         bool isPartial,
         bool isStatic,
-        bool isStruct,
         string? baseClass,
         IReadOnlyList<string> implementedInterfaces,
         IReadOnlyList<TypeParameterNode> typeParameters,
@@ -355,7 +359,9 @@ public sealed class ClassDefinitionNode : TypeDefinitionNode
         IReadOnlyList<MethodNode> methods,
         IReadOnlyList<EventDefinitionNode> events,
         AttributeCollection attributes,
-        IReadOnlyList<CalorAttributeNode> csharpAttributes)
+        IReadOnlyList<CalorAttributeNode> csharpAttributes,
+        bool isStruct = false,
+        bool isReadOnly = false)
         : base(span, id, name, attributes)
     {
         IsAbstract = isAbstract;
@@ -363,6 +369,7 @@ public sealed class ClassDefinitionNode : TypeDefinitionNode
         IsPartial = isPartial;
         IsStatic = isStatic;
         IsStruct = isStruct;
+        IsReadOnly = isReadOnly;
         BaseClass = baseClass;
         ImplementedInterfaces = implementedInterfaces ?? throw new ArgumentNullException(nameof(implementedInterfaces));
         TypeParameters = typeParameters ?? throw new ArgumentNullException(nameof(typeParameters));

@@ -190,27 +190,34 @@ public sealed class CalorEmitter : IAstVisitor<string>
         if (node.IsSealed) modifiers.Add("sealed");
         if (node.IsPartial) modifiers.Add("partial");
         if (node.IsStatic) modifiers.Add("static");
+        if (node.IsStruct) modifiers.Add("struct");
+        if (node.IsReadOnly) modifiers.Add("readonly");
 
         var modStr = modifiers.Count > 0 ? $":{string.Join(",", modifiers)}" : "";
-        var baseStr = node.BaseClass != null ? $":{node.BaseClass}" : "";
 
         var typeParams = node.TypeParameters.Count > 0
             ? $"<{string.Join(",", node.TypeParameters.Select(tp => tp.Name))}>"
             : "";
         var attrs = EmitCSharpAttributes(node.CSharpAttributes);
 
-        AppendLine($"§CL{{{node.Id}:{node.Name}{typeParams}{baseStr}{modStr}}}{attrs}");
+        AppendLine($"§CL{{{node.Id}:{node.Name}{typeParams}{modStr}}}{attrs}");
         Indent();
 
         // Emit type parameter constraints
         EmitTypeParameterConstraints(node.TypeParameters);
+
+        // Emit base class as §EXT tag (not positional)
+        if (node.BaseClass != null)
+        {
+            AppendLine($"§EXT{{{node.BaseClass}}}");
+        }
 
         // Emit implemented interfaces
         foreach (var iface in node.ImplementedInterfaces)
         {
             AppendLine($"§IMPL{{{iface}}}");
         }
-        if (node.ImplementedInterfaces.Count > 0 || node.TypeParameters.Any(tp => tp.Constraints.Count > 0))
+        if (node.BaseClass != null || node.ImplementedInterfaces.Count > 0 || node.TypeParameters.Any(tp => tp.Constraints.Count > 0))
             AppendLine();
 
         // Emit fields
