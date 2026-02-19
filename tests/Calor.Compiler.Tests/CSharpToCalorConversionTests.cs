@@ -1635,6 +1635,533 @@ public class CSharpToCalorConversionTests
 
     #endregion
 
+    #region Array Shorthand Initializer Tests
+
+    [Fact]
+    public void Convert_ArrayShorthandInitializer_NoFallbackError()
+    {
+        // int[] nums = { 1, 2, 3 }; uses InitializerExpressionSyntax, not ArrayCreationExpressionSyntax
+        var csharpSource = """
+            int[] nums = { 1, 2, 3 };
+            """;
+
+        var result = _converter.Convert(csharpSource);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        Assert.NotNull(result.CalorSource);
+        // Should NOT contain §ERR (fallback)
+        Assert.DoesNotContain("§ERR", result.CalorSource);
+        Assert.Contains("§ARR", result.CalorSource);
+    }
+
+    [Fact]
+    public void Convert_ArrayShorthandInitializer_Roundtrip()
+    {
+        var csharpSource = """
+            int[] nums = { 1, 2, 3 };
+            """;
+
+        var conversionResult = _converter.Convert(csharpSource);
+        Assert.True(conversionResult.Success, GetErrorMessage(conversionResult));
+
+        var compilationResult = Program.Compile(conversionResult.CalorSource!);
+        Assert.False(compilationResult.HasErrors,
+            $"Roundtrip failed:\nCalor: {conversionResult.CalorSource}\n{string.Join("\n", compilationResult.Diagnostics.Select(d => d.Message))}");
+        Assert.Contains("new int[]", compilationResult.GeneratedCode);
+    }
+
+    [Fact]
+    public void Convert_StringArrayShorthandInitializer_NoFallbackError()
+    {
+        var csharpSource = """
+            string[] names = { "Alice", "Bob" };
+            """;
+
+        var result = _converter.Convert(csharpSource);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        Assert.NotNull(result.CalorSource);
+        Assert.DoesNotContain("§ERR", result.CalorSource);
+    }
+
+    #endregion
+
+    #region LINQ Method Chain Decomposition Tests
+
+    [Fact]
+    public void Convert_LinqChainedCall_DecomposesIntoSeparateStatements()
+    {
+        var csharpSource = """
+            using System.Linq;
+
+            var numbers = new[] { 1, 2, 3, 4, 5 };
+            var result = numbers.Where(n => n > 2).First();
+            """;
+
+        var result = _converter.Convert(csharpSource);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        Assert.NotNull(result.CalorSource);
+        // Should NOT contain raw C# embedded in Calor (the old buggy behavior)
+        Assert.DoesNotContain("§C{(§C{", result.CalorSource);
+        // Should contain the chain feature usage
+        Assert.Contains("linq-method-chain", result.Context.UsedFeatures);
+    }
+
+    [Fact]
+    public void Convert_LinqChainedCall_ProducesMultipleBindStatements()
+    {
+        var csharpSource = """
+            using System.Linq;
+
+            var numbers = new[] { 1, 2, 3, 4, 5 };
+            var result = numbers.Where(n => n > 2).First();
+            """;
+
+        var result = _converter.Convert(csharpSource);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        Assert.NotNull(result.Ast);
+
+        var mainFunc = result.Ast.Functions[0];
+        // Should have more than 2 statements: numbers decl + chain intermediate + result
+        Assert.True(mainFunc.Body.Count >= 3,
+            $"Expected at least 3 statements (decomposed chain), got {mainFunc.Body.Count}");
+    }
+
+    [Fact]
+    public void Convert_LinqChainedCall_IntermediateBindsHaveNoType()
+    {
+        var csharpSource = """
+            using System.Linq;
+
+            var numbers = new[] { 1, 2, 3 };
+            var result = numbers.Where(n => n > 1).Select(n => n * 2).ToList();
+            """;
+
+        var result = _converter.Convert(csharpSource);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        Assert.NotNull(result.Ast);
+
+        var mainFunc = result.Ast.Functions[0];
+        // Find intermediate chain binds (they have generated names like _chain001)
+        var chainBinds = mainFunc.Body.OfType<BindStatementNode>()
+            .Where(b => b.Name.StartsWith("_chain"))
+            .ToList();
+
+        Assert.True(chainBinds.Count >= 2, $"Expected at least 2 intermediate chain binds, got {chainBinds.Count}");
+        foreach (var bind in chainBinds)
+        {
+            Assert.Null(bind.TypeName); // Intermediate binds should have no explicit type
+        }
+    }
+
+    [Fact]
+    public void Convert_LinqChainedCall_Roundtrip()
+    {
+        var csharpSource = """
+            using System.Linq;
+
+            var numbers = new[] { 1, 2, 3, 4, 5 };
+            var result = numbers.Where(n => n > 2).First();
+            """;
+
+        var conversionResult = _converter.Convert(csharpSource);
+        Assert.True(conversionResult.Success, GetErrorMessage(conversionResult));
+
+        // Disable effect enforcement since LINQ calls are external
+        var compilationResult = Program.Compile(conversionResult.CalorSource!, null,
+            new CompilationOptions { EnforceEffects = false });
+        Assert.False(compilationResult.HasErrors,
+            $"Roundtrip failed:\nCalor: {conversionResult.CalorSource}\n{string.Join("\n", compilationResult.Diagnostics.Select(d => d.Message))}");
+    }
+
+    [Fact]
+    public void Convert_SingleMethodCall_NotDecomposed()
+    {
+        // A single method call (not chained) should NOT be decomposed
+        var csharpSource = """
+            using System.Linq;
+
+            var numbers = new[] { 1, 2, 3 };
+            var first = numbers.First();
+            """;
+
+        var result = _converter.Convert(csharpSource);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        Assert.NotNull(result.Ast);
+
+        var mainFunc = result.Ast.Functions[0];
+        // Should not contain chain intermediates
+        var chainBinds = mainFunc.Body.OfType<BindStatementNode>()
+            .Where(b => b.Name.StartsWith("_chain"))
+            .ToList();
+        Assert.Empty(chainBinds);
+    }
+
+    #endregion
+
+    #region Property Setter Verification Tests
+
+    [Fact]
+    public void Convert_ObjectInitializer_NoSetterPrefix()
+    {
+        // Verify property initializers don't generate §C{set_Prop} patterns
+        var csharpSource = """
+            var product = new Product { Id = 1, Name = "Widget" };
+            """;
+
+        var result = _converter.Convert(csharpSource);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        Assert.NotNull(result.CalorSource);
+        // Should NOT contain set_ prefix for property setters
+        Assert.DoesNotContain("set_", result.CalorSource);
+    }
+
+    #endregion
+
+    #region Static Class Roundtrip Tests
+
+    [Fact]
+    public void Convert_StaticClass_RoundtripProducesStaticKeyword()
+    {
+        var csharpSource = """
+            public static class Utilities
+            {
+                public static int Add(int a, int b) => a + b;
+            }
+            """;
+
+        var conversionResult = _converter.Convert(csharpSource);
+        Assert.True(conversionResult.Success, GetErrorMessage(conversionResult));
+
+        var compilationResult = Program.Compile(conversionResult.CalorSource!);
+        Assert.False(compilationResult.HasErrors,
+            $"Roundtrip failed:\nCalor: {conversionResult.CalorSource}\n{string.Join("\n", compilationResult.Diagnostics.Select(d => d.Message))}");
+
+        Assert.Contains("static class Utilities", compilationResult.GeneratedCode);
+    }
+
+    #endregion
+
+    #region LINQ Chain Decomposition — Edge Case Tests
+
+    [Fact]
+    public void Convert_LinqChainInMethodBody_DecomposesCorrectly()
+    {
+        // Chain inside a method body (non-top-level), exercises ConvertBlock path
+        var csharpSource = """
+            public class Service
+            {
+                public int GetFirst(int[] numbers)
+                {
+                    var result = numbers.Where(n => n > 0).First();
+                    return result;
+                }
+            }
+            """;
+
+        var result = _converter.Convert(csharpSource);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        Assert.NotNull(result.CalorSource);
+        // Should contain decomposed chain, not embedded C#
+        Assert.DoesNotContain("§C{(§C{", result.CalorSource);
+        Assert.Contains("linq-method-chain", result.Context.UsedFeatures);
+    }
+
+    [Fact]
+    public void Convert_LinqChainInMethodBody_IntermediateBindsHaveNoType()
+    {
+        var csharpSource = """
+            public class Service
+            {
+                public void Process(int[] numbers)
+                {
+                    var result = numbers.Where(n => n > 0).Select(n => n * 2).ToList();
+                }
+            }
+            """;
+
+        var result = _converter.Convert(csharpSource);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        Assert.NotNull(result.Ast);
+
+        var cls = result.Ast.Classes[0];
+        var method = cls.Methods[0];
+        var chainBinds = method.Body.OfType<BindStatementNode>()
+            .Where(b => b.Name.StartsWith("_chain"))
+            .ToList();
+
+        Assert.True(chainBinds.Count >= 2, $"Expected at least 2 intermediate chain binds, got {chainBinds.Count}");
+        foreach (var bind in chainBinds)
+        {
+            Assert.Null(bind.TypeName); // Intermediate binds should have no explicit type
+        }
+    }
+
+    [Fact]
+    public void Convert_LinqChainInReturnStatement_DecomposesCorrectly()
+    {
+        // Chain in a return statement exercises DecomposeChainedReturnStatement
+        var csharpSource = """
+            public class Service
+            {
+                public int GetFirst(int[] numbers)
+                {
+                    return numbers.Where(n => n > 0).First();
+                }
+            }
+            """;
+
+        var result = _converter.Convert(csharpSource);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        Assert.NotNull(result.CalorSource);
+        Assert.DoesNotContain("§C{(§C{", result.CalorSource);
+        Assert.Contains("linq-method-chain", result.Context.UsedFeatures);
+
+        // Should have intermediate bind + return in the method body
+        var cls = result.Ast!.Classes[0];
+        var method = cls.Methods[0];
+        Assert.True(method.Body.Count >= 2,
+            $"Expected at least 2 statements (intermediate bind + return), got {method.Body.Count}");
+
+        // Last statement should be a return
+        Assert.IsType<ReturnStatementNode>(method.Body[^1]);
+        // Previous statements should be intermediate chain binds
+        var chainBinds = method.Body.OfType<BindStatementNode>()
+            .Where(b => b.Name.StartsWith("_chain"))
+            .ToList();
+        Assert.NotEmpty(chainBinds);
+    }
+
+    [Fact]
+    public void Convert_LinqChainInReturnStatement_Roundtrip()
+    {
+        var csharpSource = """
+            public class Service
+            {
+                public int GetFirst(int[] numbers)
+                {
+                    return numbers.Where(n => n > 0).First();
+                }
+            }
+            """;
+
+        var conversionResult = _converter.Convert(csharpSource);
+        Assert.True(conversionResult.Success, GetErrorMessage(conversionResult));
+
+        var compilationResult = Program.Compile(conversionResult.CalorSource!, null,
+            new CompilationOptions { EnforceEffects = false });
+        Assert.False(compilationResult.HasErrors,
+            $"Roundtrip failed:\nCalor: {conversionResult.CalorSource}\n{string.Join("\n", compilationResult.Diagnostics.Select(d => d.Message))}");
+    }
+
+    [Fact]
+    public void Convert_TypedLinqChainDeclaration_IntermediatesUntyped()
+    {
+        // Explicitly typed declaration: intermediate binds should be untyped (var)
+        var csharpSource = """
+            using System.Collections.Generic;
+            using System.Linq;
+
+            IEnumerable<int> result = numbers.Where(n => n > 0).Select(n => n * 2);
+            """;
+
+        var result = _converter.Convert(csharpSource);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        Assert.NotNull(result.Ast);
+
+        var mainFunc = result.Ast.Functions[0];
+        // Intermediate chain binds should have null type
+        var chainBinds = mainFunc.Body.OfType<BindStatementNode>()
+            .Where(b => b.Name.StartsWith("_chain"))
+            .ToList();
+        Assert.NotEmpty(chainBinds);
+        foreach (var bind in chainBinds)
+        {
+            Assert.Null(bind.TypeName);
+        }
+
+        // Final bind ("result") should have the declared type
+        var resultBind = mainFunc.Body.OfType<BindStatementNode>()
+            .FirstOrDefault(b => b.Name == "result");
+        Assert.NotNull(resultBind);
+        Assert.NotNull(resultBind.TypeName);
+    }
+
+    [Fact]
+    public void Convert_ThreeStepChain_ProducesCorrectIntermediates()
+    {
+        // Three-step chain: numbers.Where(...).OrderBy(...).ToList()
+        var csharpSource = """
+            using System.Linq;
+
+            var numbers = new[] { 3, 1, 2 };
+            var sorted = numbers.Where(n => n > 0).OrderBy(n => n).ToList();
+            """;
+
+        var result = _converter.Convert(csharpSource);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        Assert.NotNull(result.Ast);
+
+        var mainFunc = result.Ast.Functions[0];
+        // Should have: numbers decl + 2 intermediate binds + final bind = 4 statements
+        Assert.True(mainFunc.Body.Count >= 4,
+            $"Expected at least 4 statements for 3-step chain, got {mainFunc.Body.Count}");
+
+        var chainBinds = mainFunc.Body.OfType<BindStatementNode>()
+            .Where(b => b.Name.StartsWith("_chain"))
+            .ToList();
+        Assert.Equal(2, chainBinds.Count);
+    }
+
+    [Fact]
+    public void Convert_StringBuilderChain_PreservesNativeOps()
+    {
+        // StringBuilder chains should be handled by native sb-* operations, not decomposed
+        var csharpSource = """
+            using System.Text;
+
+            public class Test
+            {
+                public string M()
+                {
+                    return new StringBuilder().Append("a").Append("b").ToString();
+                }
+            }
+            """;
+
+        var result = _converter.Convert(csharpSource);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        Assert.NotNull(result.CalorSource);
+        // Should use native StringBuilder operations (not chain decomposition)
+        Assert.Contains("sb-append", result.CalorSource);
+        Assert.Contains("sb-tostring", result.CalorSource);
+        // Should NOT have chain intermediates
+        Assert.DoesNotContain("_chain", result.CalorSource);
+    }
+
+    [Fact]
+    public void Convert_StringBuilderChainInLocalDecl_PreservesNativeOps()
+    {
+        // StringBuilder chain in a local declaration should use native ops
+        var csharpSource = """
+            using System.Text;
+
+            var sb = new StringBuilder();
+            var result = sb.Append("hello").ToString();
+            """;
+
+        var result = _converter.Convert(csharpSource);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        Assert.NotNull(result.CalorSource);
+        Assert.DoesNotContain("_chain", result.CalorSource);
+        Assert.DoesNotContain("§C{(§C{", result.CalorSource);
+    }
+
+    #endregion
+
+    #region Expression-Level Chain Hoisting Tests
+
+    [Fact]
+    public void Convert_LinqChainInIfCondition_HoistsToTempBind()
+    {
+        var csharpSource = """
+            if (numbers.Where(n => n > 0).Any())
+            {
+                Console.WriteLine("found");
+            }
+            """;
+
+        var result = _converter.Convert(csharpSource);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        Assert.NotNull(result.CalorSource);
+        // The chain should be hoisted: a temp _chain bind before the if
+        Assert.Contains("_chain", result.CalorSource);
+        // Should NOT contain the broken CalorEmitter serialization pattern
+        Assert.DoesNotContain("§C{(§C{", result.CalorSource);
+    }
+
+    [Fact]
+    public void Convert_LinqChainAsMethodArgument_HoistsToTempBind()
+    {
+        var csharpSource = """
+            Console.WriteLine(numbers.Where(n => n > 0).Count());
+            """;
+
+        var result = _converter.Convert(csharpSource);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        Assert.NotNull(result.CalorSource);
+        // The chain should be hoisted: a temp _chain bind before the call
+        Assert.Contains("_chain", result.CalorSource);
+        Assert.DoesNotContain("§C{(§C{", result.CalorSource);
+    }
+
+    [Fact]
+    public void Convert_LinqChainInWhileCondition_HoistsToTempBind()
+    {
+        var csharpSource = """
+            while (items.Where(x => x.Active).Any())
+            {
+                break;
+            }
+            """;
+
+        var result = _converter.Convert(csharpSource);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        Assert.NotNull(result.CalorSource);
+        Assert.Contains("_chain", result.CalorSource);
+        Assert.DoesNotContain("§C{(§C{", result.CalorSource);
+    }
+
+    [Fact]
+    public void Convert_LinqChainInAssignment_HoistsToTempBind()
+    {
+        var csharpSource = """
+            var x = 0;
+            x = numbers.Where(n => n > 0).First();
+            """;
+
+        var result = _converter.Convert(csharpSource);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        Assert.NotNull(result.CalorSource);
+        Assert.Contains("_chain", result.CalorSource);
+        Assert.DoesNotContain("§C{(§C{", result.CalorSource);
+    }
+
+    [Fact]
+    public void Convert_ThreeDeepChainInArgument_HoistsAllLevels()
+    {
+        var csharpSource = """
+            Console.WriteLine(numbers.Where(n => n > 0).OrderBy(n => n).First());
+            """;
+
+        var result = _converter.Convert(csharpSource);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        Assert.NotNull(result.CalorSource);
+        // A 3-deep chain should produce at least 2 temp binds (_chain for Where, _chain for OrderBy)
+        var chainCount = System.Text.RegularExpressions.Regex.Matches(result.CalorSource!, "_chain").Count;
+        Assert.True(chainCount >= 2, $"Expected at least 2 _chain temp binds, got {chainCount}. Calor:\n{result.CalorSource}");
+        Assert.DoesNotContain("§C{(§C{", result.CalorSource);
+    }
+
+    #endregion
+
     #region Helper Methods
 
     private static string GetErrorMessage(ConversionResult result)

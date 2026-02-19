@@ -382,7 +382,8 @@ public class LinqSupportTests
         Assert.NotNull(result.CalorSource);
         Assert.Contains("Where", result.CalorSource);
         Assert.Contains("Select", result.CalorSource);
-        Assert.Contains("linq-method", result.Context.UsedFeatures);
+        // Chained calls are now decomposed, recording "linq-method-chain" instead of "linq-method"
+        Assert.Contains("linq-method-chain", result.Context.UsedFeatures);
     }
 
     [Fact]

@@ -23,6 +23,14 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
     private HashSet<string> _reassignedVariables = new();
 
     /// <summary>
+    /// Accumulates hoisted statements from expression-level chain decomposition.
+    /// When ConvertInvocationExpression encounters a chained call that can't be handled by
+    /// native operations, it hoists the inner call to a temp bind and adds it here.
+    /// ConvertBlock and VisitGlobalStatement flush these before the containing statement.
+    /// </summary>
+    private readonly List<StatementNode> _pendingStatements = new();
+
+    /// <summary>
     /// Gets the top-level statements collected during conversion (C# 9+ feature).
     /// </summary>
     public IReadOnlyList<StatementNode> TopLevelStatements => _topLevelStatements;
@@ -123,9 +131,45 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
     public override void VisitGlobalStatement(GlobalStatementSyntax node)
     {
         _context.RecordFeatureUsage("top-level-statement");
+        _pendingStatements.Clear();
+
+        // Handle chained method calls in local declarations (e.g., var x = a.Where(...).First())
+        // Skip chains handled by native operations (string, StringBuilder, regex, char)
+        if (node.Statement is LocalDeclarationStatementSyntax chainDecl
+            && chainDecl.Declaration.Variables.Count == 1
+            && chainDecl.Declaration.Variables[0].Initializer?.Value is InvocationExpressionSyntax chainInit
+            && IsChainedInvocation(chainInit)
+            && !WouldChainUseNativeOps(chainInit))
+        {
+            foreach (var stmt in DecomposeChainedLocalDeclaration(chainDecl))
+            {
+                _topLevelStatements.Add(stmt);
+            }
+            FlushPendingStatements(_topLevelStatements);
+            _context.IncrementConverted();
+            return;
+        }
+
+        // Handle chained method calls in expression statements
+        // Skip chains handled by native operations (string, StringBuilder, regex, char)
+        if (node.Statement is ExpressionStatementSyntax exprStmt
+            && exprStmt.Expression is InvocationExpressionSyntax chainExpr
+            && IsChainedInvocation(chainExpr)
+            && !WouldChainUseNativeOps(chainExpr))
+        {
+            foreach (var stmt in DecomposeChainedExpressionStatement(exprStmt))
+            {
+                _topLevelStatements.Add(stmt);
+            }
+            FlushPendingStatements(_topLevelStatements);
+            return;
+        }
+
         var statement = ConvertStatement(node.Statement);
         if (statement != null)
         {
+            // Flush any hoisted temp binds from expression-level chains
+            FlushPendingStatements(_topLevelStatements);
             _topLevelStatements.Add(statement);
             _context.IncrementConverted();
         }
@@ -926,21 +970,79 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
 
         foreach (var statement in block.Statements)
         {
+            // Clear pending statements before each statement conversion.
+            // Expression-level chain hoisting in ConvertInvocationExpression may add
+            // temp bind statements here; they must be flushed before the containing statement.
+            _pendingStatements.Clear();
+
             // Handle local declarations with multiple variables specially
             if (statement is LocalDeclarationStatementSyntax localDecl && localDecl.Declaration.Variables.Count > 1)
             {
                 statements.AddRange(ConvertLocalDeclarationMultiple(localDecl));
+                FlushPendingStatements(statements);
+                continue;
+            }
+
+            // Handle chained method calls in local declarations (e.g., var x = a.Where(...).First())
+            // Skip chains handled by native operations (string, StringBuilder, regex, char)
+            if (statement is LocalDeclarationStatementSyntax chainDecl
+                && chainDecl.Declaration.Variables.Count == 1
+                && chainDecl.Declaration.Variables[0].Initializer?.Value is InvocationExpressionSyntax chainInit
+                && IsChainedInvocation(chainInit)
+                && !WouldChainUseNativeOps(chainInit))
+            {
+                statements.AddRange(DecomposeChainedLocalDeclaration(chainDecl));
+                FlushPendingStatements(statements);
+                continue;
+            }
+
+            // Handle chained method calls in expression statements (e.g., a.Where(...).ToList())
+            // Skip chains handled by native operations (string, StringBuilder, regex, char)
+            if (statement is ExpressionStatementSyntax exprStmt
+                && exprStmt.Expression is InvocationExpressionSyntax chainExpr
+                && IsChainedInvocation(chainExpr)
+                && !WouldChainUseNativeOps(chainExpr))
+            {
+                statements.AddRange(DecomposeChainedExpressionStatement(exprStmt));
+                FlushPendingStatements(statements);
+                continue;
+            }
+
+            // Handle chained method calls in return statements (e.g., return items.Where(...).First())
+            // Skip chains handled by native operations (string, StringBuilder, regex, char)
+            if (statement is ReturnStatementSyntax returnStmt
+                && returnStmt.Expression is InvocationExpressionSyntax returnChain
+                && IsChainedInvocation(returnChain)
+                && !WouldChainUseNativeOps(returnChain))
+            {
+                statements.AddRange(DecomposeChainedReturnStatement(returnStmt));
+                FlushPendingStatements(statements);
                 continue;
             }
 
             var converted = ConvertStatement(statement);
             if (converted != null)
             {
+                // Flush any hoisted temp binds from expression-level chains BEFORE the statement
+                FlushPendingStatements(statements);
                 statements.Add(converted);
             }
         }
 
         return statements;
+    }
+
+    /// <summary>
+    /// Flushes any pending hoisted statements (from expression-level chain decomposition)
+    /// into the target list, then clears the pending list.
+    /// </summary>
+    private void FlushPendingStatements(List<StatementNode> target)
+    {
+        if (_pendingStatements.Count > 0)
+        {
+            target.AddRange(_pendingStatements);
+            _pendingStatements.Clear();
+        }
     }
 
     private StatementNode? ConvertStatement(StatementSyntax statement)
@@ -1322,6 +1424,280 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
                 isMutable,
                 initializer,
                 new AttributeCollection()));
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// Checks if an expression is a chained method invocation (e.g., a.Where(...).First()).
+    /// </summary>
+    private static bool IsChainedInvocation(ExpressionSyntax expression)
+    {
+        return expression is InvocationExpressionSyntax invocation
+            && invocation.Expression is MemberAccessExpressionSyntax memberAccess
+            && memberAccess.Expression is InvocationExpressionSyntax;
+    }
+
+    /// <summary>
+    /// Checks if a chained invocation would be handled by native operations (string, StringBuilder,
+    /// regex, char) in ConvertInvocationExpression. If so, decomposition should be skipped to
+    /// preserve the native operation output.
+    ///
+    /// COUPLING NOTE: This heuristic mirrors the native-op detection in ConvertInvocationExpression
+    /// (lines ~2489-2568). The two must stay aligned:
+    ///   - StringBuilder detection here (line ~1456) ↔ TryGetStringBuilderOperation calls (lines ~2491-2514)
+    ///   - String method list here (line ~1462) ↔ TryGetStringOperation (line ~2501)
+    ///   - Static string/Regex/Char patterns here ↔ static checks (lines ~2532-2568)
+    /// If a new native op category is added to ConvertInvocationExpression, add a corresponding
+    /// check here, or those chains will be incorrectly decomposed instead of using native ops.
+    /// See also: CSharpToCalorConversionTests.StringBuilderChainPreservesNativeOps_* tests.
+    /// </summary>
+    private static bool WouldChainUseNativeOps(InvocationExpressionSyntax invocation)
+    {
+        if (invocation.Expression is not MemberAccessExpressionSyntax memberAccess)
+            return false;
+
+        var methodName = memberAccess.Name.Identifier.Text;
+        var targetStr = memberAccess.Expression.ToString();
+
+        // StringBuilder operations: target contains "StringBuilder" or starts with "sb"/"_sb"
+        if (targetStr.Contains("StringBuilder") || targetStr.StartsWith("sb") || targetStr.StartsWith("_sb"))
+        {
+            return methodName is "Append" or "AppendLine" or "Insert" or "Remove" or "Clear" or "ToString";
+        }
+
+        // String methods
+        if (methodName is "Contains" or "StartsWith" or "EndsWith" or "IndexOf" or "Replace"
+            or "Trim" or "TrimStart" or "TrimEnd" or "ToUpper" or "ToLower" or "Substring"
+            or "Split" or "Join" or "PadLeft" or "PadRight" or "ToString" or "ToCharArray"
+            or "Insert" or "Remove" or "Length" or "IsNullOrEmpty" or "IsNullOrWhiteSpace")
+        {
+            return true;
+        }
+
+        // Static string methods
+        if (targetStr.StartsWith("string.") || targetStr.StartsWith("String."))
+            return true;
+
+        // Regex methods
+        if (targetStr.StartsWith("Regex.") || targetStr.Contains("RegularExpressions.Regex."))
+            return true;
+
+        // Char methods
+        if (targetStr.StartsWith("char.") || targetStr.StartsWith("Char."))
+            return true;
+
+        return false;
+    }
+
+    /// <summary>
+    /// Collects all steps in a method chain from innermost to outermost.
+    /// For a.Where(...).Select(...).First(), returns:
+    ///   [("a", "Where", args1), (null, "Select", args2), (null, "First", args3)]
+    /// where null target means "use previous step's result".
+    /// </summary>
+    private List<(string? baseTarget, string methodName, List<ExpressionNode> args, TextSpan span)> CollectChainSteps(
+        InvocationExpressionSyntax invocation)
+    {
+        var steps = new List<(string? baseTarget, string methodName, List<ExpressionNode> args, TextSpan span)>();
+        var current = invocation;
+
+        while (current.Expression is MemberAccessExpressionSyntax memberAccess)
+        {
+            var methodName = memberAccess.Name.Identifier.Text;
+            var args = current.ArgumentList.Arguments
+                .Select(a => ConvertExpression(a.Expression))
+                .ToList();
+            var span = GetTextSpan(current);
+
+            if (memberAccess.Expression is InvocationExpressionSyntax inner)
+            {
+                // Intermediate step — target comes from previous chain step
+                steps.Add((null, methodName, args, span));
+                current = inner;
+            }
+            else
+            {
+                // Base of the chain — has a concrete target
+                var baseTarget = memberAccess.Expression.ToString();
+                steps.Add((baseTarget, methodName, args, span));
+                break;
+            }
+        }
+
+        // Reverse so innermost (base) is first
+        steps.Reverse();
+        return steps;
+    }
+
+    /// <summary>
+    /// Decomposes a chained invocation in a local declaration into multiple bind statements.
+    /// var result = products.Where(...).First()
+    /// becomes:
+    ///   var _chain1 = products.Where(...)
+    ///   var result = _chain1.First()
+    /// </summary>
+    private IReadOnlyList<StatementNode> DecomposeChainedLocalDeclaration(LocalDeclarationStatementSyntax node)
+    {
+        _context.RecordFeatureUsage("linq-method-chain");
+
+        var variable = node.Declaration.Variables.First();
+        var finalName = variable.Identifier.Text;
+        var finalTypeName = node.Declaration.Type.IsVar
+            ? null
+            : TypeMapper.CSharpToCalor(node.Declaration.Type.ToString());
+        var finalIsMutable = _reassignedVariables.Contains(finalName);
+
+        var chainInvocation = (InvocationExpressionSyntax)variable.Initializer!.Value;
+        var steps = CollectChainSteps(chainInvocation);
+
+        return EmitChainSteps(steps, finalName, finalTypeName, finalIsMutable, GetTextSpan(node));
+    }
+
+    /// <summary>
+    /// Decomposes a chained invocation in an expression statement into bind + call statements.
+    /// products.Where(...).ToList()
+    /// becomes:
+    ///   var _chain1 = products.Where(...)
+    ///   _chain1.ToList()
+    /// </summary>
+    private IReadOnlyList<StatementNode> DecomposeChainedExpressionStatement(ExpressionStatementSyntax node)
+    {
+        _context.RecordFeatureUsage("linq-method-chain");
+        _context.IncrementConverted();
+
+        var chainInvocation = (InvocationExpressionSyntax)node.Expression;
+        var steps = CollectChainSteps(chainInvocation);
+
+        if (steps.Count < 2)
+        {
+            // Not actually chained, convert normally
+            return new[] { ConvertExpressionStatement(node) };
+        }
+
+        var results = new List<StatementNode>();
+        var span = GetTextSpan(node);
+        string? prevTempName = null;
+
+        // Emit all steps except the last as bind statements
+        for (int i = 0; i < steps.Count - 1; i++)
+        {
+            var step = steps[i];
+            var target = i == 0 ? step.baseTarget! : prevTempName!;
+            var tempName = _context.GenerateId("_chain");
+
+            var callExpr = new CallExpressionNode(step.span, $"{target}.{step.methodName}", step.args);
+            results.Add(new BindStatementNode(span, tempName, null, false, callExpr, new AttributeCollection()));
+            prevTempName = tempName;
+        }
+
+        // Last step becomes a call statement (no assignment, expression statement)
+        var lastStep = steps[^1];
+        var lastTarget = prevTempName!;
+        results.Add(new CallStatementNode(
+            span,
+            $"{lastTarget}.{lastStep.methodName}",
+            false,
+            lastStep.args,
+            new AttributeCollection()));
+
+        return results;
+    }
+
+    /// <summary>
+    /// Decomposes a chained invocation in a return statement into bind statements + final return.
+    /// return products.Where(...).First()
+    /// becomes:
+    ///   var _chain1 = products.Where(...)
+    ///   return _chain1.First()
+    /// </summary>
+    private IReadOnlyList<StatementNode> DecomposeChainedReturnStatement(ReturnStatementSyntax node)
+    {
+        _context.RecordFeatureUsage("linq-method-chain");
+        _context.IncrementConverted();
+
+        var chainInvocation = (InvocationExpressionSyntax)node.Expression!;
+        var steps = CollectChainSteps(chainInvocation);
+
+        if (steps.Count < 2)
+        {
+            // Not actually chained, convert normally
+            return new[] { ConvertReturnStatement(node) };
+        }
+
+        var results = new List<StatementNode>();
+        var span = GetTextSpan(node);
+        string? prevTempName = null;
+
+        // Emit all steps except the last as bind statements
+        for (int i = 0; i < steps.Count - 1; i++)
+        {
+            var step = steps[i];
+            var target = i == 0 ? step.baseTarget! : prevTempName!;
+            var tempName = _context.GenerateId("_chain");
+
+            var callExpr = new CallExpressionNode(step.span, $"{target}.{step.methodName}", step.args);
+            results.Add(new BindStatementNode(span, tempName, null, false, callExpr, new AttributeCollection()));
+            prevTempName = tempName;
+        }
+
+        // Last step becomes the return value
+        var lastStep = steps[^1];
+        var lastTarget = prevTempName!;
+        var lastCallExpr = new CallExpressionNode(lastStep.span, $"{lastTarget}.{lastStep.methodName}", lastStep.args);
+        results.Add(new ReturnStatementNode(span, lastCallExpr));
+
+        return results;
+    }
+
+    /// <summary>
+    /// Emits bind statements for chain steps, with the final step using the provided name and type.
+    /// </summary>
+    private IReadOnlyList<StatementNode> EmitChainSteps(
+        List<(string? baseTarget, string methodName, List<ExpressionNode> args, TextSpan span)> steps,
+        string finalName,
+        string? finalTypeName,
+        bool finalIsMutable,
+        TextSpan statementSpan)
+    {
+        if (steps.Count < 2)
+        {
+            // Not actually chained — fall back to single bind
+            var step = steps[0];
+            var callExpr = new CallExpressionNode(step.span, $"{step.baseTarget}.{step.methodName}", step.args);
+            return new[]
+            {
+                new BindStatementNode(statementSpan, finalName, finalTypeName, finalIsMutable, callExpr, new AttributeCollection())
+            };
+        }
+
+        var results = new List<StatementNode>();
+        string? prevTempName = null;
+
+        for (int i = 0; i < steps.Count; i++)
+        {
+            _context.IncrementConverted();
+            var step = steps[i];
+            var target = i == 0 ? step.baseTarget! : prevTempName!;
+            var isLast = i == steps.Count - 1;
+
+            var callExpr = new CallExpressionNode(step.span, $"{target}.{step.methodName}", step.args);
+
+            if (isLast)
+            {
+                // Final step uses the original variable name and type
+                results.Add(new BindStatementNode(
+                    statementSpan, finalName, finalTypeName, finalIsMutable, callExpr, new AttributeCollection()));
+            }
+            else
+            {
+                // Intermediate step uses a generated temp name with no type
+                var tempName = _context.GenerateId("_chain");
+                results.Add(new BindStatementNode(
+                    statementSpan, tempName, null, false, callExpr, new AttributeCollection()));
+                prevTempName = tempName;
+            }
         }
 
         return results;
@@ -2146,23 +2522,25 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
             }
 
             // Handle chained method calls (e.g., products.GroupBy(...).Select(...))
-            // When the target expression is an invocation, recursively convert it
-            // so that each call in the chain is properly represented in Calor
+            // Hoist inner call to a temp bind so the outer call has a clean target.
+            // The temp bind is added to _pendingStatements which ConvertBlock flushes
+            // before the containing statement.
+            // CAVEAT: When the containing statement is a loop (while/for), the hoisted bind
+            // is emitted once before the loop rather than re-evaluated per iteration. This is
+            // semantically correct for LINQ's lazy IEnumerable chains (Where/Select/etc.
+            // return deferred iterators), but would change behavior for eagerly-evaluated
+            // chains. In practice this is acceptable — the alternative was non-functional Calor.
+            // NOTE: Native ops (string, StringBuilder, regex, char) above may already have
+            // returned, so this only fires for non-native chains. Statement-level decomposition
+            // in ConvertBlock uses WouldChainUseNativeOps to stay aligned — see its doc comment.
             if (memberAccess.Expression is InvocationExpressionSyntax innerInvocation)
             {
-                var innerConverted = ConvertInvocationExpression(innerInvocation);
-
-                // If the inner call converted to a Calor built-in (StringOperationNode, etc.),
-                // it can't be embedded in a §C{} call target string. Fall back to original C# syntax.
-                if (innerConverted is not CallExpressionNode)
-                {
-                    return new CallExpressionNode(span, invocation.Expression.ToString(), args);
-                }
-
                 _context.RecordFeatureUsage("linq-method");
-                var emitter = new CalorEmitter();
-                var innerCalor = innerConverted.Accept(emitter);
-                return new CallExpressionNode(span, $"({innerCalor}).{methodName}", args);
+                var innerConverted = ConvertInvocationExpression(innerInvocation);
+                var tempName = _context.GenerateId("_chain");
+                _pendingStatements.Add(new BindStatementNode(
+                    span, tempName, null, false, innerConverted, new AttributeCollection()));
+                return new CallExpressionNode(span, $"{tempName}.{methodName}", args);
             }
         }
 
@@ -2845,16 +3223,7 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
             .ToList();
 
         // Try declared type first, fall back to inferring from first element
-        var elementType = TryGetDeclaredArrayElementType(implicitArray);
-        if (elementType == null)
-        {
-            elementType = "object";
-            if (initializer.Count > 0 && initializer[0] is IntLiteralNode) elementType = "i32";
-            else if (initializer.Count > 0 && initializer[0] is FloatLiteralNode) elementType = "f64";
-            else if (initializer.Count > 0 && initializer[0] is DecimalLiteralNode) elementType = "decimal";
-            else if (initializer.Count > 0 && initializer[0] is StringLiteralNode) elementType = "str";
-            else if (initializer.Count > 0 && initializer[0] is BoolLiteralNode) elementType = "bool";
-        }
+        var elementType = TryGetDeclaredArrayElementType(implicitArray) ?? InferElementType(initializer);
 
         return new ArrayCreationNode(GetTextSpan(implicitArray), id, id, elementType, null, initializer, new AttributeCollection());
     }
@@ -2871,19 +3240,8 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
             .Select(ConvertExpression)
             .ToList();
 
-        // Try to get element type from the parent variable declaration (e.g. "double[]" -> "f64")
-        var elementType = TryGetDeclaredArrayElementType(initExpr);
-
-        // Fall back to inferring from the first element
-        if (elementType == null)
-        {
-            elementType = "object";
-            if (initializer.Count > 0 && initializer[0] is IntLiteralNode) elementType = "i32";
-            else if (initializer.Count > 0 && initializer[0] is FloatLiteralNode) elementType = "f64";
-            else if (initializer.Count > 0 && initializer[0] is DecimalLiteralNode) elementType = "decimal";
-            else if (initializer.Count > 0 && initializer[0] is StringLiteralNode) elementType = "str";
-            else if (initializer.Count > 0 && initializer[0] is BoolLiteralNode) elementType = "bool";
-        }
+        // Try declared type first, fall back to inferring from first element
+        var elementType = TryGetDeclaredArrayElementType(initExpr) ?? InferElementType(initializer);
 
         return new ArrayCreationNode(GetTextSpan(initExpr), id, id, elementType, null, initializer, new AttributeCollection());
     }
@@ -2909,6 +3267,21 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
             }
         }
         return null;
+    }
+
+
+    private static string InferElementType(List<ExpressionNode> elements)
+    {
+        if (elements.Count == 0) return "object";
+        return elements[0] switch
+        {
+            IntLiteralNode => "i32",
+            FloatLiteralNode => "f64",
+            DecimalLiteralNode => "decimal",
+            StringLiteralNode => "str",
+            BoolLiteralNode => "bool",
+            _ => "object"
+        };
     }
 
     private ExpressionNode ConvertElementAccess(ElementAccessExpressionSyntax elementAccess)

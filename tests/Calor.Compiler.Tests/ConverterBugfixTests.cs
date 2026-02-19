@@ -90,10 +90,10 @@ public class Test
 
     #endregion
 
-    #region Bug 2: Chained call with built-in should fall back to C# syntax
+    #region Bug 2: Chained call with built-in hoists to temp bind
 
     [Fact]
-    public void Converter_ChainedCallWithBuiltin_FallsBackToCSharpSyntax()
+    public void Converter_ChainedCallWithBuiltin_HoistsToTempBind()
     {
         var csharp = @"
 public class Test
@@ -105,17 +105,18 @@ public class Test
 }";
         var calor = ConvertToCalor(csharp);
 
-        // Should contain original C# method chain, not embedded Calor built-in syntax
-        Assert.Contains("obj.ToLower().GetHashCode", calor);
-        // Should NOT contain the Calor built-in form embedded in a call target
-        Assert.DoesNotContain("(lower obj).GetHashCode", calor);
+        // The built-in ToLower() is hoisted to a temp bind, GetHashCode called on temp
+        Assert.Contains("_chain", calor);
+        Assert.Contains("GetHashCode", calor);
+        // Should NOT contain the broken CalorEmitter serialization pattern
+        Assert.DoesNotContain("§C{(§C{", calor);
     }
 
     [Fact]
-    public void Converter_DeeperChainWithMultipleBuiltins_FallsBackToCSharpSyntax()
+    public void Converter_DeeperChainWithMultipleBuiltins_HoistsToTempBinds()
     {
         // When multiple built-in operations are chained (e.g., ToLower().Trim()),
-        // the entire chain should fall back to raw C# rather than partially converting
+        // each built-in is hoisted to a temp bind
         var csharp = @"
 public class Test
 {
@@ -126,11 +127,11 @@ public class Test
 }";
         var calor = ConvertToCalor(csharp);
 
-        // The entire chain should be preserved as raw C#
-        Assert.Contains("obj.ToLower().Trim().GetHashCode", calor);
-        // Should NOT contain Calor built-in forms embedded in call targets
-        Assert.DoesNotContain("(lower ", calor);
-        Assert.DoesNotContain("(trim ", calor);
+        // Chain is decomposed via temp binds
+        Assert.Contains("_chain", calor);
+        Assert.Contains("GetHashCode", calor);
+        // Should NOT contain the broken CalorEmitter serialization pattern
+        Assert.DoesNotContain("§C{(§C{", calor);
     }
 
     #endregion
