@@ -624,6 +624,15 @@ public sealed class Lexer
     /// </summary>
     private void ReportUnknownSectionMarker(string keyword)
     {
+        // Special case: §CAST is a common mistake — casting uses Lisp syntax
+        if (keyword.Equals("CAST", StringComparison.OrdinalIgnoreCase))
+        {
+            _diagnostics.ReportError(CurrentSpan(), Diagnostics.DiagnosticCode.UnexpectedCharacter,
+                $"Unknown section marker '§{keyword}'. Calor uses Lisp syntax for casts: " +
+                $"(cast TargetType expr). Example: (cast i32 myFloat)");
+            return;
+        }
+
         // Try to find a similar marker
         var suggestion = SectionMarkerSuggestions.FindSimilarMarker(keyword);
 

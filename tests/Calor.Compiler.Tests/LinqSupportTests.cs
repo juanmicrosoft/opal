@@ -507,5 +507,17 @@ public class LinqSupportTests
         Assert.True(FeatureSupport.IsFullySupported("array-initializer"));
     }
 
+    [Fact]
+    public void FeatureSupport_ObjectInitializer_IsFullySupported()
+    {
+        Assert.True(FeatureSupport.IsFullySupported("object-initializer"));
+    }
+
+    [Fact]
+    public void FeatureSupport_AnonymousType_IsFullySupported()
+    {
+        Assert.True(FeatureSupport.IsFullySupported("anonymous-type"));
+    }
+
     #endregion
 }

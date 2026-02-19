@@ -1462,18 +1462,42 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         var varName = SanitizeIdentifier(node.VariableName);
         var collection = node.Collection.Accept(this);
 
-        AppendLine($"foreach ({varType} {varName} in {collection})");
-        AppendLine("{");
-        Indent();
-
-        foreach (var stmt in node.Body)
+        if (node.IndexVariableName != null)
         {
-            var stmtCode = stmt.Accept(this);
-            AppendLine(stmtCode);
-        }
+            // Index starts at -1 and increments at the top of each iteration so that
+            // `continue` statements in the body don't skip the increment — matching
+            // the semantics of C#'s Select((item, index) => ...).
+            var indexName = SanitizeIdentifier(node.IndexVariableName);
+            AppendLine($"var {indexName} = -1;");
+            AppendLine($"foreach ({varType} {varName} in {collection})");
+            AppendLine("{");
+            Indent();
+            AppendLine($"{indexName}++;");
 
-        Dedent();
-        AppendLine("}");
+            foreach (var stmt in node.Body)
+            {
+                var stmtCode = stmt.Accept(this);
+                AppendLine(stmtCode);
+            }
+
+            Dedent();
+            AppendLine("}");
+        }
+        else
+        {
+            AppendLine($"foreach ({varType} {varName} in {collection})");
+            AppendLine("{");
+            Indent();
+
+            foreach (var stmt in node.Body)
+            {
+                var stmtCode = stmt.Accept(this);
+                AppendLine(stmtCode);
+            }
+
+            Dedent();
+            AppendLine("}");
+        }
 
         return "";
     }
