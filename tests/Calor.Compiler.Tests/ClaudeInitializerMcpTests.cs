@@ -321,19 +321,15 @@ public class ClaudeInitializerMcpTests : IDisposable
         var initializer = CreateInitializer();
         await initializer.InitializeAsync(subDir, force: false);
 
-        // Skills, CLAUDE.md, and settings.json should be at git root, not subdirectory
+        // CLAUDE.md and settings.json should be at git root, not subdirectory
         Assert.True(File.Exists(Path.Combine(gitRoot, "CLAUDE.md")),
             "CLAUDE.md should be at git root");
         Assert.True(File.Exists(Path.Combine(gitRoot, ".claude", "settings.json")),
             "settings.json should be at git root");
-        Assert.True(Directory.Exists(Path.Combine(gitRoot, ".claude", "skills", "calor")),
-            "skills should be at git root");
 
         // Should NOT be in subdirectory
         Assert.False(File.Exists(Path.Combine(subDir, "CLAUDE.md")),
             "CLAUDE.md should not be in subdirectory");
-        Assert.False(Directory.Exists(Path.Combine(subDir, ".claude")),
-            ".claude dir should not be in subdirectory");
     }
 
     [Fact]

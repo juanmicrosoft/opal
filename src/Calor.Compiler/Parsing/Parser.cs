@@ -969,6 +969,7 @@ public sealed class Parser
             or TokenKind.Generic
             // Phase 8: Classes
             or TokenKind.New
+            or TokenKind.AnonymousObject
             or TokenKind.This
             or TokenKind.Base
             or TokenKind.Call  // Call expressions (§C[...])
@@ -1023,6 +1024,7 @@ public sealed class Parser
             TokenKind.Generic => ParseGenericType(),
             // Phase 8: Classes
             TokenKind.New => ParseNewExpression(),
+            TokenKind.AnonymousObject => ParseAnonymousObjectCreation(),
             TokenKind.This => ParseThisExpression(),
             TokenKind.Base => ParseBaseExpression(),
             TokenKind.Call => ParseCallExpression(),
@@ -2086,11 +2088,11 @@ public sealed class Parser
         return new FloatLiteralNode(token.Span, value);
     }
 
-    private FloatLiteralNode ParseDecimalLiteral()
+    private DecimalLiteralNode ParseDecimalLiteral()
     {
         var token = Expect(TokenKind.DecimalLiteral);
-        var value = token.Value is double d ? d : 0.0;
-        return new FloatLiteralNode(token.Span, value, isDecimal: true);
+        var value = token.Value is decimal d ? d : 0m;
+        return new DecimalLiteralNode(token.Span, value);
     }
 
     private ExpressionNode ParseReference()
@@ -3475,7 +3477,8 @@ public sealed class Parser
 
         if (string.IsNullOrEmpty(id))
         {
-            _diagnostics.ReportMissingRequiredAttribute(startToken.Span, "ARR", "id");
+            // Auto-generate id for unnamed arrays (e.g., §ARR{:i32} or §ARR{i32})
+            id = $"_arr{startToken.Span.Start}";
         }
 
         ExpressionNode? size = null;
@@ -3521,6 +3524,14 @@ public sealed class Parser
                 {
                     break;
                 }
+            }
+
+            // If only one element and no end tag coming, it might be a size expression
+            // e.g., §ARR{id:type} 10 (no §/ARR) → treat 10 as size, not initializer
+            if (initializer.Count == 1 && !Check(TokenKind.EndArray))
+            {
+                size = initializer[0];
+                initializer.Clear();
             }
         }
 
@@ -5047,7 +5058,9 @@ public sealed class Parser
             }
         }
 
-        // Parse object initializers: §INIT{PropName} value
+        // Parse object initializer assignments:
+        // Format 1: §INIT{PropName} expression (tag-based)
+        // Format 2: PropName = expression (inline, between §NEW and §/NEW)
         var initializers = new List<ObjectInitializerAssignment>();
         while (Check(TokenKind.Init))
         {
@@ -5057,6 +5070,24 @@ public sealed class Parser
             var value = ParseExpression();
             initializers.Add(new ObjectInitializerAssignment(propName, value));
         }
+        while (!IsAtEnd && !Check(TokenKind.EndNew) && Check(TokenKind.Identifier))
+        {
+            // Peek ahead to check for "Identifier =" pattern
+            var saved = _position;
+            var identToken = Advance();
+            if (Check(TokenKind.Equals))
+            {
+                Advance(); // consume '='
+                var value = ParseExpression();
+                initializers.Add(new ObjectInitializerAssignment(identToken.Text, value));
+            }
+            else
+            {
+                // Not an initializer — backtrack
+                _position = saved;
+                break;
+            }
+        }
 
         // Check for optional end tag
         var endSpan = startToken.Span;
@@ -5065,11 +5096,63 @@ public sealed class Parser
             endSpan = Advance().Span;
         }
 
-        var span = arguments.Count > 0 ? startToken.Span.Union(arguments[^1].Span) : startToken.Span;
+        var span = endSpan != startToken.Span ? startToken.Span.Union(endSpan)
+            : arguments.Count > 0 ? startToken.Span.Union(arguments[^1].Span)
+            : startToken.Span;
         ExpressionNode expr = new NewExpressionNode(span, typeName, typeArgs, arguments, initializers);
 
         // Handle trailing member access (e.g., §NEW{Type}§/NEW.Method or §NEW{Type}§/NEW?.Prop)
         return ParseTrailingMemberAccess(expr);
+    }
+
+    /// <summary>
+    /// Parses an anonymous object creation.
+    /// §ANON
+    ///   PropertyName = expression
+    ///   OtherProp = expression
+    /// §/ANON
+    /// Emits: new { PropertyName = expression, OtherProp = expression }
+    /// </summary>
+    private AnonymousObjectCreationNode ParseAnonymousObjectCreation()
+    {
+        var startToken = Expect(TokenKind.AnonymousObject);
+        var initializers = new List<ObjectInitializerAssignment>();
+
+        while (!IsAtEnd && !Check(TokenKind.EndAnonymousObject))
+        {
+            if (Check(TokenKind.Identifier))
+            {
+                var saved = _position;
+                var identToken = Advance();
+                if (Check(TokenKind.Equals))
+                {
+                    Advance(); // consume '='
+                    var value = ParseExpression();
+                    initializers.Add(new ObjectInitializerAssignment(identToken.Text, value));
+                }
+                else
+                {
+                    // Shorthand: just identifier (inferred property name, e.g., §ANON x y §/ANON → new { x, y })
+                    _position = saved;
+                    var ident = Advance();
+                    initializers.Add(new ObjectInitializerAssignment(ident.Text,
+                        new ReferenceNode(ident.Span, ident.Text)));
+                }
+            }
+            else
+            {
+                // Unexpected token in anonymous object
+                break;
+            }
+        }
+
+        var endSpan = startToken.Span;
+        if (Check(TokenKind.EndAnonymousObject))
+        {
+            endSpan = Advance().Span;
+        }
+
+        return new AnonymousObjectCreationNode(startToken.Span.Union(endSpan), initializers);
     }
 
     /// <summary>

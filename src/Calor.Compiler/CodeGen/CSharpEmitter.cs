@@ -496,15 +496,12 @@ public sealed class CSharpEmitter : IAstVisitor<string>
 
     public string Visit(StringLiteralNode node)
     {
-        // Check if this is an interpolated string (contains ${identifier})
-        // Only match Calor interpolation syntax: ${identifier}, not format placeholders ${0}
-        // Calor interpolation uses identifiers (letters, underscores), not numbers
-        var interpolationRegex = new System.Text.RegularExpressions.Regex(@"\$\{([a-zA-Z_][a-zA-Z0-9_]*(?:\??\.[a-zA-Z_][a-zA-Z0-9_]*)*)\}");
-        if (interpolationRegex.IsMatch(node.Value))
+        // Check if this is an interpolated string (contains ${expr})
+        // Uses brace-depth matching to support complex expressions like ${arr[0]}, ${obj.Method()}, etc.
+        // Content starting with a digit (e.g., ${0}) is treated as a format placeholder, not interpolation
+        var (converted, hasInterpolation) = ConvertInlineInterpolation(node.Value);
+        if (hasInterpolation)
         {
-            // Convert Calor interpolation ${expr} to C# interpolation {expr}
-            var converted = interpolationRegex.Replace(node.Value, "{$1}");
-
             // Escape for C# string literal (but not the interpolation braces)
             var escaped = converted
                 .Replace("\\", "\\\\")
@@ -534,6 +531,84 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         return $"\"{escapedValue}\"";
     }
 
+    /// <summary>
+    /// Converts inline Calor interpolation syntax ${expr} to C# interpolation {expr}.
+    /// Uses brace-depth tracking to support complex expressions (indexers, method calls, etc.).
+    /// Content starting with a digit (e.g., ${0}) is treated as a format placeholder, not interpolation.
+    /// Limitation: quoted strings containing braces inside interpolation (e.g., ${map["key"]})
+    /// will miscount brace depth because the Lexer terminates the string at the inner quote.
+    /// Supporting that would require Lexer-level interpolation parsing.
+    /// </summary>
+    internal static (string converted, bool hasInterpolation) ConvertInlineInterpolation(string value)
+    {
+        // Fast path: skip StringBuilder allocation if there's no interpolation marker
+        if (!value.Contains("${"))
+            return (value, false);
+
+        var sb = new System.Text.StringBuilder(value.Length);
+        bool foundInterpolation = false;
+        int i = 0;
+
+        while (i < value.Length)
+        {
+            if (i + 1 < value.Length && value[i] == '$' && value[i + 1] == '{')
+            {
+                // Found ${, now find matching } using brace-depth tracking
+                int exprStart = i + 2;
+                int depth = 1;
+                int j = exprStart;
+
+                while (j < value.Length && depth > 0)
+                {
+                    if (value[j] == '{')
+                        depth++;
+                    else if (value[j] == '}')
+                        depth--;
+                    if (depth > 0)
+                        j++;
+                }
+
+                if (depth == 0)
+                {
+                    // Found matching } at position j
+                    string expr = value.Substring(exprStart, j - exprStart);
+
+                    // Check if this is a format placeholder (starts with digit)
+                    if (expr.Length > 0 && char.IsDigit(expr[0]))
+                    {
+                        // Keep as literal text
+                        sb.Append("${");
+                        sb.Append(expr);
+                        sb.Append('}');
+                    }
+                    else
+                    {
+                        // Convert to C# interpolation
+                        sb.Append('{');
+                        sb.Append(expr);
+                        sb.Append('}');
+                        foundInterpolation = true;
+                    }
+
+                    i = j + 1; // Skip past the closing }
+                }
+                else
+                {
+                    // Unmatched ${ — no closing }, treat as literal text
+                    sb.Append(value[i]);
+                    i++;
+                }
+            }
+            else
+            {
+                sb.Append(value[i]);
+                i++;
+            }
+        }
+
+        return (sb.ToString(), foundInterpolation);
+    }
+
     public string Visit(BoolLiteralNode node)
     {
         return node.Value ? "true" : "false";
@@ -550,7 +625,18 @@ public sealed class CSharpEmitter : IAstVisitor<string>
     public string Visit(FloatLiteralNode node)
     {
         var str = node.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        // Ensure float literals always contain a decimal point so they aren't
+        // reinterpreted as integers in the generated C# code.
+        if (!node.IsDecimal && !str.Contains('.') && !str.Contains('E') && !str.Contains('e'))
+        {
+            str += ".0";
+        }
         return node.IsDecimal ? str + "m" : str;
+    }
+
+    public string Visit(DecimalLiteralNode node)
+    {
+        return node.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) + "m";
     }
 
     public string Visit(ReferenceNode node)
@@ -1696,6 +1782,7 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         if (!node.IsStruct && node.IsSealed) modifiers += " sealed";
         if (node.IsStatic) modifiers += " static";
         if (node.IsReadOnly) modifiers += " readonly";
+        if (node.IsPartial) modifiers += " partial";
 
         var keyword = node.IsStruct ? "struct" : "class";
 
@@ -2105,13 +2192,22 @@ public sealed class CSharpEmitter : IAstVisitor<string>
 
         var args = string.Join(", ", node.Arguments.Select(a => a.Accept(this)));
         var result = $"new {typeName}({args})";
+
         if (node.Initializers.Count > 0)
         {
-            var inits = string.Join(", ", node.Initializers.Select(
-                i => $"{i.PropertyName} = {i.Value.Accept(this)}"));
-            result = $"new {typeName}({args}) {{ {inits} }}";
+            var inits = node.Initializers.Select(i =>
+                $"{SanitizeIdentifier(i.PropertyName)} = {i.Value.Accept(this)}");
+            result += $" {{ {string.Join(", ", inits)} }}";
         }
+
         return result;
+    }
+
+    public string Visit(AnonymousObjectCreationNode node)
+    {
+        var props = node.Initializers.Select(i =>
+            $"{SanitizeIdentifier(i.PropertyName)} = {i.Value.Accept(this)}");
+        return $"new {{ {string.Join(", ", props)} }}";
     }
 
     public string Visit(CallExpressionNode node)
