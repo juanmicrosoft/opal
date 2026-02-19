@@ -47,7 +47,7 @@ public sealed class ProjectDetector
         if (projects.Length == 0)
         {
             return ProjectDetectionResult.Error(
-                "No .csproj file found in the current directory. " +
+                "No .csproj or .proj file found in the current directory. " +
                 "Either create a project first with 'dotnet new' or specify a project with --project.");
         }
 

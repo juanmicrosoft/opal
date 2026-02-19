@@ -1,13 +1,13 @@
 namespace Calor.Compiler.Init;
 
 /// <summary>
-/// Detects and validates solution files (.sln and .slnx) in a directory.
+/// Detects and validates solution files (.sln, .slnx, and .proj) in a directory.
 /// </summary>
 public sealed class SolutionDetector
 {
     /// <summary>
     /// Detects solution files in the specified directory.
-    /// Priority: .slnx files first (newer XML format), then .sln files.
+    /// Priority: .slnx files first (newer XML format), then .sln files, then .proj files.
     /// </summary>
     /// <param name="directory">The directory to search.</param>
     /// <param name="specificSolution">Optional specific solution file path.</param>
@@ -34,11 +34,12 @@ public sealed class SolutionDetector
             return SolutionDetectionResult.Success(solutionPath);
         }
 
-        // Auto-detect solution files - prefer .slnx over .sln
+        // Auto-detect solution files - prefer .slnx over .sln over .proj
         var slnxFiles = Directory.GetFiles(directory, "*.slnx", SearchOption.TopDirectoryOnly);
         var slnFiles = Directory.GetFiles(directory, "*.sln", SearchOption.TopDirectoryOnly);
+        var projFiles = Directory.GetFiles(directory, "*.proj", SearchOption.TopDirectoryOnly);
 
-        var allSolutions = slnxFiles.Concat(slnFiles).ToArray();
+        var allSolutions = slnxFiles.Concat(slnFiles).Concat(projFiles).ToArray();
 
         if (allSolutions.Length == 0)
         {
