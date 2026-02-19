@@ -909,7 +909,9 @@ public sealed class CalorEmitter : IAstVisitor<string>
         var collection = node.Collection.Accept(this);
         var varType = TypeMapper.CSharpToCalor(node.VariableType);
 
-        AppendLine($"§EACH{{{node.Id}:{varType}:{node.VariableName}}} {collection}");
+        // Emit as §EACH{id:variable:type} or §EACH{id:variable:type:index}
+        var indexPart = node.IndexVariableName != null ? $":{node.IndexVariableName}" : "";
+        AppendLine($"§EACH{{{node.Id}:{node.VariableName}:{varType}{indexPart}}} {collection}");
         Indent();
 
         foreach (var stmt in node.Body)

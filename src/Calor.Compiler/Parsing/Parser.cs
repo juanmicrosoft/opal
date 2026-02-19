@@ -3641,10 +3641,11 @@ public sealed class Parser
         var startToken = Expect(TokenKind.Foreach);
         var attrs = ParseAttributes();
 
-        // Positional: [id:variable:type]
+        // Positional: [id:variable:type] or [id:variable:type:index]
         var id = attrs["_pos0"] ?? "";
         var variableName = attrs["_pos1"] ?? "item";
         var variableType = attrs["_pos2"] ?? "var";
+        var indexVariableName = attrs["_pos3"]; // null if not provided
 
         if (string.IsNullOrEmpty(id))
         {
@@ -3667,7 +3668,7 @@ public sealed class Parser
         }
 
         var span = startToken.Span.Union(endToken.Span);
-        return new ForeachStatementNode(span, id, variableName, variableType, collection, body, attrs);
+        return new ForeachStatementNode(span, id, variableName, variableType, collection, body, attrs, indexVariableName);
     }
 
     // Phase 6 Extended: Collections (List, Dictionary, HashSet)

@@ -448,6 +448,15 @@ public sealed class CalorFormatter
                 AppendLine($"§/L{{{loopId}}}");
                 break;
 
+            case ForeachStatementNode foreachStmt:
+                var eachId = AbbreviateId(foreachStmt.Id);
+                var eachType = CompactTypeName(foreachStmt.VariableType);
+                var indexPart = foreachStmt.IndexVariableName != null ? $":{foreachStmt.IndexVariableName}" : "";
+                AppendLine($"§EACH{{{eachId}:{foreachStmt.VariableName}:{eachType}{indexPart}}} {FormatExpression(foreachStmt.Collection)}");
+                foreach (var s in foreachStmt.Body) FormatStatement(s);
+                AppendLine($"§/EACH{{{eachId}}}");
+                break;
+
             case WhileStatementNode whileStmt:
                 var whileId = AbbreviateId(whileStmt.Id);
                 AppendLine($"§WH{{{whileId}}} {FormatExpression(whileStmt.Condition)}");
