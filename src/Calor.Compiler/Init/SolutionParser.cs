@@ -1,10 +1,12 @@
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
+using Microsoft.Extensions.FileSystemGlobbing;
+using Microsoft.Extensions.FileSystemGlobbing.Abstractions;
 
 namespace Calor.Compiler.Init;
 
 /// <summary>
-/// Parses .sln (text format) and .slnx (XML format) solution files.
+/// Parses .sln (text format), .slnx (XML format), and .proj (traversal) solution files.
 /// </summary>
 internal static class SolutionParser
 {
@@ -129,6 +131,112 @@ internal static class SolutionParser
     }
 
     /// <summary>
+    /// Parses a .proj file (e.g., Microsoft.Build.Traversal) and returns all referenced C# projects.
+    /// Resolves glob patterns in ProjectReference Include attributes against the file system.
+    /// </summary>
+    public static IEnumerable<SolutionProject> ParseProj(string path)
+    {
+        if (!File.Exists(path))
+        {
+            throw new FileNotFoundException($"Project file not found: {path}");
+        }
+
+        var projDirectory = Path.GetDirectoryName(path)!;
+        var projects = new List<SolutionProject>();
+
+        try
+        {
+            var doc = XDocument.Load(path);
+            var root = doc.Root;
+
+            if (root == null)
+            {
+                return projects;
+            }
+
+            // .proj files use <ProjectReference Include="..."> items
+            var projectRefs = root.Descendants()
+                .Where(e => e.Name.LocalName == "ProjectReference");
+
+            foreach (var element in projectRefs)
+            {
+                var includeValue = element.Attribute("Include")?.Value;
+                if (string.IsNullOrEmpty(includeValue))
+                {
+                    continue;
+                }
+
+                // Normalize path separators
+                includeValue = includeValue.Replace('\\', Path.DirectorySeparatorChar);
+
+                // Check if the include contains glob characters
+                if (includeValue.Contains('*') || includeValue.Contains('?'))
+                {
+                    // Resolve glob pattern against the file system
+                    var resolvedPaths = ResolveGlob(projDirectory, includeValue);
+                    foreach (var resolvedPath in resolvedPaths)
+                    {
+                        if (!resolvedPath.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))
+                        {
+                            continue;
+                        }
+
+                        var fullPath = Path.GetFullPath(resolvedPath);
+                        var relativePath = Path.GetRelativePath(projDirectory, fullPath);
+                        var name = Path.GetFileNameWithoutExtension(fullPath);
+
+                        projects.Add(new SolutionProject(
+                            name, fullPath, relativePath,
+                            CSharpProjectTypeGuid, Guid.NewGuid().ToString()));
+                    }
+                }
+                else
+                {
+                    // Direct path reference
+                    if (!includeValue.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    var fullPath = Path.GetFullPath(Path.Combine(projDirectory, includeValue));
+                    var name = Path.GetFileNameWithoutExtension(fullPath);
+
+                    projects.Add(new SolutionProject(
+                        name, fullPath, includeValue,
+                        CSharpProjectTypeGuid, Guid.NewGuid().ToString()));
+                }
+            }
+        }
+        catch (Exception ex) when (ex is not FileNotFoundException)
+        {
+            throw new InvalidOperationException($"Failed to parse project file: {ex.Message}", ex);
+        }
+
+        return projects;
+    }
+
+    /// <summary>
+    /// Resolves a glob pattern (e.g., "src/NativeHost/*.csproj" or "**/*.csproj")
+    /// relative to a base directory. Supports recursive ** patterns and wildcards
+    /// in directory segments (e.g., "src/*/Project.csproj").
+    /// </summary>
+    internal static IEnumerable<string> ResolveGlob(string baseDirectory, string pattern)
+    {
+        if (!Directory.Exists(baseDirectory))
+        {
+            return [];
+        }
+
+        var matcher = new Matcher();
+        matcher.AddInclude(pattern);
+
+        var directoryInfo = new DirectoryInfoWrapper(new DirectoryInfo(baseDirectory));
+        var result = matcher.Execute(directoryInfo);
+
+        return result.Files.Select(f => Path.Combine(baseDirectory, f.Path));
+    }
+
+    /// <summary>
     /// Parses a solution file (auto-detects format based on extension).
     /// </summary>
     public static IEnumerable<SolutionProject> Parse(string path)
@@ -138,6 +246,7 @@ internal static class SolutionParser
         {
             ".slnx" => ParseSlnx(path),
             ".sln" => ParseSln(path),
+            ".proj" => ParseProj(path),
             _ => throw new ArgumentException($"Unknown solution file format: {extension}")
         };
     }

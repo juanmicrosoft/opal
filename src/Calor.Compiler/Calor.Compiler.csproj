@@ -27,6 +27,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.ApplicationInsights" Version="2.22.0" />
+    <PackageReference Include="Microsoft.Extensions.FileSystemGlobbing" Version="10.0.3" />
     <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" />
     <PackageReference Include="Ulid" Version="1.3.4" />
@@ -120,7 +121,7 @@
       <EmbeddedSkillFile>$(MSBuildThisFileDirectory)Resources\Skills\calor.md</EmbeddedSkillFile>
     </PropertyGroup>
     <Copy SourceFiles="$(CanonicalSkillFile)" DestinationFiles="$(EmbeddedSkillFile)" SkipUnchangedFiles="true" />
-    <Message Importance="low" Text="Synced skill file: $(CanonicalSkillFile) -> $(EmbeddedSkillFile)" />
+    <Message Importance="low" Text="Synced skill file: $(CanonicalSkillFile) -&gt; $(EmbeddedSkillFile)" />
   </Target>
 
   <!-- Sync self-test scenario files from canonical E2E source before build -->
@@ -135,10 +136,8 @@
     <!-- Auto-discover: any E2E scenario dir with input.calr + output.g.cs gets synced -->
     <!-- Renames input.calr → {scenarioDir}.calr, output.g.cs → {scenarioDir}.g.cs -->
     <!-- Note: bash $() must be escaped as %24() to prevent MSBuild property expansion -->
-    <Exec Command="for dir in &quot;$(E2EScenariosDir)&quot;/*/; do name=%24(basename &quot;%24dir&quot;); if [ -f &quot;%24dir/input.calr&quot; ] &amp;&amp; [ -f &quot;%24dir/output.g.cs&quot; ]; then cp -p &quot;%24dir/input.calr&quot; &quot;$(SelfTestDir)/%24name.calr&quot;; cp -p &quot;%24dir/output.g.cs&quot; &quot;$(SelfTestDir)/%24name.g.cs&quot;; fi; done"
-          Condition="'$(OS)' != 'Windows_NT'" />
-    <Exec Command="for /d %%d in (&quot;$(E2EScenariosDir)\*&quot;) do if exist &quot;%%d\input.calr&quot; if exist &quot;%%d\output.g.cs&quot; (copy /Y &quot;%%d\input.calr&quot; &quot;$(SelfTestDir)\%%~nxd.calr&quot; >nul &amp; copy /Y &quot;%%d\output.g.cs&quot; &quot;$(SelfTestDir)\%%~nxd.g.cs&quot; >nul)"
-          Condition="'$(OS)' == 'Windows_NT'" />
+    <Exec Command="for dir in &quot;$(E2EScenariosDir)&quot;/*/; do name=%24(basename &quot;%24dir&quot;); if [ -f &quot;%24dir/input.calr&quot; ] &amp;&amp; [ -f &quot;%24dir/output.g.cs&quot; ]; then cp -p &quot;%24dir/input.calr&quot; &quot;$(SelfTestDir)/%24name.calr&quot;; cp -p &quot;%24dir/output.g.cs&quot; &quot;$(SelfTestDir)/%24name.g.cs&quot;; fi; done" Condition="'$(OS)' != 'Windows_NT'" />
+    <Exec Command="for /d %%d in (&quot;$(E2EScenariosDir)\*&quot;) do if exist &quot;%%d\input.calr&quot; if exist &quot;%%d\output.g.cs&quot; (copy /Y &quot;%%d\input.calr&quot; &quot;$(SelfTestDir)\%%~nxd.calr&quot; &gt;nul &amp; copy /Y &quot;%%d\output.g.cs&quot; &quot;$(SelfTestDir)\%%~nxd.g.cs&quot; &gt;nul)" Condition="'$(OS)' == 'Windows_NT'" />
     <Message Importance="low" Text="Synced self-test scenarios from E2E" />
   </Target>
 

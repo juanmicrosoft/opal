@@ -47,7 +47,7 @@ public class ProjectDetectorTests : IDisposable
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("No .csproj file found", result.ErrorMessage);
+        Assert.Contains("No .csproj or .proj file found", result.ErrorMessage);
     }
 
     [Fact]
