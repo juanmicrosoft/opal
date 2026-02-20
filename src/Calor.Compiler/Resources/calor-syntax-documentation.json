@@ -648,12 +648,12 @@
       "id": "static_class",
       "csharpConstruct": "static class",
       "keywords": ["static", "static class", "utility", "helper"],
-      "calorSyntax": "§CL{id:name:pub:st} ... §/CL",
-      "description": "Defines a static class (utility class).",
+      "calorSyntax": "§CL{id:name:pub:stat} ... §/CL",
+      "description": "Defines a static class (utility class). Use 'stat' modifier.",
       "examples": [
         {
           "csharp": "public static class StringHelper { }",
-          "calor": "§CL{1:StringHelper:pub:st}\n  ...\n§/CL"
+          "calor": "§CL{1:StringHelper:pub:stat}\n  ...\n§/CL"
         }
       ]
     },
@@ -721,12 +721,12 @@
       "id": "sealed_class",
       "csharpConstruct": "sealed class",
       "keywords": ["sealed", "final", "no inheritance", "cannot derive"],
-      "calorSyntax": "§CL{id:name:visibility:sd} body §/CL",
-      "description": "Defines a sealed class that cannot be inherited from. Use 'sd' modifier.",
+      "calorSyntax": "§CL{id:name:visibility:seal} body §/CL",
+      "description": "Defines a sealed class that cannot be inherited from. Use 'seal' modifier.",
       "examples": [
         {
           "csharp": "public sealed class FinalClass { }",
-          "calor": "§CL{1:FinalClass:pub:sd}\n  ...\n§/CL"
+          "calor": "§CL{1:FinalClass:pub:seal}\n  ...\n§/CL"
         }
       ]
     },
@@ -829,6 +829,36 @@
         {
           "csharp": "public event Action<int> ValueUpdated;",
           "calor": "§EV{1:ValueUpdated:pub}\n  §O{Action<i32>}\n§/EV"
+        }
+      ]
+    },
+    {
+      "id": "decimal_literal",
+      "csharpConstruct": "decimal literal",
+      "keywords": ["decimal", "money", "precise", "DEC", "DECIMAL", "m suffix"],
+      "calorSyntax": "DECIMAL:value or DEC:value or value with m/M suffix",
+      "description": "Decimal literals for precise numeric values. Use DECIMAL: or DEC: prefix, or append m/M suffix.",
+      "examples": [
+        {
+          "csharp": "decimal price = 18.0000m;",
+          "calor": "§B{~price:decimal} DECIMAL:18.0000"
+        },
+        {
+          "csharp": "decimal total = 100m;",
+          "calor": "§B{~total:decimal} 100m"
+        }
+      ]
+    },
+    {
+      "id": "char_type",
+      "csharpConstruct": "char type",
+      "keywords": ["char", "character", "single character"],
+      "calorSyntax": "char",
+      "description": "Single Unicode character. Uses 'char' type name directly (no abbreviation).",
+      "examples": [
+        {
+          "csharp": "char c = 'A';",
+          "calor": "§B{~c:char} 'A'"
         }
       ]
     }
@@ -1088,8 +1118,8 @@
     },
     "§LAM": {
       "name": "Lambda",
-      "syntax": "§LAM{} body §/LAM",
-      "description": "Anonymous function/lambda expression.",
+      "syntax": "§LAM{id} body §/LAM  —or—  (param) → expr",
+      "description": "Anonymous function/lambda expression. Inline arrow form preferred for simple expressions.",
       "csharpEquivalent": "(params) => expression or (params) => { body }"
     },
     "§W": {

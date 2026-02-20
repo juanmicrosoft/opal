@@ -190,7 +190,7 @@ public sealed class CalorEmitter : IAstVisitor<string>
         if (node.IsAbstract) modifiers.Add("abs");
         if (node.IsSealed) modifiers.Add("seal");
         if (node.IsPartial) modifiers.Add("partial");
-        if (node.IsStatic) modifiers.Add("st");
+        if (node.IsStatic) modifiers.Add("stat");
         if (node.IsStruct) modifiers.Add("struct");
         if (node.IsReadOnly) modifiers.Add("readonly");
 
@@ -291,9 +291,17 @@ public sealed class CalorEmitter : IAstVisitor<string>
         var attrs = EmitCSharpAttributes(node.CSharpAttributes);
         var defaultVal = node.DefaultValue != null ? $" = {node.DefaultValue.Accept(this)}" : "";
 
+        var modifiers = new List<string>();
+        if (node.IsVirtual) modifiers.Add("virt");
+        if (node.IsOverride) modifiers.Add("over");
+        if (node.IsAbstract) modifiers.Add("abs");
+        if (node.IsSealed) modifiers.Add("seal");
+        if (node.IsStatic) modifiers.Add("stat");
+        var modStr = modifiers.Count > 0 ? $":{string.Join(",", modifiers)}" : "";
+
         // Always emit full property syntax with body and closing tag
-        // Parser expects: §PROP[id:name:type:vis] §GET §SET §/PROP[id]
-        AppendLine($"§PROP{{{node.Id}:{node.Name}:{typeName}:{visibility}}}{attrs}");
+        // Parser expects: §PROP[id:name:type:vis:modifiers?] §GET §SET §/PROP[id]
+        AppendLine($"§PROP{{{node.Id}:{node.Name}:{typeName}:{visibility}{modStr}}}{attrs}");
         Indent();
 
         if (node.Getter != null)
@@ -419,8 +427,8 @@ public sealed class CalorEmitter : IAstVisitor<string>
         if (node.IsVirtual) modifiers.Add("virt");
         if (node.IsOverride) modifiers.Add("over");
         if (node.IsAbstract) modifiers.Add("abs");
-        if (node.IsSealed) modifiers.Add("sealed");
-        if (node.IsStatic) modifiers.Add("st");
+        if (node.IsSealed) modifiers.Add("seal");
+        if (node.IsStatic) modifiers.Add("stat");
 
         var modStr = modifiers.Count > 0 ? $":{string.Join(",", modifiers)}" : "";
 
@@ -1566,6 +1574,16 @@ public sealed class CalorEmitter : IAstVisitor<string>
             {
                 parts.Append("${");
                 parts.Append(exprPart.Expression.Accept(this));
+                if (!string.IsNullOrEmpty(exprPart.AlignmentClause))
+                {
+                    parts.Append(",");
+                    parts.Append(exprPart.AlignmentClause);
+                }
+                if (!string.IsNullOrEmpty(exprPart.FormatSpecifier))
+                {
+                    parts.Append(":");
+                    parts.Append(exprPart.FormatSpecifier);
+                }
                 parts.Append("}");
             }
         }
@@ -1581,7 +1599,9 @@ public sealed class CalorEmitter : IAstVisitor<string>
 
     public string Visit(InterpolatedStringExpressionNode node)
     {
-        return $"${{{node.Expression.Accept(this)}}}";
+        var alignment = !string.IsNullOrEmpty(node.AlignmentClause) ? $",{node.AlignmentClause}" : "";
+        var format = !string.IsNullOrEmpty(node.FormatSpecifier) ? $":{node.FormatSpecifier}" : "";
+        return $"${{{node.Expression.Accept(this)}{alignment}{format}}}";
     }
 
     public string Visit(NullCoalesceNode node)
