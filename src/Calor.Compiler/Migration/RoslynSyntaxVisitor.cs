@@ -1384,6 +1384,52 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
                 new AttributeCollection());
         }
 
+        // Handle postfix increment/decrement as compound assignment statements
+        if (expr is PostfixUnaryExpressionSyntax postfix)
+        {
+            if (postfix.OperatorToken.IsKind(SyntaxKind.PlusPlusToken))
+            {
+                _context.RecordFeatureUsage("compound-assignment");
+                return new CompoundAssignmentStatementNode(
+                    GetTextSpan(node),
+                    ConvertExpression(postfix.Operand),
+                    CompoundAssignmentOperator.Add,
+                    new IntLiteralNode(GetTextSpan(node), 1));
+            }
+            if (postfix.OperatorToken.IsKind(SyntaxKind.MinusMinusToken))
+            {
+                _context.RecordFeatureUsage("compound-assignment");
+                return new CompoundAssignmentStatementNode(
+                    GetTextSpan(node),
+                    ConvertExpression(postfix.Operand),
+                    CompoundAssignmentOperator.Subtract,
+                    new IntLiteralNode(GetTextSpan(node), 1));
+            }
+        }
+
+        // Handle prefix increment/decrement as compound assignment statements
+        if (expr is PrefixUnaryExpressionSyntax prefix)
+        {
+            if (prefix.OperatorToken.IsKind(SyntaxKind.PlusPlusToken))
+            {
+                _context.RecordFeatureUsage("compound-assignment");
+                return new CompoundAssignmentStatementNode(
+                    GetTextSpan(node),
+                    ConvertExpression(prefix.Operand),
+                    CompoundAssignmentOperator.Add,
+                    new IntLiteralNode(GetTextSpan(node), 1));
+            }
+            if (prefix.OperatorToken.IsKind(SyntaxKind.MinusMinusToken))
+            {
+                _context.RecordFeatureUsage("compound-assignment");
+                return new CompoundAssignmentStatementNode(
+                    GetTextSpan(node),
+                    ConvertExpression(prefix.Operand),
+                    CompoundAssignmentOperator.Subtract,
+                    new IntLiteralNode(GetTextSpan(node), 1));
+            }
+        }
+
         // Default: wrap as call statement
         return new CallStatementNode(
             GetTextSpan(node),
@@ -2515,7 +2561,17 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
             return operand;
         }
 
-        // For other postfix operators (++, --), use fallback since Calor doesn't support them as expressions
+        // Convert postfix ++ and -- to UnaryOperationNode
+        if (postfix.OperatorToken.IsKind(SyntaxKind.PlusPlusToken))
+        {
+            return new UnaryOperationNode(GetTextSpan(postfix), UnaryOperator.PostIncrement, operand);
+        }
+        if (postfix.OperatorToken.IsKind(SyntaxKind.MinusMinusToken))
+        {
+            return new UnaryOperationNode(GetTextSpan(postfix), UnaryOperator.PostDecrement, operand);
+        }
+
+        // For other postfix operators, use fallback
         return CreateFallbackExpression(postfix, "postfix-operator");
     }
 
