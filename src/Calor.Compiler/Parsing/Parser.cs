@@ -4602,7 +4602,9 @@ public sealed class Parser
 
         var isAbstract = modifiers.Contains("abs", StringComparison.OrdinalIgnoreCase);
         var isSealed = modifiers.Contains("seal", StringComparison.OrdinalIgnoreCase);
-        var isStatic = modifiers.Contains("stat", StringComparison.OrdinalIgnoreCase);
+        var isStatic = modifiers.Contains("stat", StringComparison.OrdinalIgnoreCase)
+                    || modifiers.Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries)
+                        .Any(p => p.Equals("st", StringComparison.OrdinalIgnoreCase));
         var isPartial = modifiers.Contains("partial", StringComparison.OrdinalIgnoreCase);
         var isStruct = modifiers.Contains("struct", StringComparison.OrdinalIgnoreCase);
         var isReadOnly = modifiers.Contains("readonly", StringComparison.OrdinalIgnoreCase);
@@ -7066,7 +7068,7 @@ public sealed class Parser
 
     private static readonly HashSet<string> ClassModifierKeywords = new(StringComparer.OrdinalIgnoreCase)
     {
-        "abs", "abstract", "seal", "sealed", "stat", "static",
+        "abs", "abstract", "seal", "sealed", "st", "stat", "static",
         "partial", "struct", "readonly",
         "pub", "pri", "pro", "int",
         "public", "private", "protected", "internal"

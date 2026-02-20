@@ -1092,6 +1092,91 @@ public class CodeGenBugFixTests
 
     #endregion
 
+    #region Static Class :st Modifier
+
+    [Fact]
+    public void StaticClass_StModifier_ParsedCorrectly()
+    {
+        // §CL{c1:Utils:st} should produce a static class
+        var source = @"
+§M{m1:Test}
+§CL{c1:Utils:st}
+  §MT{mt1:Add:pub:stat}
+    §I{i32:a}
+    §I{i32:b}
+    §O{i32}
+    §R (+ a b)
+  §/MT{mt1}
+§/CL{c1}
+§/M{m1}
+";
+        var result = ParseAndEmit(source);
+
+        Assert.Contains("static class Utils", result);
+    }
+
+    [Fact]
+    public void StaticClass_StatModifier_StillWorks()
+    {
+        // Backward compat: §CL{c1:Utils:stat} should still work
+        var source = @"
+§M{m1:Test}
+§CL{c1:Utils:stat}
+  §MT{mt1:Add:pub:stat}
+    §I{i32:a}
+    §I{i32:b}
+    §O{i32}
+    §R (+ a b)
+  §/MT{mt1}
+§/CL{c1}
+§/M{m1}
+";
+        var result = ParseAndEmit(source);
+
+        Assert.Contains("static class Utils", result);
+    }
+
+    [Fact]
+    public void StaticClass_StaticModifier_StillWorks()
+    {
+        // Backward compat: §CL{c1:Utils:static} should still work
+        var source = @"
+§M{m1:Test}
+§CL{c1:Utils:static}
+  §MT{mt1:Add:pub:stat}
+    §I{i32:a}
+    §I{i32:b}
+    §O{i32}
+    §R (+ a b)
+  §/MT{mt1}
+§/CL{c1}
+§/M{m1}
+";
+        var result = ParseAndEmit(source);
+
+        Assert.Contains("static class Utils", result);
+    }
+
+    [Fact]
+    public void StaticClass_StModifier_DoesNotMatchStruct()
+    {
+        // §CL{c1:Point:struct} should NOT produce a static class
+        var source = @"
+§M{m1:Test}
+§CL{c1:Point:struct}
+  §FLD{i32:X:pub}
+  §FLD{i32:Y:pub}
+§/CL{c1}
+§/M{m1}
+";
+        var result = ParseAndEmit(source);
+
+        Assert.DoesNotContain("static class", result);
+        Assert.Contains("struct Point", result);
+    }
+
+    #endregion
+
     #region Helper
 
     private static ModuleNode ParseModule(string source)
