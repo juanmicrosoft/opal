@@ -133,6 +133,33 @@ public sealed class EffectEnforcementPass
             ctor.Attributes);
     }
 
+    /// <summary>
+    /// Resolves a call target string to an internal function ID.
+    /// Handles dotted targets like "variable.MethodName" or "ClassName.MethodName"
+    /// by extracting the bare method name and looking it up in the function name index.
+    /// </summary>
+    private string? ResolveToInternalId(string callee)
+    {
+        // Exact match by function name (handles top-level calls and pre-resolved IDs)
+        if (_functionNameToId.TryGetValue(callee, out var id) && _functions.ContainsKey(id))
+            return id;
+
+        // Direct function ID match (for pre-resolved call targets)
+        if (_functions.ContainsKey(callee))
+            return callee;
+
+        // For dotted targets, try bare method name
+        var lastDot = callee.LastIndexOf('.');
+        if (lastDot > 0)
+        {
+            var bareMethodName = callee[(lastDot + 1)..];
+            if (_functionNameToId.TryGetValue(bareMethodName, out var bareId) && _functions.ContainsKey(bareId))
+                return bareId;
+        }
+
+        return null;
+    }
+
     private void BuildCallGraph(ModuleNode module)
     {
         // Index all top-level functions by ID and name
@@ -173,11 +200,11 @@ public sealed class EffectEnforcementPass
             {
                 _reverseCallGraph[function.Id].Add((callee, span));
 
-                // Resolve callee name to ID for internal calls
-                var calleeId = _functionNameToId.TryGetValue(callee, out var id) ? id : callee;
+                // Resolve callee name to ID for internal calls (handles cross-class method calls)
+                var calleeId = ResolveToInternalId(callee);
 
                 // Only track internal calls for SCC computation
-                if (_functions.ContainsKey(calleeId))
+                if (calleeId != null)
                 {
                     if (!_callGraph.ContainsKey(calleeId))
                     {
@@ -239,11 +266,11 @@ public sealed class EffectEnforcementPass
         // Process successors (functions that v calls)
         foreach (var (calleeName, _) in _reverseCallGraph.GetValueOrDefault(v, new List<(string, TextSpan)>()))
         {
-            // Resolve callee name to ID for internal calls
-            var calleeId = _functionNameToId.TryGetValue(calleeName, out var id) ? id : calleeName;
+            // Resolve callee name to ID for internal calls (handles cross-class method calls)
+            var calleeId = ResolveToInternalId(calleeName);
 
             // Only consider internal functions for SCC
-            if (!_functions.ContainsKey(calleeId))
+            if (calleeId == null)
                 continue;
 
             if (!indices.ContainsKey(calleeId))
@@ -326,7 +353,7 @@ public sealed class EffectEnforcementPass
 
     private EffectSet InferEffects(FunctionNode function, HashSet<string> sccMembers)
     {
-        var context = new InferenceContext(_catalog, _resolver, _computedEffects, _functions, sccMembers, _policy, _strictEffects, _diagnostics, function.Id);
+        var context = new InferenceContext(_catalog, _resolver, _computedEffects, _functions, _functionNameToId, sccMembers, _policy, _strictEffects, _diagnostics, function.Id);
         var inferrer = new EffectInferrer(context);
         return inferrer.InferFromStatements(function.Body);
     }
@@ -414,11 +441,11 @@ public sealed class EffectEnforcementPass
             {
                 foreach (var (calleeName, span) in calls)
                 {
-                    // Resolve callee name to ID for internal calls
-                    var calleeId = _functionNameToId.TryGetValue(calleeName, out var id) ? id : calleeName;
+                    // Resolve callee name to ID for internal calls (handles cross-class method calls)
+                    var calleeId = ResolveToInternalId(calleeName);
 
                     // Check external calls
-                    if (!_functions.ContainsKey(calleeId))
+                    if (calleeId == null)
                     {
                         var effects = _catalog.TryGetEffects(calleeName);
                         if (effects != null && effects.Contains(targetKind, targetValue))
@@ -450,6 +477,7 @@ public sealed class EffectEnforcementPass
         public EffectResolver Resolver { get; }
         public Dictionary<string, EffectSet> ComputedEffects { get; }
         public Dictionary<string, FunctionNode> Functions { get; }
+        public Dictionary<string, string> FunctionNameToId { get; }
         public HashSet<string> SccMembers { get; }
         public UnknownCallPolicy Policy { get; }
         public bool StrictEffects { get; }
@@ -461,6 +489,7 @@ public sealed class EffectEnforcementPass
             EffectResolver resolver,
             Dictionary<string, EffectSet> computedEffects,
             Dictionary<string, FunctionNode> functions,
+            Dictionary<string, string> functionNameToId,
             HashSet<string> sccMembers,
             UnknownCallPolicy policy,
             bool strictEffects,
@@ -471,6 +500,7 @@ public sealed class EffectEnforcementPass
             Resolver = resolver;
             ComputedEffects = computedEffects;
             Functions = functions;
+            FunctionNameToId = functionNameToId;
             SccMembers = sccMembers;
             Policy = policy;
             StrictEffects = strictEffects;
@@ -711,6 +741,7 @@ public sealed class EffectEnforcementPass
 
         private FunctionNode? FindInternalFunctionByName(string name)
         {
+            // Try exact name match against computed effects
             foreach (var kvp in _context.ComputedEffects)
             {
                 if (_context.Functions.TryGetValue(kvp.Key, out var func) &&
@@ -719,6 +750,26 @@ public sealed class EffectEnforcementPass
                     return func;
                 }
             }
+
+            // For dotted targets (e.g., "_calculator.Add", "Helper.Format"),
+            // extract the bare method name and resolve via function name index.
+            // This handles cross-class method calls within the same module.
+            var lastDot = name.LastIndexOf('.');
+            if (lastDot > 0)
+            {
+                var bareMethodName = name[(lastDot + 1)..];
+                if (_context.FunctionNameToId.TryGetValue(bareMethodName, out var resolvedId) &&
+                    _context.Functions.TryGetValue(resolvedId, out var resolved))
+                {
+                    // Verify the resolved function has computed effects or is in current SCC
+                    if (_context.ComputedEffects.ContainsKey(resolvedId) ||
+                        _context.SccMembers.Contains(resolvedId))
+                    {
+                        return resolved;
+                    }
+                }
+            }
+
             return null;
         }
 

@@ -425,4 +425,194 @@ public class EffectEnforcementTests
         Assert.Contains(result.Diagnostics.Warnings,
             d => d.Code == DiagnosticCode.UnknownExternalCall && d.Message.Contains("callback"));
     }
+
+    // === Cross-class method call effect inference (Issue 313) ===
+
+    [Fact]
+    public void CrossClass_PureMethodCall_DoesNotTriggerCalor0411()
+    {
+        // Function calls a pure method on another class in the same module.
+        // Should resolve as an internal call, NOT produce Calor0411.
+        var source = @"
+§M{m001:Test}
+§CL{c001:Calculator:pub}
+  §MT{mt001:Add:pub}
+    §I{i32:a}
+    §I{i32:b}
+    §O{i32}
+    §R (+ a b)
+  §/MT{mt001}
+§/CL{c001}
+§F{f001:UseCalculator:pub}
+  §O{i32}
+  §R §C{_calc.Add} §A INT:1 §A INT:2 §/C
+§/F{f001}
+§/M{m001}
+";
+        var result = TestHarness.Compile(source);
+
+        Assert.False(result.HasErrors,
+            $"Cross-class call to pure method should compile. Errors: {string.Join("; ", result.Diagnostics.Errors.Select(e => e.Message))}");
+    }
+
+    [Fact]
+    public void CrossClass_EffectfulMethodCall_PropagatesEffects()
+    {
+        // Function calls a method with cw effect on another class.
+        // The caller must declare cw or the effect should propagate as an error.
+        var source = @"
+§M{m001:Test}
+§CL{c001:Logger:pub}
+  §MT{mt001:Log:pub}
+    §I{str:message}
+    §O{void}
+    §E{cw}
+    §P message
+  §/MT{mt001}
+§/CL{c001}
+§F{f001:DoWork:pub}
+  §O{void}
+  §C{_logger.Log}
+    §A STR:""hello""
+  §/C
+§/F{f001}
+§/M{m001}
+";
+        var result = TestHarness.Compile(source);
+
+        // DoWork calls Logger.Log which has cw, but DoWork doesn't declare cw
+        Assert.True(result.HasErrors,
+            "Caller of effectful cross-class method should fail without declaring the effect");
+        Assert.Contains(result.Diagnostics.Errors,
+            d => d.Code == DiagnosticCode.ForbiddenEffect && d.Message.Contains("DoWork"));
+    }
+
+    [Fact]
+    public void CrossClass_EffectfulMethodCall_WithDeclaredEffect_Compiles()
+    {
+        // Function calls a method with cw effect and properly declares cw.
+        var source = @"
+§M{m001:Test}
+§CL{c001:Logger:pub}
+  §MT{mt001:Log:pub}
+    §I{str:message}
+    §O{void}
+    §E{cw}
+    §P message
+  §/MT{mt001}
+§/CL{c001}
+§F{f001:DoWork:pub}
+  §O{void}
+  §E{cw}
+  §C{_logger.Log}
+    §A STR:""hello""
+  §/C
+§/F{f001}
+§/M{m001}
+";
+        var result = TestHarness.Compile(source);
+
+        Assert.False(result.HasErrors,
+            $"Caller with declared effect should compile. Errors: {string.Join("; ", result.Diagnostics.Errors.Select(e => e.Message))}");
+    }
+
+    [Fact]
+    public void CrossClass_MethodToMethod_ResolvesEffects()
+    {
+        // Method in one class calls a method in another class (both §MT).
+        var source = @"
+§M{m001:Test}
+§CL{c001:Printer:pub}
+  §MT{mt001:PrintMessage:pub}
+    §I{str:msg}
+    §O{void}
+    §E{cw}
+    §P msg
+  §/MT{mt001}
+§/CL{c001}
+§CL{c002:App:pub}
+  §MT{mt002:Run:pub}
+    §O{void}
+    §E{cw}
+    §C{_printer.PrintMessage}
+      §A STR:""hello""
+    §/C
+  §/MT{mt002}
+§/CL{c002}
+§/M{m001}
+";
+        var result = TestHarness.Compile(source);
+
+        Assert.False(result.HasErrors,
+            $"Cross-class method-to-method call should compile. Errors: {string.Join("; ", result.Diagnostics.Errors.Select(e => e.Message))}");
+    }
+
+    [Fact]
+    public void CrossClass_MethodToMethod_MissingEffect_Fails()
+    {
+        // Method in one class calls effectful method in another without declaring the effect.
+        var source = @"
+§M{m001:Test}
+§CL{c001:Printer:pub}
+  §MT{mt001:PrintMessage:pub}
+    §I{str:msg}
+    §O{void}
+    §E{cw}
+    §P msg
+  §/MT{mt001}
+§/CL{c001}
+§CL{c002:App:pub}
+  §MT{mt002:Run:pub}
+    §O{void}
+    §C{_printer.PrintMessage}
+      §A STR:""hello""
+    §/C
+  §/MT{mt002}
+§/CL{c002}
+§/M{m001}
+";
+        var result = TestHarness.Compile(source);
+
+        Assert.True(result.HasErrors,
+            "Cross-class call without declaring effect should fail");
+        Assert.Contains(result.Diagnostics.Errors,
+            d => d.Code == DiagnosticCode.ForbiddenEffect && d.Message.Contains("Run"));
+    }
+
+    [Fact]
+    public void CrossClass_MultipleClasses_ChainedCalls_PropagateEffects()
+    {
+        // A → B → C chain across three classes. Effect should propagate from C to A.
+        var source = @"
+§M{m001:Test}
+§CL{c001:ServiceC:pub}
+  §MT{mt001:WriteOutput:pub}
+    §O{void}
+    §E{cw}
+    §P ""output""
+  §/MT{mt001}
+§/CL{c001}
+§CL{c002:ServiceB:pub}
+  §MT{mt002:Process:pub}
+    §O{void}
+    §E{cw}
+    §C{_c.WriteOutput}
+    §/C
+  §/MT{mt002}
+§/CL{c002}
+§CL{c003:ServiceA:pub}
+  §MT{mt003:Execute:pub}
+    §O{void}
+    §E{cw}
+    §C{_b.Process}
+    §/C
+  §/MT{mt003}
+§/CL{c003}
+§/M{m001}
+";
+        var result = TestHarness.Compile(source);
+
+        Assert.False(result.HasErrors,
+            $"Chained cross-class calls with declared effects should compile. Errors: {string.Join("; ", result.Diagnostics.Errors.Select(e => e.Message))}");
+    }
 }
