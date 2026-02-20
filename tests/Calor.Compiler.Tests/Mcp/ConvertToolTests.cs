@@ -115,6 +115,27 @@ public class ConvertToolTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_WithLocalFunction_HoistsToModuleLevel()
+    {
+        var args = JsonDocument.Parse("""
+            {
+                "source": "public class Example { public int Calculate(int x) { int Square(int n) => n * n; return Square(x); } }",
+                "moduleName": "LocalFuncTest"
+            }
+            """).RootElement;
+
+        var result = await _tool.ExecuteAsync(args);
+
+        Assert.False(result.IsError, $"Local function conversion should succeed");
+        var text = result.Content[0].Text!;
+        var json = JsonDocument.Parse(text);
+        var calorSource = json.RootElement.GetProperty("calorSource").GetString()!;
+        Assert.Contains("\u00A7F{", calorSource);  // Hoisted to module-level §F function
+        Assert.Contains("Square", calorSource);
+        Assert.DoesNotContain("localfunction", calorSource);
+    }
+
+    [Fact]
     public async Task ExecuteAsync_WithInterface_ReportsParseValidationIssues()
     {
         // Interface conversion generates §SIG tags that the parser doesn't yet recognize.
