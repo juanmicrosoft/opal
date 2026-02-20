@@ -1396,53 +1396,45 @@ public sealed class CalorEmitter : IAstVisitor<string>
 
     public string Visit(LambdaExpressionNode node)
     {
-        var asyncPart = node.IsAsync ? "async " : "";
-        var paramList = string.Join(", ", node.Parameters.Select(p =>
-            p.TypeName != null ? $"{TypeMapper.CSharpToCalor(p.TypeName)}:{p.Name}" : p.Name));
+        var sb = new System.Text.StringBuilder();
+        var id = node.Id;
+
+        // Build opening tag: §LAM{id:param1:type1:param2:type2}
+        // For async: §LAM{id:async:param1:type1:...}
+        sb.Append($"§LAM{{{id}");
+        if (node.IsAsync) sb.Append(":async");
+        foreach (var p in node.Parameters)
+        {
+            sb.Append(':');
+            sb.Append(p.Name);
+            sb.Append(':');
+            if (!string.IsNullOrEmpty(p.TypeName))
+                sb.Append(TypeMapper.CSharpToCalor(p.TypeName));
+        }
+        sb.Append('}');
 
         if (node.IsExpressionLambda && node.ExpressionBody != null)
         {
             var body = node.ExpressionBody.Accept(this);
-            return $"{asyncPart}({paramList}) → {body}";
+            sb.Append($" {body}");
         }
         else if (node.StatementBody != null && node.StatementBody.Count > 0)
         {
-            // Emit statement lambda with block syntax
-            // Use CaptureStatementOutput to avoid appending to main builder
-            var sb = new System.Text.StringBuilder();
-            sb.Append($"{asyncPart}({paramList}) → {{");
-
-            // For short lambdas (1-2 statements), emit inline
-            if (node.StatementBody.Count <= 2)
+            foreach (var stmt in node.StatementBody)
             {
-                var stmts = node.StatementBody.Select(s => CaptureStatementOutput(s).Trim()).ToList();
-                sb.Append(" ");
-                sb.Append(string.Join(" ", stmts));
-                sb.Append(" }");
-            }
-            else
-            {
-                // For longer lambdas, emit multi-line
-                sb.AppendLine();
-                var indent = "  ";
-                foreach (var stmt in node.StatementBody)
+                var stmtStr = CaptureStatementOutput(stmt);
+                if (!string.IsNullOrWhiteSpace(stmtStr))
                 {
-                    var stmtStr = CaptureStatementOutput(stmt);
-                    if (!string.IsNullOrWhiteSpace(stmtStr))
-                    {
-                        sb.Append(indent);
-                        sb.AppendLine(stmtStr.Trim());
-                    }
+                    sb.Append('\n');
+                    sb.Append("  ");
+                    sb.Append(stmtStr.Trim());
                 }
-                sb.Append("}");
             }
-            return sb.ToString();
+            sb.Append('\n');
         }
-        else
-        {
-            // Empty lambda
-            return $"{asyncPart}({paramList}) → {{ }}";
-        }
+
+        sb.Append($" §/LAM{{{id}}}");
+        return sb.ToString();
     }
 
     public string Visit(LambdaParameterNode node)
@@ -2170,5 +2162,10 @@ public sealed class CalorEmitter : IAstVisitor<string>
         var target = node.TargetExpression.Accept(this);
         var args = node.Arguments.Select(a => $" §A {a.Accept(this)}").ToList();
         return $"§C {target}{string.Join("", args)} §/C";
+    }
+
+    public string Visit(RawCSharpNode node)
+    {
+        return $"§RAW\n{node.CSharpCode}\n§/RAW";
     }
 }

@@ -829,6 +829,11 @@ public sealed class Parser
         {
             return ParseDictionaryForeach();
         }
+        // Raw C# passthrough
+        else if (Check(TokenKind.RawCSharp))
+        {
+            return ParseRawCSharpStatement();
+        }
         // Expression statement: bare lisp expression like (inc x), (post-dec y)
         else if (Check(TokenKind.OpenParen))
         {
@@ -4573,12 +4578,16 @@ public sealed class Parser
             }
         }
 
-        var isAbstract = modifiers.Contains("abs", StringComparison.OrdinalIgnoreCase);
-        var isSealed = modifiers.Contains("seal", StringComparison.OrdinalIgnoreCase);
-        var isStatic = modifiers.Contains("stat", StringComparison.OrdinalIgnoreCase);
-        var isPartial = modifiers.Contains("partial", StringComparison.OrdinalIgnoreCase);
-        var isStruct = modifiers.Contains("struct", StringComparison.OrdinalIgnoreCase);
-        var isReadOnly = modifiers.Contains("readonly", StringComparison.OrdinalIgnoreCase);
+        var modTokens = new HashSet<string>(
+            modifiers.Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(m => m.Trim()),
+            StringComparer.OrdinalIgnoreCase);
+        var isAbstract = modTokens.Contains("abs") || modTokens.Contains("abstract");
+        var isSealed = modTokens.Contains("seal") || modTokens.Contains("sealed");
+        var isStatic = modTokens.Contains("st") || modTokens.Contains("stat") || modTokens.Contains("static");
+        var isPartial = modTokens.Contains("partial");
+        var isStruct = modTokens.Contains("struct");
+        var isReadOnly = modTokens.Contains("readonly");
 
         // Structs cannot be abstract
         if (isStruct && isAbstract)
@@ -4971,12 +4980,16 @@ public sealed class Parser
 
     private static MethodModifiers ParseMethodModifiers(string modStr)
     {
+        var tokens = new HashSet<string>(
+            modStr.Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(m => m.Trim()),
+            StringComparer.OrdinalIgnoreCase);
         var mods = MethodModifiers.None;
-        if (modStr.Contains("virt", StringComparison.OrdinalIgnoreCase)) mods |= MethodModifiers.Virtual;
-        if (modStr.Contains("over", StringComparison.OrdinalIgnoreCase)) mods |= MethodModifiers.Override;
-        if (modStr.Contains("abs", StringComparison.OrdinalIgnoreCase)) mods |= MethodModifiers.Abstract;
-        if (modStr.Contains("seal", StringComparison.OrdinalIgnoreCase)) mods |= MethodModifiers.Sealed;
-        if (modStr.Contains("stat", StringComparison.OrdinalIgnoreCase)) mods |= MethodModifiers.Static;
+        if (tokens.Contains("virt") || tokens.Contains("virtual")) mods |= MethodModifiers.Virtual;
+        if (tokens.Contains("over") || tokens.Contains("override")) mods |= MethodModifiers.Override;
+        if (tokens.Contains("abs") || tokens.Contains("abstract")) mods |= MethodModifiers.Abstract;
+        if (tokens.Contains("seal") || tokens.Contains("sealed")) mods |= MethodModifiers.Sealed;
+        if (tokens.Contains("st") || tokens.Contains("stat") || tokens.Contains("static")) mods |= MethodModifiers.Static;
         return mods;
     }
 
@@ -5671,6 +5684,17 @@ public sealed class Parser
     {
         var token = Expect(TokenKind.Continue);
         return new ContinueStatementNode(token.Span);
+    }
+
+    /// <summary>
+    /// Parses a raw C# passthrough block.
+    /// §RAW ... §/RAW (content already captured by lexer as single token)
+    /// </summary>
+    private RawCSharpNode ParseRawCSharpStatement()
+    {
+        var token = Expect(TokenKind.RawCSharp);
+        var content = token.Value as string ?? "";
+        return new RawCSharpNode(token.Span, content);
     }
 
     // Phase 11: Lambdas, Delegates, Events
@@ -7039,7 +7063,7 @@ public sealed class Parser
 
     private static readonly HashSet<string> ClassModifierKeywords = new(StringComparer.OrdinalIgnoreCase)
     {
-        "abs", "abstract", "seal", "sealed", "stat", "static",
+        "abs", "abstract", "seal", "sealed", "st", "stat", "static",
         "partial", "struct", "readonly",
         "pub", "pri", "pro", "int",
         "public", "private", "protected", "internal"

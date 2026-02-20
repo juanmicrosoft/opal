@@ -278,6 +278,9 @@ public enum TokenKind
     AnonymousObject,    // §ANON - Anonymous object creation
     EndAnonymousObject, // §/ANON - End anonymous object
 
+    // Raw C# Passthrough
+    RawCSharp,          // §RAW ... §/RAW - Raw C# content emitted verbatim
+
     // Typed Literals
     IntLiteral,         // INT:42
     StrLiteral,         // STR:"hello"

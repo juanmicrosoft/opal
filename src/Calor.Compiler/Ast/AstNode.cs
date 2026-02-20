@@ -196,6 +196,8 @@ public interface IAstVisitor
     void Visit(TypeOfExpressionNode node);
     // Feature 9: Expression call targets
     void Visit(ExpressionCallNode node);
+    // Raw C# passthrough
+    void Visit(RawCSharpNode node);
 }
 
 /// <summary>
@@ -376,6 +378,8 @@ public interface IAstVisitor<T>
     T Visit(TypeOfExpressionNode node);
     // Feature 9: Expression call targets
     T Visit(ExpressionCallNode node);
+    // Raw C# passthrough
+    T Visit(RawCSharpNode node);
 }
 
 /// <summary>

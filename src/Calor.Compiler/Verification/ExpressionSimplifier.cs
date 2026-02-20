@@ -1406,6 +1406,7 @@ public sealed class ExpressionSimplifier : IAstVisitor<ExpressionNode>
             : node;
     }
     public ExpressionNode Visit(ExpressionStatementNode node) => throw new InvalidOperationException();
+    public ExpressionNode Visit(RawCSharpNode node) => throw new InvalidOperationException();
 
     #endregion
 }
