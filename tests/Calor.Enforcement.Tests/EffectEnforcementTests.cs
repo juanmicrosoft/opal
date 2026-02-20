@@ -123,6 +123,27 @@ public class EffectEnforcementTests
     }
 
     [Fact]
+    public void DecimalType_BindAndReturn_CompilesCorrectly()
+    {
+        // §B{dec:x} should be parsed as type=decimal, name=x (not name=dec, type=x)
+        var source = @"
+§M{m001:Test}
+§F{f001:GetDecimal:pub}
+  §O{dec}
+  §B{dec:x} 3.14m
+  §R x
+§/F{f001}
+§/M{m001}
+";
+        var result = TestHarness.Compile(source);
+
+        Assert.False(result.HasErrors,
+            $"Decimal bind should compile. Errors: {string.Join("; ", result.Diagnostics.Errors.Select(e => e.Message))}");
+        Assert.Contains("decimal x = 3.14m", result.GeneratedCode);
+        Assert.Contains("decimal GetDecimal()", result.GeneratedCode);
+    }
+
+    [Fact]
     public void PureFunction_WithNoEffects_Compiles()
     {
         var source = @"
