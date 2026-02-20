@@ -173,13 +173,22 @@ public sealed class CalorEmitter : IAstVisitor<string>
         var typeParams = node.TypeParameters.Count > 0
             ? $"<{string.Join(",", node.TypeParameters.Select(tp => tp.Name))}>"
             : "";
-
-        var output = node.Output != null ? TypeMapper.CSharpToCalor(node.Output.TypeName) : "void";
-        var paramList = string.Join(",", node.Parameters.Select(p =>
-            $"{TypeMapper.CSharpToCalor(p.TypeName)}:{p.Name}"));
         var attrs = EmitCSharpAttributes(node.CSharpAttributes);
 
-        AppendLine($"§SIG{{{node.Id}:{node.Name}{typeParams}}}{attrs} ({paramList}) → {output}");
+        AppendLine($"§MT{{{node.Id}:{node.Name}{typeParams}}}{attrs}");
+        Indent();
+
+        foreach (var param in node.Parameters)
+        {
+            AppendLine($"§I{{{TypeMapper.CSharpToCalor(param.TypeName)}:{param.Name}}}");
+        }
+        if (node.Output != null)
+        {
+            AppendLine($"§O{{{TypeMapper.CSharpToCalor(node.Output.TypeName)}}}");
+        }
+
+        Dedent();
+        AppendLine($"§/MT{{{node.Id}}}");
 
         return "";
     }
