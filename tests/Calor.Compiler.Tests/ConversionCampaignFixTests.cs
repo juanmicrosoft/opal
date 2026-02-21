@@ -668,4 +668,83 @@ public class Example
     }
 
     #endregion
+
+    #region Issue 372: Empty collection [] should not emit default
+
+    [Fact]
+    public void Convert_EmptyCollectionExpression_EmitsEmptyList()
+    {
+        var csharp = @"
+public class Container
+{
+    public List<string> Items { get; set; } = [];
+}";
+
+        var result = _converter.Convert(csharp);
+        var calor = result.CalorSource;
+
+        // Should NOT contain "default" for empty collection
+        Assert.DoesNotContain("default", calor);
+        // Should contain a LIST tag (empty list creation)
+        Assert.Contains("§LIST", calor);
+    }
+
+    [Fact]
+    public void Convert_EmptyCollectionExpressionInMethod_EmitsEmptyList()
+    {
+        var csharp = @"
+public class Processor
+{
+    public List<int> GetEmpty()
+    {
+        return [];
+    }
+}";
+
+        var result = _converter.Convert(csharp);
+        var calor = result.CalorSource;
+
+        Assert.DoesNotContain("default", calor);
+        Assert.Contains("§LIST", calor);
+    }
+
+    #endregion
+
+    #region Issue 388: Static properties should preserve static modifier
+
+    [Fact]
+    public void Convert_StaticProperty_PreservesStaticModifier()
+    {
+        var csharp = @"
+public class Config
+{
+    public static string DefaultName { get; set; } = ""test"";
+}";
+
+        var result = _converter.Convert(csharp);
+        var calor = result.CalorSource;
+
+        // Static modifier should appear in property tag
+        Assert.Contains(":stat", calor);
+    }
+
+    [Fact]
+    public void Convert_StaticProperty_RoundTrips()
+    {
+        var csharp = @"
+public class Config
+{
+    public static int MaxRetries { get; set; } = 3;
+}";
+
+        var result = _converter.Convert(csharp);
+        var calor = result.CalorSource;
+
+        // The emitted C# should contain "static"
+        Assert.NotNull(calor);
+        var emittedCSharp = ParseAndEmit(calor!);
+        Assert.Contains("static", emittedCSharp);
+    }
+
+    #endregion
 }

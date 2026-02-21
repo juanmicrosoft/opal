@@ -939,12 +939,14 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
         _context.IncrementConverted();
 
         var propId = _context.GenerateId("p");
+        var modifiers = GetMethodModifiers(node.Modifiers);
         return new PropertyNode(
             GetTextSpan(node),
             propId,
             name,
             typeName,
             visibility,
+            modifiers,
             getter,
             setter,
             initer,
@@ -2506,10 +2508,19 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
     private ExpressionNode ConvertCollectionExpression(CollectionExpressionSyntax collection)
     {
         // Convert C# 12 collection expressions: [] or [1, 2, 3]
-        // Empty collection: output as reference to "default" which works for most cases
+        // Empty collection: output as empty list creation
+        // Using "default" was wrong because default for reference types is null, not empty collection
         if (collection.Elements.Count == 0)
         {
-            return new ReferenceNode(GetTextSpan(collection), "default");
+            var emptyId = _context.GenerateId("list");
+            var emptyName = _context.GenerateId("list");
+            return new ListCreationNode(
+                GetTextSpan(collection),
+                emptyId,
+                emptyName,
+                "object",
+                Array.Empty<ExpressionNode>(),
+                new AttributeCollection());
         }
 
         // Convert collection expression to ArrayCreationNode
