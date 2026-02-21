@@ -812,7 +812,7 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
 
             fields.Add(new ClassFieldNode(
                 GetTextSpan(variable),
-                variable.Identifier.Text,
+                variable.Identifier.ValueText,
                 typeName,
                 visibility,
                 modifiers,
@@ -843,7 +843,7 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
             events.Add(new EventDefinitionNode(
                 GetTextSpan(variable),
                 id,
-                variable.Identifier.Text,
+                variable.Identifier.ValueText,
                 visibility,
                 delegateType,
                 new AttributeCollection()));
@@ -1471,17 +1471,17 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
         foreach (var assignment in scope.DescendantNodes().OfType<AssignmentExpressionSyntax>())
         {
             if (assignment.Left is IdentifierNameSyntax id)
-                reassigned.Add(id.Identifier.Text);
+                reassigned.Add(id.Identifier.ValueText);
         }
         foreach (var unary in scope.DescendantNodes().OfType<PostfixUnaryExpressionSyntax>())
         {
             if (unary.Operand is IdentifierNameSyntax id)
-                reassigned.Add(id.Identifier.Text);
+                reassigned.Add(id.Identifier.ValueText);
         }
         foreach (var unary in scope.DescendantNodes().OfType<PrefixUnaryExpressionSyntax>())
         {
             if (unary.Operand is IdentifierNameSyntax id)
-                reassigned.Add(id.Identifier.Text);
+                reassigned.Add(id.Identifier.ValueText);
         }
         return reassigned;
     }
@@ -1491,7 +1491,7 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
         _context.IncrementConverted();
 
         var variable = node.Declaration.Variables.First();
-        var name = variable.Identifier.Text;
+        var name = variable.Identifier.ValueText;
         var typeName = node.Declaration.Type.IsVar
             ? null
             : TypeMapper.CSharpToCalor(node.Declaration.Type.ToString());
@@ -1519,7 +1519,7 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
         foreach (var variable in node.Declaration.Variables)
         {
             _context.IncrementConverted();
-            var name = variable.Identifier.Text;
+            var name = variable.Identifier.ValueText;
             var isMutable = _reassignedVariables.Contains(name);
             var initializer = variable.Initializer != null
                 ? ConvertExpression(variable.Initializer.Value)
@@ -1651,7 +1651,7 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
         _context.RecordFeatureUsage("linq-method-chain");
 
         var variable = node.Declaration.Variables.First();
-        var finalName = variable.Identifier.Text;
+        var finalName = variable.Identifier.ValueText;
         var finalTypeName = node.Declaration.Type.IsVar
             ? null
             : TypeMapper.CSharpToCalor(node.Declaration.Type.ToString());
@@ -2055,7 +2055,7 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
             if (node.Declaration.Variables.Count > 0)
             {
                 var variable = node.Declaration.Variables[0];
-                variableName = variable.Identifier.Text;
+                variableName = variable.Identifier.ValueText;
                 resource = variable.Initializer != null
                     ? ConvertExpression(variable.Initializer.Value)
                     : new ReferenceNode(GetTextSpan(variable), variableName);
@@ -2320,7 +2320,7 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
         return expression switch
         {
             LiteralExpressionSyntax literal => ConvertLiteral(literal),
-            IdentifierNameSyntax identifier => new ReferenceNode(GetTextSpan(identifier), identifier.Identifier.Text),
+            IdentifierNameSyntax identifier => new ReferenceNode(GetTextSpan(identifier), identifier.Identifier.ValueText),
             BinaryExpressionSyntax binary => ConvertBinaryExpression(binary),
             PrefixUnaryExpressionSyntax prefix => ConvertPrefixUnaryExpression(prefix),
             PostfixUnaryExpressionSyntax postfix => ConvertPostfixUnaryExpression(postfix),
@@ -3737,7 +3737,7 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
                 if (p.Modifiers.Any(SyntaxKind.ParamsKeyword)) modifier |= ParameterModifier.Params;
                 return new ParameterNode(
                     GetTextSpan(p),
-                    p.Identifier.Text,
+                    p.Identifier.ValueText,
                     TypeMapper.CSharpToCalor(p.Type?.ToString() ?? "any"),
                     modifier,
                     new AttributeCollection(),
@@ -4090,7 +4090,7 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
             LiteralExpressionSyntax literal => literal.Token.Value ?? literal.Token.Text,
             TypeOfExpressionSyntax typeOf => new TypeOfReference(typeOf.Type.ToString()),
             MemberAccessExpressionSyntax memberAccess => new MemberAccessReference(memberAccess.ToString()),
-            IdentifierNameSyntax identifier => identifier.Identifier.Text,
+            IdentifierNameSyntax identifier => identifier.Identifier.ValueText,
             _ => expression.ToString()
         };
     }

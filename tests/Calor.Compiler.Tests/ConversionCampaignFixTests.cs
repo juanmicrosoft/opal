@@ -377,6 +377,10 @@ public class Cache
 
     [Fact]
     public void Convert_TupleDeconstruction_EmitsIndividualAssignments()
+    #region Issue 309: Handle @-prefixed C# parameter names
+
+    [Fact]
+    public void Convert_AtPrefixedParam_StripsAtPrefix()
     {
         var result = _converter.Convert(@"
 public class Example
@@ -387,6 +391,9 @@ public class Example
     public void SetValues(int x, int y)
     {
         (_a, _b) = (x, y);
+    public void Process(string @class, int @event)
+    {
+        var x = @class;
     }
 }");
         Assert.True(result.Success, string.Join("\n", result.Issues));
@@ -398,6 +405,15 @@ public class Example
 
     [Fact]
     public void Convert_TupleDeconstruction_ThreeElements()
+        // Parameters should not have @ prefix in Calor
+        Assert.Contains("§I{str:class}", source);
+        Assert.Contains("§I{i32:event}", source);
+        Assert.DoesNotContain("@class", source);
+        Assert.DoesNotContain("@event", source);
+    }
+
+    [Fact]
+    public void Convert_AtPrefixedLocalVariable_StripsAtPrefix()
     {
         var result = _converter.Convert(@"
 public class Example
@@ -409,11 +425,16 @@ public class Example
     public void SetValues(int x, int y, int z)
     {
         (_a, _b, _c) = (x, y, z);
+    public void Process()
+    {
+        var @object = 42;
     }
 }");
         Assert.True(result.Success, string.Join("\n", result.Issues));
         var source = result.CalorSource ?? "";
         Assert.DoesNotContain("§ERR", source);
+        Assert.Contains("object", source);
+        Assert.DoesNotContain("@object", source);
     }
 
     #endregion
