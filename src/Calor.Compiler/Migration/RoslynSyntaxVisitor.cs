@@ -2623,6 +2623,16 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
             }
         }
 
+        // Convert nameof(x) to string literal "x"
+        if (target == "nameof" && invocation.ArgumentList.Arguments.Count == 1)
+        {
+            var argText = invocation.ArgumentList.Arguments[0].Expression.ToString();
+            // nameof returns the last identifier part (e.g., nameof(obj.Prop) => "Prop")
+            var lastDot = argText.LastIndexOf('.');
+            var nameText = lastDot >= 0 ? argText.Substring(lastDot + 1) : argText;
+            return new StringLiteralNode(GetTextSpan(invocation), nameText);
+        }
+
         return new CallExpressionNode(GetTextSpan(invocation), target, args);
     }
 
@@ -2809,6 +2819,16 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
         var target = ConvertExpression(memberAccess.Expression);
         var memberName = memberAccess.Name.Identifier.Text;
         var span = GetTextSpan(memberAccess);
+
+        // Convert string.Empty to empty string literal ""
+        if (memberName == "Empty")
+        {
+            var targetStr = memberAccess.Expression.ToString();
+            if (targetStr == "string" || targetStr == "String")
+            {
+                return new StringLiteralNode(span, "");
+            }
+        }
 
         // Convert string.Length to native string operation
         // Note: We can't reliably detect if target is a string without type info,
