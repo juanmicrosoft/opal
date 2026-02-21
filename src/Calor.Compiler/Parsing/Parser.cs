@@ -2325,6 +2325,34 @@ public sealed class Parser
 
     private PatternNode ParsePattern()
     {
+        // Handle (not ...), (or ... ...), (and ... ...) pattern combinators
+        if (Check(TokenKind.OpenParen))
+        {
+            var nextToken = Peek(1);
+            if (nextToken.Kind == TokenKind.Identifier && nextToken.Text is "not" or "or" or "and")
+            {
+                var openParen = Expect(TokenKind.OpenParen);
+                var keyword = Advance(); // consume not/or/and
+
+                if (keyword.Text == "not")
+                {
+                    var inner = ParsePattern();
+                    Expect(TokenKind.CloseParen);
+                    return new NegatedPatternNode(openParen.Span.Union(inner.Span), inner);
+                }
+                else
+                {
+                    var left = ParsePattern();
+                    var right = ParsePattern();
+                    Expect(TokenKind.CloseParen);
+                    var span = openParen.Span.Union(right.Span);
+                    return keyword.Text == "or"
+                        ? new OrPatternNode(span, left, right)
+                        : new AndPatternNode(span, left, right);
+                }
+            }
+        }
+
         // Handle §VAR{name} pattern
         if (Check(TokenKind.Var))
         {

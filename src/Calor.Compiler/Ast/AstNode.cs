@@ -150,6 +150,9 @@ public interface IAstVisitor
     void Visit(ListPatternNode node);
     void Visit(VarPatternNode node);
     void Visit(ConstantPatternNode node);
+    void Visit(NegatedPatternNode node);
+    void Visit(OrPatternNode node);
+    void Visit(AndPatternNode node);
     // Extended Features Phase 1: Quick Wins
     void Visit(ExampleNode node);
     void Visit(IssueNode node);
@@ -336,6 +339,9 @@ public interface IAstVisitor<T>
     T Visit(ListPatternNode node);
     T Visit(VarPatternNode node);
     T Visit(ConstantPatternNode node);
+    T Visit(NegatedPatternNode node);
+    T Visit(OrPatternNode node);
+    T Visit(AndPatternNode node);
     // Extended Features Phase 1: Quick Wins
     T Visit(ExampleNode node);
     T Visit(IssueNode node);

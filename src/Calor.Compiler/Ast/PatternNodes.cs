@@ -410,3 +410,58 @@ public sealed class ConstantPatternNode : PatternNode
     public override void Accept(IAstVisitor visitor) => visitor.Visit(this);
     public override T Accept<T>(IAstVisitor<T> visitor) => visitor.Visit(this);
 }
+
+/// <summary>
+/// Represents a negated pattern: not X
+/// </summary>
+public sealed class NegatedPatternNode : PatternNode
+{
+    public PatternNode Inner { get; }
+
+    public NegatedPatternNode(TextSpan span, PatternNode inner)
+        : base(span)
+    {
+        Inner = inner ?? throw new ArgumentNullException(nameof(inner));
+    }
+
+    public override void Accept(IAstVisitor visitor) => visitor.Visit(this);
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.Visit(this);
+}
+
+/// <summary>
+/// Represents an or-combined pattern: X or Y
+/// </summary>
+public sealed class OrPatternNode : PatternNode
+{
+    public PatternNode Left { get; }
+    public PatternNode Right { get; }
+
+    public OrPatternNode(TextSpan span, PatternNode left, PatternNode right)
+        : base(span)
+    {
+        Left = left ?? throw new ArgumentNullException(nameof(left));
+        Right = right ?? throw new ArgumentNullException(nameof(right));
+    }
+
+    public override void Accept(IAstVisitor visitor) => visitor.Visit(this);
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.Visit(this);
+}
+
+/// <summary>
+/// Represents an and-combined pattern: X and Y
+/// </summary>
+public sealed class AndPatternNode : PatternNode
+{
+    public PatternNode Left { get; }
+    public PatternNode Right { get; }
+
+    public AndPatternNode(TextSpan span, PatternNode left, PatternNode right)
+        : base(span)
+    {
+        Left = left ?? throw new ArgumentNullException(nameof(left));
+        Right = right ?? throw new ArgumentNullException(nameof(right));
+    }
+
+    public override void Accept(IAstVisitor visitor) => visitor.Visit(this);
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.Visit(this);
+}
