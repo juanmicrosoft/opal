@@ -33,6 +33,7 @@ public sealed class PropertyNode : AstNode
     public bool IsAbstract => Modifiers.HasFlag(MethodModifiers.Abstract);
     public bool IsStatic => Modifiers.HasFlag(MethodModifiers.Static);
     public bool IsSealed => Modifiers.HasFlag(MethodModifiers.Sealed);
+    public bool IsRequired => Modifiers.HasFlag(MethodModifiers.Required);
 
     public PropertyNode(
         TextSpan span,

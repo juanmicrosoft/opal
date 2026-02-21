@@ -1860,4 +1860,120 @@ public class Api
     }
 
     #endregion
+
+    #region Batch 11: Required modifier and Partial methods
+
+    [Fact]
+    public void Convert_RequiredProperty_PreservedInAst()
+    {
+        var csharp = @"
+public class UserDto
+{
+    public required string Name { get; set; }
+    public required int Age { get; set; }
+    public string? Email { get; set; }
+}";
+        var result = _converter.Convert(csharp);
+        Assert.NotNull(result.Ast);
+
+        var cls = result.Ast!.Classes.First(c => c.Name == "UserDto");
+        var nameProp = cls.Properties.First(p => p.Name == "Name");
+        var ageProp = cls.Properties.First(p => p.Name == "Age");
+        var emailProp = cls.Properties.First(p => p.Name == "Email");
+
+        Assert.True(nameProp.IsRequired);
+        Assert.True(ageProp.IsRequired);
+        Assert.False(emailProp.IsRequired);
+    }
+
+    [Fact]
+    public void Convert_RequiredProperty_RoundTrip()
+    {
+        var csharp = @"
+public class UserDto
+{
+    public required string Name { get; set; }
+}";
+        var result = _converter.Convert(csharp);
+        Assert.NotNull(result.CalorSource);
+        var calor = result.CalorSource!;
+
+        // Calor should contain "req" modifier
+        Assert.Contains("req", calor);
+
+        // Compile round-trip
+        var compiled = Compile(calor);
+        Assert.NotNull(compiled);
+        Assert.Contains("required", compiled);
+        Assert.Contains("public", compiled);
+        Assert.Contains("string Name", compiled);
+    }
+
+    [Fact]
+    public void Convert_RequiredField_RoundTrip()
+    {
+        var csharp = @"
+public class Config
+{
+    public required string ConnectionString;
+}";
+        var result = _converter.Convert(csharp);
+        Assert.NotNull(result.CalorSource);
+        var calor = result.CalorSource!;
+
+        // Calor should contain "req" modifier
+        Assert.Contains("req", calor);
+
+        // Compile round-trip
+        var compiled = Compile(calor);
+        Assert.NotNull(compiled);
+        Assert.Contains("required", compiled);
+    }
+
+    [Fact]
+    public void Convert_PartialMethodStub_PreservedInAst()
+    {
+        var csharp = @"
+public partial class MyClass
+{
+    partial void OnNameChanged();
+    public void DoWork() { }
+}";
+        var result = _converter.Convert(csharp);
+        Assert.NotNull(result.Ast);
+
+        var cls = result.Ast!.Classes.First(c => c.Name == "MyClass");
+        // Partial method stub should NOT be dropped
+        Assert.Equal(2, cls.Methods.Count);
+
+        var partialMethod = cls.Methods.First(m => m.Name == "OnNameChanged");
+        Assert.True(partialMethod.IsPartial);
+        Assert.Empty(partialMethod.Body);
+    }
+
+    [Fact]
+    public void Convert_PartialMethod_RoundTrip()
+    {
+        var csharp = @"
+public partial class MyClass
+{
+    partial void OnNameChanged();
+}";
+        var result = _converter.Convert(csharp);
+        Assert.NotNull(result.CalorSource);
+        var calor = result.CalorSource!;
+
+        // Calor should contain "part" modifier
+        Assert.Contains("part", calor);
+
+        // Compile round-trip
+        var compiled = Compile(calor);
+        Assert.NotNull(compiled);
+        Assert.Contains("partial", compiled);
+        Assert.Contains("OnNameChanged", compiled);
+        // Partial stub should end with semicolon, not have braces
+        Assert.DoesNotContain("OnNameChanged()\n{", compiled);
+    }
+
+    #endregion
 }

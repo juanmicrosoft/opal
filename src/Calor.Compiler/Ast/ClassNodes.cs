@@ -15,7 +15,9 @@ public enum MethodModifiers
     Sealed = 8,
     Static = 16,
     Const = 32,
-    Readonly = 64
+    Readonly = 64,
+    Required = 128,
+    Partial = 256
 }
 
 /// <summary>
@@ -425,6 +427,7 @@ public sealed class ClassFieldNode : AstNode
     public Visibility Visibility { get; }
     public MethodModifiers Modifiers { get; }
     public bool IsStatic => Modifiers.HasFlag(MethodModifiers.Static);
+    public bool IsRequired => Modifiers.HasFlag(MethodModifiers.Required);
     public ExpressionNode? DefaultValue { get; }
     public AttributeCollection Attributes { get; }
 
@@ -570,6 +573,7 @@ public sealed class MethodNode : AstNode
     public bool IsAbstract => (Modifiers & MethodModifiers.Abstract) != 0;
     public bool IsSealed => (Modifiers & MethodModifiers.Sealed) != 0;
     public bool IsStatic => (Modifiers & MethodModifiers.Static) != 0;
+    public bool IsPartial => (Modifiers & MethodModifiers.Partial) != 0;
     public bool HasContracts => Preconditions.Count > 0 || Postconditions.Count > 0;
 
     public override void Accept(IAstVisitor visitor) => visitor.Visit(this);

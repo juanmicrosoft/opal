@@ -5140,6 +5140,12 @@ public sealed class Parser
                 mods |= MethodModifiers.Const;
             else if (token.Equals("readonly", StringComparison.OrdinalIgnoreCase))
                 mods |= MethodModifiers.Readonly;
+            else if (token.Equals("req", StringComparison.OrdinalIgnoreCase)
+                || token.Equals("required", StringComparison.OrdinalIgnoreCase))
+                mods |= MethodModifiers.Required;
+            else if (token.Equals("part", StringComparison.OrdinalIgnoreCase)
+                || token.Equals("partial", StringComparison.OrdinalIgnoreCase))
+                mods |= MethodModifiers.Partial;
         }
         return mods;
     }
