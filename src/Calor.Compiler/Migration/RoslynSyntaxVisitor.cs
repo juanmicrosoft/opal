@@ -1174,6 +1174,7 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
             ContinueStatementSyntax continueStmt => ConvertContinueStatement(continueStmt),
             UsingStatementSyntax usingStmt => ConvertUsingStatement(usingStmt),
             YieldStatementSyntax yieldStmt => ConvertYieldStatement(yieldStmt),
+            LockStatementSyntax lockStmt => ConvertLockStatement(lockStmt),
             _ => HandleUnsupportedStatement(statement)
         };
     }
@@ -2148,6 +2149,43 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
             body);
     }
 
+    /// <summary>
+    /// Converts a lock statement by preserving the body with a comment about the lock target.
+    /// lock (obj) { body } → // lock(obj) annotation + body statements
+    /// The body is preserved rather than being dropped.
+    /// </summary>
+    private StatementNode ConvertLockStatement(LockStatementSyntax node)
+    {
+        _context.RecordFeatureUsage("lock");
+        _context.IncrementConverted();
+
+        var lockTarget = node.Expression.ToString();
+        var body = node.Statement is BlockSyntax block
+            ? ConvertBlock(block)
+            : new List<StatementNode> { ConvertStatement(node.Statement)! };
+
+        // Add a comment noting the lock, then hoist body statements into _pendingStatements
+        // so they appear in the output before the next statement
+        _pendingStatements.Add(new FallbackCommentNode(
+            GetTextSpan(node),
+            $"lock({lockTarget})",
+            "lock-annotation",
+            "Calor does not have lock semantics; body preserved below"));
+        foreach (var stmt in body.Skip(1))
+        {
+            _pendingStatements.Add(stmt);
+        }
+
+        // Return first body statement (or a comment if empty)
+        return body.Count > 0
+            ? body[0]
+            : new FallbackCommentNode(
+                GetTextSpan(node),
+                $"lock({lockTarget}) {{ /* empty */ }}",
+                "lock-empty",
+                null);
+    }
+
     private ThrowStatementNode ConvertThrowStatement(ThrowStatementSyntax node)
     {
         _context.IncrementConverted();
@@ -2408,6 +2446,7 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
             AnonymousObjectCreationExpressionSyntax anonObj => ConvertAnonymousObjectCreation(anonObj),
             QueryExpressionSyntax queryExpr => ConvertQueryExpression(queryExpr),
             InitializerExpressionSyntax initExpr => ConvertInitializerExpression(initExpr),
+            TypeOfExpressionSyntax typeOf => new TypeOfExpressionNode(GetTextSpan(typeOf), TypeMapper.CSharpToCalor(typeOf.Type.ToString())),
             _ => CreateFallbackExpression(expression, "unknown-expression")
         };
     }
@@ -3628,7 +3667,21 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
 
         if (lambda.ExpressionBody != null)
         {
-            exprBody = ConvertExpression(lambda.ExpressionBody);
+            // Assignment-bodied lambdas (e.g., x => _field = x) must be converted to
+            // statement bodies since assignments are statements, not expressions in Calor
+            if (lambda.ExpressionBody is AssignmentExpressionSyntax lambdaAssign)
+            {
+                var assignTarget = ConvertExpression(lambdaAssign.Left);
+                var assignValue = ConvertExpression(lambdaAssign.Right);
+                stmtBody = new List<StatementNode>
+                {
+                    new AssignmentStatementNode(GetTextSpan(lambdaAssign), assignTarget, assignValue)
+                };
+            }
+            else
+            {
+                exprBody = ConvertExpression(lambda.ExpressionBody);
+            }
         }
         else if (lambda.Body is BlockSyntax block)
         {

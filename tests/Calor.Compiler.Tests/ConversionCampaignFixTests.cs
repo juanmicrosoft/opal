@@ -668,4 +668,102 @@ public class Example
     }
 
     #endregion
+
+    #region Issue 341: typeof() expression not supported in converter
+
+    [Fact]
+    public void Convert_TypeOf_EmitsTypeOfExpression()
+    {
+        var csharp = @"
+using System;
+class Test
+{
+    Type GetType()
+    {
+        return typeof(string);
+    }
+}";
+        var result = _converter.Convert(csharp, "test");
+        var calor = result.CalorSource;
+
+        // Should NOT produce ERR for typeof
+        Assert.DoesNotContain("§ERR", calor);
+        // Should contain typeof reference
+        Assert.Contains("typeof", calor, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Convert_TypeOfGeneric_EmitsTypeOfExpression()
+    {
+        var csharp = @"
+using System;
+class Test
+{
+    Type GetType<T>()
+    {
+        return typeof(T);
+    }
+}";
+        var result = _converter.Convert(csharp, "test");
+        var calor = result.CalorSource;
+
+        Assert.DoesNotContain("§ERR", calor);
+    }
+
+    #endregion
+
+    #region Issue 353: Lambda body assignment expressions produce ERR
+
+    [Fact]
+    public void Convert_LambdaAssignmentBody_EmitsAssign()
+    {
+        var csharp = @"
+using System;
+class Test
+{
+    private string _value = """";
+    void Configure()
+    {
+        Action<string> setter = x => _value = x;
+    }
+}";
+        var result = _converter.Convert(csharp, "test");
+        var calor = result.CalorSource;
+
+        // Should NOT produce ERR for the lambda body assignment
+        Assert.DoesNotContain("§ERR", calor);
+        // Should contain an assignment inside the lambda
+        Assert.Contains("§ASSIGN", calor);
+    }
+
+    #endregion
+
+    #region Issue 344: lock statement body completely lost
+
+    [Fact]
+    public void Convert_LockStatement_PreservesBody()
+    {
+        var csharp = @"
+class Test
+{
+    private readonly object _lock = new object();
+    private int _count;
+    void Increment()
+    {
+        lock (_lock)
+        {
+            _count = _count + 1;
+        }
+    }
+}";
+        var result = _converter.Convert(csharp, "test");
+        var calor = result.CalorSource;
+
+        // Body should be preserved — the assignment inside lock should appear
+        Assert.Contains("_count", calor);
+        // Should contain a comment about lock
+        Assert.Contains("lock", calor);
+    }
+
+    #endregion
 }
