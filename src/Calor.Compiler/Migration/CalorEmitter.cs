@@ -284,7 +284,15 @@ public sealed class CalorEmitter : IAstVisitor<string>
     {
         var visibility = GetVisibilityShorthand(node.Visibility);
         var typeName = TypeMapper.CSharpToCalor(node.TypeName);
-        var defaultVal = node.DefaultValue != null ? $" = {node.DefaultValue.Accept(this)}" : "";
+        // For collection creation defaults (Dict/List/Set), emit "= default" instead of
+        // the full §DICT/§LIST/§SET block, since the type is already on the §FLD tag.
+        string defaultVal;
+        if (node.DefaultValue is DictionaryCreationNode or ListCreationNode or SetCreationNode)
+            defaultVal = " = default";
+        else if (node.DefaultValue != null)
+            defaultVal = $" = {node.DefaultValue.Accept(this)}";
+        else
+            defaultVal = "";
         var attrs = EmitCSharpAttributes(node.CSharpAttributes);
 
         var modifiers = new List<string>();
