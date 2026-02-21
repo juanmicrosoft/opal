@@ -115,10 +115,9 @@ public class ConvertToolTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_WithInterface_ReportsParseValidationIssues()
+    public async Task ExecuteAsync_WithInterface_SucceedsWithMTTags()
     {
-        // Interface conversion generates §SIG tags that the parser doesn't yet recognize.
-        // Post-conversion validation (R5) now correctly reports this instead of false success.
+        // Interface conversion now generates §MT tags (not §SIG) which the parser recognizes.
         var args = JsonDocument.Parse("""
             {
                 "source": "public interface IService { void Process(); string GetValue(); }"
@@ -127,10 +126,9 @@ public class ConvertToolTests
 
         var result = await _tool.ExecuteAsync(args);
 
-        Assert.True(result.IsError);
+        Assert.False(result.IsError);
         var text = result.Content[0].Text!;
-        Assert.Contains("issues", text);
-        Assert.Contains("Generated Calor failed to parse", text);
+        Assert.Contains("success", text);
         Assert.Contains("interfacesConverted", text);
     }
 }

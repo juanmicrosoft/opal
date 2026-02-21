@@ -204,10 +204,18 @@ public sealed class CalorFormatter
     private void FormatMethodSignature(MethodSignatureNode method)
     {
         var methodId = AbbreviateId(method.Id);
-        var output = method.Output != null ? CompactTypeName(method.Output.TypeName) : "void";
-        var paramList = string.Join(",", method.Parameters.Select(p =>
-            $"{CompactTypeName(p.TypeName)}:{p.Name}"));
-        AppendLine($"§SIG{{{methodId}:{method.Name}}} ({paramList}) → {output}");
+        AppendLine($"§MT{{{methodId}:{method.Name}}}");
+
+        foreach (var param in method.Parameters)
+        {
+            AppendLine($"§I{{{CompactTypeName(param.TypeName)}:{param.Name}}}");
+        }
+        if (method.Output != null)
+        {
+            AppendLine($"§O{{{CompactTypeName(method.Output.TypeName)}}}");
+        }
+
+        AppendLine($"§/MT{{{methodId}}}");
     }
 
     private void FormatClass(ClassDefinitionNode cls)
