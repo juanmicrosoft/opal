@@ -1,11 +1,8 @@
+using Calor.Compiler.Ast;
 using Calor.Compiler.CodeGen;
 using Calor.Compiler.Diagnostics;
-using Calor.Compiler.Parsing;
+using Calor.Compiler.Effects;
 using Calor.Compiler.Migration;
-using Calor.Compiler.Effects;
-using Calor.Compiler.Diagnostics;
-using Calor.Compiler.Diagnostics;
-using Calor.Compiler.Effects;
 using Calor.Compiler.Parsing;
 using Xunit;
 
@@ -48,28 +45,21 @@ public class ConversionCampaignFixTests
         parser.Parse();
 
         return diagnostics;
-/// </summary>
-public class ConversionCampaignFixTests
-{
-    #region Issue 310: Async console operations in known effects
-
-    [Fact]
-    public void BuiltInEffects_TextWriterWriteLineAsync_IsKnown()
-    {
-        Assert.True(BuiltInEffects.IsKnown("System.IO.TextWriter::WriteLineAsync(System.String)"));
     }
 
-    [Fact]
-    public void BuiltInEffects_StreamReaderReadLineAsync_IsKnown()
+    private static ModuleNode ParseCalor(string source)
     {
-        Assert.True(BuiltInEffects.IsKnown("System.IO.StreamReader::ReadLineAsync()"));
+        var diag = new DiagnosticBag();
+        var lexer = new Lexer(source, diag);
+        var tokens = lexer.TokenizeAll();
+        Assert.Empty(diag.Errors);
+        var parser = new Parser(tokens, diag);
+        var ast = parser.Parse();
+        Assert.Empty(diag.Errors);
+        return ast;
     }
 
-    [Fact]
-    public void BuiltInEffects_TextWriterFlushAsync_IsKnown()
-    {
-        Assert.True(BuiltInEffects.IsKnown("System.IO.TextWriter::FlushAsync()"));
-    }
+    private readonly CSharpToCalorConverter _converter = new();
 
     #endregion
 
@@ -89,20 +79,6 @@ public class ConversionCampaignFixTests
 §K _
 §R ""other""
 §/W{m1}
-    #endregion
-
-    #region Issue 292: Preserve namespace dots in type names
-
-    [Fact]
-    public void Emit_NewWithNamespacedType_PreservesDots()
-    {
-        var source = @"
-§M{m001:Test}
-§F{f001:BuildReport:pub}
-§O{str}
-§E{cw}
-§B{sb} §NEW{System.Text.StringBuilder} §/NEW
-§R (str sb)
 §/F{f001}
 §/M{m001}
 ";
@@ -150,6 +126,31 @@ public class ConversionCampaignFixTests
 §PROP{p001:Name:str:pub}
 §GET §/GET
 §/PROP{p001}
+§/CL{c001}
+§/M{m001}
+";
+        var csharp = ParseAndEmit(source);
+        Assert.Contains("{ get; }", csharp);
+        Assert.DoesNotContain("get; set;", csharp);
+    }
+
+    [Fact]
+    public void Emit_ReadWriteAutoProperty_EmitsGetSet()
+    {
+        var source = @"
+§M{m001:Test}
+§CL{c001:Foo:pub}
+§PROP{p001:Name:str:pub}
+§GET §/GET
+§SET §/SET
+§/PROP{p001}
+§/CL{c001}
+§/M{m001}
+";
+        var csharp = ParseAndEmit(source);
+        Assert.Contains("get; set;", csharp);
+    }
+
     #endregion
 
     #region Issue 291: Remove @ prefix from this and double/float keywords
@@ -169,20 +170,6 @@ public class ConversionCampaignFixTests
 §/M{m001}
 ";
         var csharp = ParseAndEmit(source);
-        Assert.Contains("{ get; }", csharp);
-        Assert.DoesNotContain("get; set;", csharp);
-    }
-
-    [Fact]
-    public void Emit_ReadWriteAutoProperty_EmitsGetSet()
-    {
-        var source = @"
-§M{m001:Test}
-§CL{c001:Foo:pub}
-§PROP{p001:Name:str:pub}
-§GET §/GET
-§SET §/SET
-§/PROP{p001}
         Assert.Contains("this._name", csharp);
         Assert.DoesNotContain("@this", csharp);
     }
@@ -202,11 +189,32 @@ public class ConversionCampaignFixTests
 §/M{m001}
 ";
         var csharp = ParseAndEmit(source);
-        Assert.Contains("get; set;", csharp);
         Assert.Contains("this._id", csharp);
         Assert.DoesNotContain("@this", csharp);
+    }
+
+    #endregion
+
+    #region Issue 292: Preserve namespace dots in type names
+
+    [Fact]
+    public void Emit_NewWithNamespacedType_PreservesDots()
+    {
+        var source = @"
+§M{m001:Test}
+§F{f001:BuildReport:pub}
+§O{str}
+§E{cw}
+§B{sb} §NEW{System.Text.StringBuilder} §/NEW
+§R (str sb)
+§/F{f001}
+§/M{m001}
+";
+        var csharp = ParseAndEmit(source);
         Assert.Contains("new System.Text.StringBuilder()", csharp);
         Assert.DoesNotContain("System_Text_StringBuilder", csharp);
+    }
+
     #endregion
 
     #region Issue 294: Support §PROP inside §IFACE for interface properties
@@ -225,7 +233,6 @@ public class ConversionCampaignFixTests
 ";
         var csharp = ParseAndEmit(source);
         Assert.Contains("interface IOrder", csharp);
-        // Property should appear (either get-only or get-set depending on branch)
         Assert.Contains("DateTime Purchased", csharp);
         Assert.Contains("get;", csharp);
         Assert.DoesNotContain("DateTime Purchased()", csharp);
@@ -251,15 +258,10 @@ public class ConversionCampaignFixTests
         Assert.Contains("double Cost", csharp);
         Assert.Contains("get;", csharp);
         Assert.Contains("string GetDescription()", csharp);
-/// </summary>
-public class ConversionCampaignFixTests
-{
-    private readonly CSharpToCalorConverter _converter = new();
+    }
 
-    #region Issue 301: Convert nameof() to string literal and string.Empty to ""
+    #endregion
 
-    [Fact]
-    public void Convert_Nameof_ProducesStringLiteral()
     #region Issue 300: Convert postfix/prefix increment to compound assignment
 
     [Fact]
@@ -268,18 +270,6 @@ public class ConversionCampaignFixTests
         var result = _converter.Convert(@"
 public class Test
 {
-    public void Check(string name)
-    {
-        var x = nameof(name);
-    }
-}");
-        Assert.True(result.Success, string.Join("\n", result.Issues));
-        Assert.Contains(@"""name""", result.CalorSource);
-        Assert.DoesNotContain("nameof", result.CalorSource);
-    }
-
-    [Fact]
-    public void Convert_StringEmpty_ProducesEmptyStringLiteral()
     public void Count()
     {
         int i = 0;
@@ -297,13 +287,6 @@ public class Test
         var result = _converter.Convert(@"
 public class Test
 {
-    public string GetDefault()
-    {
-        return string.Empty;
-    }
-}");
-        Assert.True(result.Success, string.Join("\n", result.Issues));
-        Assert.Contains(@"""""", result.CalorSource);
     public void CountDown()
     {
         int i = 10;
@@ -328,6 +311,45 @@ public class Test
 }");
         Assert.True(result.Success, string.Join("\n", result.Issues));
         Assert.DoesNotContain("§ERR", result.CalorSource);
+    }
+
+    #endregion
+
+    #region Issue 301: Convert nameof() to string literal and string.Empty to ""
+
+    [Fact]
+    public void Convert_Nameof_ProducesStringLiteral()
+    {
+        var result = _converter.Convert(@"
+public class Test
+{
+    public void Check(string name)
+    {
+        var x = nameof(name);
+    }
+}");
+        Assert.True(result.Success, string.Join("\n", result.Issues));
+        Assert.Contains(@"""name""", result.CalorSource);
+        Assert.DoesNotContain("nameof", result.CalorSource);
+    }
+
+    [Fact]
+    public void Convert_StringEmpty_ProducesEmptyStringLiteral()
+    {
+        var result = _converter.Convert(@"
+public class Test
+{
+    public string GetDefault()
+    {
+        return string.Empty;
+    }
+}");
+        Assert.True(result.Success, string.Join("\n", result.Issues));
+        Assert.Contains(@"""""", result.CalorSource);
+    }
+
+    #endregion
+
     #region Issue 302: Emit §MT instead of §SIG for interface method signatures
 
     [Fact]
@@ -357,6 +379,10 @@ public interface ICalculator
         Assert.Contains("§I{", result.CalorSource);
         Assert.Contains("§O{", result.CalorSource);
         Assert.DoesNotContain("§SIG", result.CalorSource);
+    }
+
+    #endregion
+
     #region Issue 303: Convert §DICT/§LIST to §FLD inside class bodies
 
     [Fact]
@@ -399,14 +425,14 @@ public class Cache
         Assert.Contains("§FLD{", result.CalorSource);
         Assert.DoesNotContain("§DICT{", result.CalorSource);
         Assert.DoesNotContain("§/DICT{", result.CalorSource);
+    }
+
+    #endregion
+
     #region Issue 304: Convert tuple deconstruction to individual §ASSIGN statements
 
     [Fact]
     public void Convert_TupleDeconstruction_EmitsIndividualAssignments()
-    #region Issue 309: Handle @-prefixed C# parameter names
-
-    [Fact]
-    public void Convert_AtPrefixedParam_StripsAtPrefix()
     {
         var result = _converter.Convert(@"
 public class Example
@@ -417,6 +443,44 @@ public class Example
     public void SetValues(int x, int y)
     {
         (_a, _b) = (x, y);
+    }
+}");
+        Assert.True(result.Success, string.Join("\n", result.Issues));
+        var source = result.CalorSource ?? "";
+        Assert.DoesNotContain("§ERR", source);
+        Assert.Contains("§ASSIGN", source);
+    }
+
+    [Fact]
+    public void Convert_TupleDeconstruction_ThreeElements()
+    {
+        var result = _converter.Convert(@"
+public class Example
+{
+    private int _a;
+    private int _b;
+    private int _c;
+
+    public void SetValues(int x, int y, int z)
+    {
+        (_a, _b, _c) = (x, y, z);
+    }
+}");
+        Assert.True(result.Success, string.Join("\n", result.Issues));
+        var source = result.CalorSource ?? "";
+        Assert.DoesNotContain("§ERR", source);
+    }
+
+    #endregion
+
+    #region Issue 309: Handle @-prefixed C# parameter names
+
+    [Fact]
+    public void Convert_AtPrefixedParam_StripsAtPrefix()
+    {
+        var result = _converter.Convert(@"
+public class Example
+{
     public void Process(string @class, int @event)
     {
         var x = @class;
@@ -424,14 +488,6 @@ public class Example
 }");
         Assert.True(result.Success, string.Join("\n", result.Issues));
         var source = result.CalorSource ?? "";
-        // Should have two §ASSIGN statements, not §ERR
-        Assert.DoesNotContain("§ERR", source);
-        Assert.Contains("§ASSIGN", source);
-    }
-
-    [Fact]
-    public void Convert_TupleDeconstruction_ThreeElements()
-        // Parameters should not have @ prefix in Calor
         Assert.Contains("§I{str:class}", source);
         Assert.Contains("§I{i32:event}", source);
         Assert.DoesNotContain("@class", source);
@@ -444,13 +500,6 @@ public class Example
         var result = _converter.Convert(@"
 public class Example
 {
-    private int _a;
-    private int _b;
-    private int _c;
-
-    public void SetValues(int x, int y, int z)
-    {
-        (_a, _b, _c) = (x, y, z);
     public void Process()
     {
         var @object = 42;
@@ -458,9 +507,34 @@ public class Example
 }");
         Assert.True(result.Success, string.Join("\n", result.Issues));
         var source = result.CalorSource ?? "";
-        Assert.DoesNotContain("§ERR", source);
         Assert.Contains("object", source);
         Assert.DoesNotContain("@object", source);
+    }
+
+    #endregion
+
+    #region Issue 310: Async console operations in known effects
+
+    [Fact]
+    public void BuiltInEffects_TextWriterWriteLineAsync_IsKnown()
+    {
+        Assert.True(BuiltInEffects.IsKnown("System.IO.TextWriter::WriteLineAsync(System.String)"));
+    }
+
+    [Fact]
+    public void BuiltInEffects_StreamReaderReadLineAsync_IsKnown()
+    {
+        Assert.True(BuiltInEffects.IsKnown("System.IO.StreamReader::ReadLineAsync()"));
+    }
+
+    [Fact]
+    public void BuiltInEffects_TextWriterFlushAsync_IsKnown()
+    {
+        Assert.True(BuiltInEffects.IsKnown("System.IO.TextWriter::FlushAsync()"));
+    }
+
+    #endregion
+
     #region Issue 311: Math functions as known pure methods
 
     [Fact]
@@ -491,9 +565,10 @@ public class Example
     public void BuiltInEffects_MathLog_IsPure()
     {
         Assert.True(BuiltInEffects.IsKnownPure("System.Math::Log(System.Double)"));
-/// </summary>
-public class ConversionCampaignFixTests
-{
+    }
+
+    #endregion
+
     #region Issue 312: Single quotes and line comments in lexer
 
     [Fact]
@@ -503,7 +578,6 @@ public class ConversionCampaignFixTests
         var diag = new DiagnosticBag();
         var lexer = new Lexer(source, diag);
         var tokens = lexer.TokenizeAll();
-        // Should have no errors — comment is skipped
         Assert.Empty(diag.Errors);
     }
 
@@ -511,13 +585,6 @@ public class ConversionCampaignFixTests
     public void Lexer_LineCommentAtEndOfFile_SkipsContent()
     {
         var source = "§M{m001:Test}\n§/M{m001}\n// trailing comment";
-/// </summary>
-public class ConversionCampaignFixTests
-{
-    #region Issue 314: LINQ extension method effect recognition
-
-    private static Ast.ModuleNode ParseCalor(string source)
-    {
         var diag = new DiagnosticBag();
         var lexer = new Lexer(source, diag);
         var tokens = lexer.TokenizeAll();
@@ -543,11 +610,11 @@ public class ConversionCampaignFixTests
         var lexer = new Lexer(source, diag);
         var tokens = lexer.TokenizeAll();
         Assert.Contains(tokens, t => t.Kind == TokenKind.Slash);
-        var parser = new Parser(tokens, diag);
-        var ast = parser.Parse();
-        Assert.Empty(diag.Errors);
-        return ast;
     }
+
+    #endregion
+
+    #region Issue 314: LINQ extension method effect recognition
 
     [Fact]
     public void LinqMethods_DoNotTriggerCalor0411_Errors()
@@ -571,7 +638,6 @@ public class ConversionCampaignFixTests
         var pass = new EffectEnforcementPass(diag);
         pass.Enforce(ast);
 
-        // Should have no Calor0411 errors
         var errors = diag.Errors.Where(d =>
             d.Code == DiagnosticCode.UnknownExternalCall).ToList();
         Assert.Empty(errors);
