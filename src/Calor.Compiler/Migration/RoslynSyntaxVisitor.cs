@@ -830,6 +830,8 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
             modifiers |= MethodModifiers.Static;
         if (node.Modifiers.Any(SyntaxKind.ReadOnlyKeyword))
             modifiers |= MethodModifiers.Readonly;
+        if (node.Modifiers.Any(SyntaxKind.RequiredKeyword))
+            modifiers |= MethodModifiers.Required;
 
         foreach (var variable in node.Declaration.Variables)
         {
@@ -4460,6 +4462,10 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
             result |= MethodModifiers.Sealed;
         if (modifiers.Any(SyntaxKind.StaticKeyword))
             result |= MethodModifiers.Static;
+        if (modifiers.Any(SyntaxKind.RequiredKeyword))
+            result |= MethodModifiers.Required;
+        if (modifiers.Any(SyntaxKind.PartialKeyword))
+            result |= MethodModifiers.Partial;
 
         return result;
     }

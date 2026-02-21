@@ -308,6 +308,7 @@ public sealed class CalorEmitter : IAstVisitor<string>
         var attrs = EmitCSharpAttributes(node.CSharpAttributes);
 
         var modifiers = new List<string>();
+        if (node.IsRequired) modifiers.Add("req");
         if (node.Modifiers.HasFlag(MethodModifiers.Static)) modifiers.Add("stat");
         if (node.Modifiers.HasFlag(MethodModifiers.Const)) modifiers.Add("const");
         if (node.Modifiers.HasFlag(MethodModifiers.Readonly)) modifiers.Add("readonly");
@@ -326,6 +327,7 @@ public sealed class CalorEmitter : IAstVisitor<string>
         var defaultVal = node.DefaultValue != null ? $" = {node.DefaultValue.Accept(this)}" : "";
 
         var modifiers = new List<string>();
+        if (node.IsRequired) modifiers.Add("req");
         if (node.IsVirtual) modifiers.Add("virt");
         if (node.IsOverride) modifiers.Add("over");
         if (node.IsAbstract) modifiers.Add("abs");
@@ -458,6 +460,7 @@ public sealed class CalorEmitter : IAstVisitor<string>
         var visibility = GetVisibilityShorthand(node.Visibility);
         var modifiers = new List<string>();
 
+        if (node.IsPartial) modifiers.Add("part");
         if (node.IsVirtual) modifiers.Add("virt");
         if (node.IsOverride) modifiers.Add("over");
         if (node.IsAbstract) modifiers.Add("abs");

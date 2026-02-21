@@ -1985,7 +1985,9 @@ public sealed class CSharpEmitter : IAstVisitor<string>
             _ => "private"
         };
 
-        var parts = new List<string> { visibility };
+        var parts = new List<string>();
+        if (node.IsRequired) parts.Add("required");
+        parts.Add(visibility);
         if (node.Modifiers.HasFlag(MethodModifiers.Const)) parts.Add("const");
         else if (node.IsStatic) parts.Add("static");
         if (node.Modifiers.HasFlag(MethodModifiers.Readonly)) parts.Add("readonly");
@@ -2026,6 +2028,7 @@ public sealed class CSharpEmitter : IAstVisitor<string>
 
         var modifiers = new List<string> { visibility };
         if (node.IsStatic) modifiers.Add("static");
+        if (node.IsPartial) modifiers.Add("partial");
         if (node.IsAsync) modifiers.Add("async");
         if (node.IsAbstract) modifiers.Add("abstract");
         else if (node.IsVirtual) modifiers.Add("virtual");
@@ -2077,8 +2080,8 @@ public sealed class CSharpEmitter : IAstVisitor<string>
             return EmitOperatorMethod(node, modifiers, mappedReturnType, parameters);
         }
 
-        // Abstract methods have no body
-        if (node.IsAbstract)
+        // Abstract methods and partial method stubs have no body
+        if (node.IsAbstract || (node.IsPartial && node.Body.Count == 0))
         {
             AppendLine($"{string.Join(" ", modifiers)} {mappedReturnType} {methodName}{typeParams}({parameters}){whereClause};");
             return "";
@@ -2388,7 +2391,9 @@ public sealed class CSharpEmitter : IAstVisitor<string>
             _ => "public"
         };
 
-        var modifiers = new List<string> { visibility };
+        var modifiers = new List<string>();
+        if (node.IsRequired) modifiers.Add("required");
+        modifiers.Add(visibility);
         if (node.IsStatic) modifiers.Add("static");
         if (node.IsAbstract) modifiers.Add("abstract");
         else if (node.IsVirtual) modifiers.Add("virtual");
