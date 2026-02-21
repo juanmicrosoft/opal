@@ -73,6 +73,10 @@ public sealed class Lexer
         ["FL"] = TokenKind.Field,           // §FL = Field
         ["IV"] = TokenKind.Invariant,       // §IV = Invariant
 
+        // Using statement (block form)
+        ["USE"] = TokenKind.Use,            // §USE = using statement open
+        ["/USE"] = TokenKind.EndUse,        // §/USE = using statement close
+
         // Arrays and Collections
         ["ARR"] = TokenKind.Array,
         ["/ARR"] = TokenKind.EndArray,
@@ -240,6 +244,14 @@ public sealed class Lexer
         ["TASK"] = TokenKind.TaskRef,           // §TASK - keep for clarity
         ["DATE"] = TokenKind.DateMarker,        // §DATE - keep for clarity
 
+        // Yield support
+        ["YIELD"] = TokenKind.Yield,            // §YIELD = yield return
+        ["YBRK"] = TokenKind.YieldBreak,        // §YBRK = yield break
+
+        // LINQ Support
+        ["ANON"] = TokenKind.AnonymousObject,   // §ANON = Anonymous object
+        ["/ANON"] = TokenKind.EndAnonymousObject, // §/ANON
+
         // Built-in aliases for common operations
         ["P"] = TokenKind.Print,            // §P = Console.WriteLine
         ["Pf"] = TokenKind.PrintF,          // §Pf = Console.Write
@@ -341,7 +353,7 @@ public sealed class Lexer
             // v2 Lisp-style operator symbols
             '+' => ScanSingle(TokenKind.Plus),
             '*' => ScanStarOrOperator(),
-            '/' => ScanSingle(TokenKind.Slash),
+            '/' => ScanSlashOrComment(),
             '\\' => ScanSingle(TokenKind.Backslash),
             '%' => ScanSingle(TokenKind.Percent),
             '<' => ScanLessOrOperator(),
@@ -357,6 +369,7 @@ public sealed class Lexer
             '∀' => ScanUnicodeQuantifier("forall"),
             '∃' => ScanUnicodeQuantifier("exists"),
             '`' => ScanBacktickIdentifier(),
+            '\'' => ScanCharLiteralOrSkip(),
             _ when char.IsLetter(Current) || Current == '_' => ScanIdentifierOrTypedLiteral(),
             _ when char.IsDigit(Current) => ScanNumber(),
             _ => ScanError()
@@ -464,6 +477,19 @@ public sealed class Lexer
             return MakeToken(TokenKind.PipePipe);
         }
         return MakeToken(TokenKind.Pipe);
+    }
+
+    private Token ScanSlashOrComment()
+    {
+        if (Lookahead == '/')
+        {
+            // Line comment: skip to end of line
+            while (Current != '\n' && Current != '\r' && Current != '\0')
+                Advance();
+            return NextToken(); // skip comment entirely, return next real token
+        }
+        Advance();
+        return MakeToken(TokenKind.Slash);
     }
 
     private Token ScanMinusOrArrowOrNumber()
@@ -603,6 +629,12 @@ public sealed class Lexer
         var fullText = CurrentText();
         var fullKeyword = fullText.Length > 1 ? fullText[1..] : "";
 
+        // Special handling for §RAW: scan to §/RAW and capture everything as raw content
+        if (fullKeyword.Equals("RAW", StringComparison.Ordinal))
+        {
+            return ScanRawBlock();
+        }
+
         if (Keywords.TryGetValue(fullKeyword, out var keywordKind))
         {
             return MakeToken(keywordKind);
@@ -614,10 +646,63 @@ public sealed class Lexer
     }
 
     /// <summary>
+    /// Scans a raw C# passthrough block. Called after §RAW has been consumed.
+    /// Captures everything until §/RAW as raw content.
+    /// </summary>
+    private Token ScanRawBlock()
+    {
+        // Skip optional whitespace/newline after §RAW
+        if (Current == '\n') Advance();
+        else if (Current == '\r' && Lookahead == '\n') { Advance(); Advance(); }
+
+        var contentStart = _position;
+        const string endMarker = "§/RAW";
+
+        // Scan forward to find §/RAW
+        while (!IsAtEnd)
+        {
+            if (Current == '§' && _position + endMarker.Length <= _source.Length
+                && _source.Substring(_position, endMarker.Length) == endMarker)
+            {
+                // Found the end marker — capture content up to here
+                var rawContent = _source[contentStart.._position];
+
+                // Trim trailing newline from content if present
+                if (rawContent.EndsWith("\r\n"))
+                    rawContent = rawContent[..^2];
+                else if (rawContent.EndsWith("\n"))
+                    rawContent = rawContent[..^1];
+
+                // Advance past §/RAW
+                for (int i = 0; i < endMarker.Length; i++)
+                    Advance();
+
+                return MakeToken(TokenKind.RawCSharp, rawContent);
+            }
+
+            Advance();
+        }
+
+        // Reached end of file without finding §/RAW
+        _diagnostics.ReportError(CurrentSpan(), DiagnosticCode.UnterminatedRawBlock,
+            "Unterminated §RAW block: expected §/RAW before end of file.");
+        return MakeToken(TokenKind.Error);
+    }
+
+    /// <summary>
     /// Reports an unknown section marker with helpful suggestions.
     /// </summary>
     private void ReportUnknownSectionMarker(string keyword)
     {
+        // Special case: §CAST is a common mistake — casting uses Lisp syntax
+        if (keyword.Equals("CAST", StringComparison.OrdinalIgnoreCase))
+        {
+            _diagnostics.ReportError(CurrentSpan(), Diagnostics.DiagnosticCode.UnexpectedCharacter,
+                $"Unknown section marker '§{keyword}'. Calor uses Lisp syntax for casts: " +
+                $"(cast TargetType expr). Example: (cast i32 myFloat)");
+            return;
+        }
+
         // Try to find a similar marker
         var suggestion = SectionMarkerSuggestions.FindSimilarMarker(keyword);
 
@@ -677,6 +762,11 @@ public sealed class Lexer
             if (upperText == "FLOAT" && (char.IsDigit(lookahead) || lookahead == '-' || lookahead == '.'))
             {
                 return ScanTypedFloatLiteral();
+            }
+            // DECIMAL:digits or DEC:digits (decimal literal)
+            if ((upperText == "DECIMAL" || upperText == "DEC") && (char.IsDigit(lookahead) || lookahead == '-' || lookahead == '.'))
+            {
+                return ScanTypedDecimalLiteral();
             }
 
             // Not a typed literal - return as identifier (colon is a separate token)
@@ -806,9 +896,151 @@ public sealed class Lexer
         return MakeToken(TokenKind.Error);
     }
 
+    private Token ScanTypedDecimalLiteral()
+    {
+        Advance(); // consume ':'
+        var valueStart = _position;
+
+        if (Current == '-')
+        {
+            Advance();
+        }
+
+        while (char.IsDigit(Current))
+        {
+            Advance();
+        }
+
+        if (Current == '.')
+        {
+            Advance();
+            while (char.IsDigit(Current))
+            {
+                Advance();
+            }
+        }
+
+        // Handle scientific notation
+        if (Current is 'e' or 'E')
+        {
+            Advance();
+            if (Current is '+' or '-')
+            {
+                Advance();
+            }
+            while (char.IsDigit(Current))
+            {
+                Advance();
+            }
+        }
+
+        // Consume optional M/m suffix
+        if (Current is 'M' or 'm')
+        {
+            Advance();
+        }
+
+        var valueText = _source[valueStart.._position].TrimEnd('M', 'm');
+        if (decimal.TryParse(valueText, System.Globalization.NumberStyles.Float,
+            System.Globalization.CultureInfo.InvariantCulture, out var value))
+        {
+            return MakeToken(TokenKind.DecimalLiteral, value);
+        }
+
+        _diagnostics.ReportInvalidTypedLiteral(CurrentSpan(), "DECIMAL");
+        return MakeToken(TokenKind.Error);
+    }
+
+    /// <summary>
+    /// Handles single-quote character: scans a char literal like 'a' or '\n',
+    /// and returns it as a string literal token. If malformed, reports an error.
+    /// </summary>
+    private Token ScanCharLiteralOrSkip()
+    {
+        Advance(); // consume opening '
+        if (Current == '\\')
+        {
+            Advance(); // consume backslash
+            Advance(); // consume escape char
+        }
+        else if (Current != '\'' && Current != '\0' && Current != '\n')
+        {
+            Advance(); // consume the character
+        }
+        if (Current == '\'')
+        {
+            Advance(); // consume closing '
+            return MakeToken(TokenKind.StrLiteral, _source[(_tokenStart + 1)..(_position - 1)]);
+        }
+        // Malformed — recover by continuing
+        return MakeToken(TokenKind.Error);
+    }
+
     private Token ScanStringLiteral()
     {
+        // Detect triple-quote for multiline strings: """..."""
+        if (Lookahead == '"' && Peek(2) == '"')
+            return ScanMultilineStringLiteral();
         return ScanStringLiteralValue();
+    }
+
+    private Token ScanMultilineStringLiteral()
+    {
+        Advance(); // consume first "
+        Advance(); // consume second "
+        Advance(); // consume third "
+
+        // Optionally skip a leading newline right after the opening triple-quote
+        if (!IsAtEnd && Current == '\r')
+            Advance();
+        if (!IsAtEnd && Current == '\n')
+            Advance();
+
+        var sb = new System.Text.StringBuilder();
+        while (!IsAtEnd)
+        {
+            // Check for closing triple-quote
+            if (Current == '"' && Lookahead == '"' && Peek(2) == '"')
+            {
+                Advance(); // consume first "
+                Advance(); // consume second "
+                Advance(); // consume third "
+                return MakeToken(TokenKind.StrLiteral, sb.ToString());
+            }
+
+            if (Current == '\\')
+            {
+                Advance();
+                var escaped = Current switch
+                {
+                    'n' => '\n',
+                    'r' => '\r',
+                    't' => '\t',
+                    '0' => '\0',
+                    '\\' => '\\',
+                    '"' => '"',
+                    _ => '\x01' // sentinel for invalid escape
+                };
+
+                if (escaped == '\x01')
+                {
+                    _diagnostics.ReportInvalidEscapeSequence(CurrentSpan(), Current);
+                }
+                else
+                {
+                    sb.Append(escaped);
+                }
+                Advance();
+            }
+            else
+            {
+                sb.Append(Current);
+                Advance();
+            }
+        }
+
+        _diagnostics.ReportUnterminatedString(CurrentSpan());
+        return MakeToken(TokenKind.Error);
     }
 
     private Token ScanStringLiteralValue()
@@ -885,11 +1117,35 @@ public sealed class Lexer
                 Advance();
             }
 
+            // Check for decimal suffix (M/m) on float
+            if (Current is 'M' or 'm')
+            {
+                Advance(); // consume M/m
+                var decText = CurrentText().TrimEnd('M', 'm');
+                if (decimal.TryParse(decText, System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out var decValue))
+                {
+                    return MakeToken(TokenKind.DecimalLiteral, decValue);
+                }
+            }
+
             var floatText = CurrentText();
             if (double.TryParse(floatText, System.Globalization.NumberStyles.Float,
                 System.Globalization.CultureInfo.InvariantCulture, out var floatValue))
             {
                 return MakeToken(TokenKind.FloatLiteral, floatValue);
+            }
+        }
+
+        // Check for decimal suffix on integers (42M, 100m)
+        if (Current is 'M' or 'm')
+        {
+            Advance(); // consume M/m
+            var decText = CurrentText().TrimEnd('M', 'm');
+            if (decimal.TryParse(decText, System.Globalization.NumberStyles.Integer,
+                System.Globalization.CultureInfo.InvariantCulture, out var decValue))
+            {
+                return MakeToken(TokenKind.DecimalLiteral, decValue);
             }
         }
 

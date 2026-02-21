@@ -107,6 +107,8 @@ public enum TokenKind
 
     // Phase 5: Using Statements (.NET Interop)
     Using,
+    Use,                // §USE - using statement open
+    EndUse,             // §/USE - using statement close
 
     // Phase 6: Arrays and Collections
     Array,
@@ -274,11 +276,23 @@ public enum TokenKind
     TaskRef,            // §TASK - Task reference
     DateMarker,         // §DATE - Date marker
 
+    // Yield support
+    Yield,              // §YIELD - yield return
+    YieldBreak,         // §YBRK - yield break
+
+    // LINQ Support
+    AnonymousObject,    // §ANON - Anonymous object creation
+    EndAnonymousObject, // §/ANON - End anonymous object
+
+    // Raw C# Passthrough
+    RawCSharp,          // §RAW ... §/RAW - Raw C# content emitted verbatim
+
     // Typed Literals
     IntLiteral,         // INT:42
     StrLiteral,         // STR:"hello"
     BoolLiteral,        // BOOL:true
     FloatLiteral,       // FLOAT:3.14
+    DecimalLiteral,     // DECIMAL:18.00M or DEC:18.00 or 18.00m
 
     // Identifiers and values
     Identifier,
@@ -308,10 +322,10 @@ public readonly struct Token : IEquatable<Token>
         Value = value;
     }
 
-    public bool IsKeyword => Kind is >= TokenKind.Module and <= TokenKind.DateMarker;
+    public bool IsKeyword => Kind is >= TokenKind.Module and <= TokenKind.EndAnonymousObject;
 
     public bool IsLiteral => Kind is TokenKind.IntLiteral or TokenKind.StrLiteral
-        or TokenKind.BoolLiteral or TokenKind.FloatLiteral;
+        or TokenKind.BoolLiteral or TokenKind.FloatLiteral or TokenKind.DecimalLiteral;
 
     public bool IsTrivia => Kind is TokenKind.Whitespace or TokenKind.Newline;
 

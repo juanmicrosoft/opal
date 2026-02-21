@@ -1652,8 +1652,8 @@ public class CollectionOperationsTests
         var emitter = new CalorEmitter();
         var calorOutput = emitter.Emit(module);
 
-        // Should contain §IDX syntax
-        Assert.Contains("§IDX{", calorOutput);
+        // Should contain §IDX syntax (space-separated, no braces)
+        Assert.Contains("§IDX ", calorOutput);
 
         // Re-parse the emitted Calor
         var reparsed = Parse(calorOutput, out var rediagnostics);
@@ -2444,6 +2444,251 @@ public class CollectionOperationsTests
 
         // Should report mutation effect for PUSH operation
         Assert.Contains(effectDiagnostics, d => d.Message.Contains("Mutation"));
+    }
+
+    #endregion
+
+    #region §IDX Format and Error Tests
+
+    [Fact]
+    public void Parse_ArrayAccess_SpaceFormat_ParsesCorrectly()
+    {
+        // §IDX arr 0 (correct format) should parse to ArrayAccessNode
+        var source = """
+            §M{m001:Test}
+            §F{f001:Get:pub}
+              §O{i32}
+              §R §IDX args 0
+            §/F{f001}
+            §/M{m001}
+            """;
+
+        var module = Parse(source, out var diagnostics);
+        Assert.False(diagnostics.HasErrors, string.Join(", ", diagnostics.Select(d => d.Message)));
+
+        var func = module.Functions[0];
+        var returnStmt = Assert.IsType<ReturnStatementNode>(func.Body[0]);
+        var access = Assert.IsType<ArrayAccessNode>(returnStmt.Expression);
+        Assert.IsType<ReferenceNode>(access.Array);
+        Assert.IsType<IntLiteralNode>(access.Index);
+    }
+
+    [Fact]
+    public void Emit_ArrayAccess_EmitsSpaceFormat()
+    {
+        // CalorEmitter should emit §IDX arr 0 (no braces)
+        var span = new TextSpan(0, 0, 0, 0);
+        var arrayRef = new ReferenceNode(span, "arr");
+        var index = new IntLiteralNode(span, 0);
+        var accessNode = new ArrayAccessNode(span, arrayRef, index);
+
+        var emitter = new CalorEmitter();
+        var output = accessNode.Accept(emitter);
+
+        Assert.Equal("§IDX arr 0", output);
+        Assert.DoesNotContain("{", output);
+    }
+
+    [Fact]
+    public void Parse_ArrayAccess_BraceFormat_IsValidSyntax()
+    {
+        // §IDX{arr} 0 (brace format) is valid — the attribute provides the array reference
+        var source = """
+            §M{m001:Test}
+            §F{f001:Get:pub}
+              §O{i32}
+              §R §IDX{arr} 0
+            §/F{f001}
+            §/M{m001}
+            """;
+
+        var module = Parse(source, out var diagnostics);
+
+        // Should parse without errors — §IDX{arr} is now valid attribute syntax
+        Assert.False(diagnostics.HasErrors, "§IDX{arr} should be valid syntax");
+
+        var func = module.Functions[0];
+        var returnStmt = func.Body[0] as ReturnStatementNode;
+        Assert.NotNull(returnStmt);
+        Assert.IsType<ArrayAccessNode>(returnStmt!.Expression);
+    }
+
+    [Fact]
+    public void RoundTrip_ArrayAccess_EmitsAndReparsesCorrectly()
+    {
+        var source = """
+            §M{m001:Test}
+            §F{f001:GetFirst:pub}
+              §O{i32}
+              §R §IDX myList 0
+            §/F{f001}
+            §/M{m001}
+            """;
+
+        var module = Parse(source, out var diagnostics);
+        Assert.False(diagnostics.HasErrors, string.Join(", ", diagnostics.Select(d => d.Message)));
+
+        // Emit → reparse roundtrip
+        var emitter = new CalorEmitter();
+        var calorOutput = emitter.Emit(module);
+        Assert.Contains("§IDX ", calorOutput);
+        Assert.DoesNotContain("§IDX{", calorOutput);
+
+        var reparsed = Parse(calorOutput, out var rediagnostics);
+        Assert.False(rediagnostics.HasErrors, $"Round-trip failed: {string.Join(", ", rediagnostics.Select(d => d.Message))}");
+
+        var func = reparsed.Functions[0];
+        var returnStmt = Assert.IsType<ReturnStatementNode>(func.Body[0]);
+        Assert.IsType<ArrayAccessNode>(returnStmt.Expression);
+    }
+
+    #endregion
+
+    #region Foreach With Index Tests
+
+    [Fact]
+    public void Parse_ForeachWithIndex_ParsesIndexVariable()
+    {
+        var source = """
+            §M{m001:Test}
+            §F{f001:Main:pub}
+              §O{void}
+              §EACH{e1:item:i32:idx} items
+                §P item
+              §/EACH{e1}
+            §/F{f001}
+            §/M{m001}
+            """;
+
+        var module = Parse(source, out var diagnostics);
+
+        Assert.False(diagnostics.HasErrors, $"Errors: {string.Join(", ", diagnostics.Select(d => d.Message))}");
+        var func = module.Functions[0];
+        var foreachStmt = Assert.IsType<ForeachStatementNode>(func.Body[0]);
+        Assert.Equal("item", foreachStmt.VariableName);
+        Assert.Equal("i32", foreachStmt.VariableType);
+        Assert.Equal("idx", foreachStmt.IndexVariableName);
+    }
+
+    [Fact]
+    public void Parse_ForeachWithoutIndex_IndexIsNull()
+    {
+        var source = """
+            §M{m001:Test}
+            §F{f001:Main:pub}
+              §O{void}
+              §EACH{e1:item:i32} items
+                §P item
+              §/EACH{e1}
+            §/F{f001}
+            §/M{m001}
+            """;
+
+        var module = Parse(source, out var diagnostics);
+
+        Assert.False(diagnostics.HasErrors, $"Errors: {string.Join(", ", diagnostics.Select(d => d.Message))}");
+        var func = module.Functions[0];
+        var foreachStmt = Assert.IsType<ForeachStatementNode>(func.Body[0]);
+        Assert.Equal("item", foreachStmt.VariableName);
+        Assert.Equal("i32", foreachStmt.VariableType);
+        Assert.Null(foreachStmt.IndexVariableName);
+    }
+
+    [Fact]
+    public void Emit_ForeachWithIndex_GeneratesIndexCounter()
+    {
+        var source = """
+            §M{m001:Test}
+            §F{f001:Main:pub}
+              §O{void}
+              §EACH{e1:item:i32:idx} items
+                §P item
+              §/EACH{e1}
+            §/F{f001}
+            §/M{m001}
+            """;
+
+        var module = Parse(source, out var diagnostics);
+        Assert.False(diagnostics.HasErrors, $"Errors: {string.Join(", ", diagnostics.Select(d => d.Message))}");
+
+        var emitter = new CSharpEmitter();
+        var code = emitter.Emit(module);
+
+        Assert.Contains("var idx = -1;", code);
+        Assert.Contains("foreach (int item in items)", code);
+        Assert.Contains("idx++;", code);
+    }
+
+    [Fact]
+    public void Emit_ForeachWithIndex_IndexIncrementsBeforeBody()
+    {
+        // The index increment must appear at the top of the loop body so that
+        // a `continue` doesn't skip the increment — matching C#'s
+        // Select((item, index) => ...) semantics.
+        var source = """
+            §M{m001:Test}
+            §F{f001:Main:pub}
+              §O{void}
+              §EACH{e1:item:i32:idx} items
+                §P item
+              §/EACH{e1}
+            §/F{f001}
+            §/M{m001}
+            """;
+
+        var module = Parse(source, out var diagnostics);
+        Assert.False(diagnostics.HasErrors, $"Errors: {string.Join(", ", diagnostics.Select(d => d.Message))}");
+
+        var emitter = new CSharpEmitter();
+        var code = emitter.Emit(module);
+
+        // idx++ should appear before the body (Console.WriteLine), not after
+        var idxIncrPos = code.IndexOf("idx++;");
+        var printPos = code.IndexOf("Console.WriteLine(item);");
+        Assert.True(idxIncrPos >= 0, "idx++ should be present");
+        Assert.True(printPos >= 0, "Console.WriteLine should be present");
+        Assert.True(idxIncrPos < printPos, "idx++ should appear before body statements");
+    }
+
+    [Fact]
+    public void RoundTrip_ForeachWithIndex_EmitsValidCalor()
+    {
+        var source = """
+            §M{m001:Test}
+            §F{f001:Main:pub}
+              §O{void}
+              §EACH{e1:item:i32:idx} items
+                §P item
+              §/EACH{e1}
+            §/F{f001}
+            §/M{m001}
+            """;
+
+        var module = Parse(source, out var diagnostics);
+        Assert.False(diagnostics.HasErrors, $"Errors: {string.Join(", ", diagnostics.Select(d => d.Message))}");
+
+        // Emit back to Calor
+        var emitter = new CalorEmitter();
+        var calorOutput = emitter.Emit(module);
+
+        // Verify the emitted Calor contains the index variable
+        Assert.Contains("item:i32:idx", calorOutput);
+
+        // Re-parse the emitted Calor
+        var reparsed = Parse(calorOutput, out var rediagnostics);
+        Assert.False(rediagnostics.HasErrors, $"Round-trip failed: {string.Join(", ", rediagnostics.Select(d => d.Message))}");
+
+        // Verify structure preserved
+        var func = reparsed.Functions[0];
+        var foreachStmt = Assert.IsType<ForeachStatementNode>(func.Body[0]);
+        Assert.Equal("item", foreachStmt.VariableName);
+        Assert.Equal("idx", foreachStmt.IndexVariableName);
+    }
+
+    [Fact]
+    public void FeatureSupport_ForeachIndex_IsFullySupported()
+    {
+        Assert.True(FeatureSupport.IsFullySupported("foreach-index"));
     }
 
     #endregion

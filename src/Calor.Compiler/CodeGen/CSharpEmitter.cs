@@ -122,10 +122,13 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         AppendLine("#nullable enable");
         AppendLine();
 
-        // Always include System and Calor.Runtime
-        var emittedUsings = new HashSet<string>(StringComparer.Ordinal) { "System", "Calor.Runtime" };
+        // Always include System, Calor.Runtime, and commonly-needed namespaces
+        var emittedUsings = new HashSet<string>(StringComparer.Ordinal)
+            { "System", "Calor.Runtime", "System.Collections.Generic", "System.Linq" };
         AppendLine("using System;");
         AppendLine("using Calor.Runtime;");
+        AppendLine("using System.Collections.Generic;");
+        AppendLine("using System.Linq;");
 
         // Emit user-defined using directives
         foreach (var usingDirective in node.Usings)
@@ -143,7 +146,8 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         }
         AppendLine();
 
-        var namespaceName = SanitizeNamespace(node.Name);
+        var isGlobalNamespace = node.Name == "_global" || string.IsNullOrEmpty(node.Name);
+        var namespaceName = isGlobalNamespace ? "" : SanitizeNamespace(node.Name);
 
         // Emit module-level extended metadata as file-level comments
         if (node.Context != null)
@@ -165,9 +169,12 @@ public sealed class CSharpEmitter : IAstVisitor<string>
             AppendLine();
         }
 
-        AppendLine($"namespace {namespaceName}");
-        AppendLine("{");
-        Indent();
+        if (!isGlobalNamespace)
+        {
+            AppendLine($"namespace {namespaceName}");
+            AppendLine("{");
+            Indent();
+        }
 
         // Emit module-level issues as comments
         foreach (var issue in node.Issues)
@@ -228,9 +235,11 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         // Emit module-level functions in a static class
         if (node.Functions.Count > 0)
         {
-            var moduleClassName = SanitizeIdentifier(node.Name.Contains('.')
-                ? node.Name.Split('.').Last()
-                : node.Name) + "Module";
+            var moduleClassName = isGlobalNamespace
+                ? "GlobalModule"
+                : SanitizeIdentifier(node.Name.Contains('.')
+                    ? node.Name.Split('.').Last()
+                    : node.Name) + "Module";
             AppendLine($"public static class {moduleClassName}");
             AppendLine("{");
             Indent();
@@ -245,8 +254,11 @@ public sealed class CSharpEmitter : IAstVisitor<string>
             AppendLine("}");
         }
 
-        Dedent();
-        AppendLine("}");
+        if (!isGlobalNamespace)
+        {
+            Dedent();
+            AppendLine("}");
+        }
 
         return _builder.ToString();
     }
@@ -334,13 +346,21 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         var visibility = node.Visibility switch
         {
             Visibility.Public => "public",
+            Visibility.ProtectedInternal => "protected internal",
             Visibility.Internal => "internal",
+            Visibility.Protected => "protected",
             Visibility.Private => "private",
             _ => "private"
         };
 
         var returnType = node.Output?.TypeName ?? "void";
         var mappedReturnType = MapTypeName(returnType);
+        // Wrap in IEnumerable if body contains yield statements
+        var isIterator = ContainsYieldStatements(node.Body);
+        if (isIterator)
+        {
+            mappedReturnType = WrapInIEnumerable(mappedReturnType);
+        }
         // Wrap in Task if async
         if (node.IsAsync)
         {
@@ -348,8 +368,7 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         }
         var hasReturnValue = returnType.ToUpperInvariant() != "VOID";
 
-        var parameters = string.Join(", ", node.Parameters.Select(p =>
-            $"{MapTypeName(p.TypeName)} {SanitizeIdentifier(p.Name)}"));
+        var parameters = string.Join(", ", node.Parameters.Select(p => Visit(p)));
 
         var methodName = SanitizeIdentifier(node.Name);
 
@@ -358,7 +377,7 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         var whereClause = "";
         if (node.TypeParameters.Count > 0)
         {
-            typeParams = "<" + string.Join(", ", node.TypeParameters.Select(tp => tp.Name)) + ">";
+            typeParams = "<" + string.Join(", ", node.TypeParameters.Select(tp => tp.Accept(this))) + ">";
 
             // Build where clauses
             var whereClauses = new List<string>();
@@ -455,13 +474,44 @@ public sealed class CSharpEmitter : IAstVisitor<string>
 
     public string Visit(ParameterNode node)
     {
-        return $"{MapTypeName(node.TypeName)} {SanitizeIdentifier(node.Name)}";
+        var attrPrefix = "";
+        if (node.CSharpAttributes.Count > 0)
+        {
+            var attrs = node.CSharpAttributes.Select(a =>
+            {
+                var args = a.Arguments.Count > 0 ? $"({string.Join(", ", a.Arguments)})" : "";
+                return $"[{a.Name}{args}]";
+            });
+            attrPrefix = string.Join(" ", attrs) + " ";
+        }
+        var prefix = "";
+        if (node.Modifier.HasFlag(ParameterModifier.This)) prefix += "this ";
+        if (node.Modifier.HasFlag(ParameterModifier.Ref)) prefix += "ref ";
+        if (node.Modifier.HasFlag(ParameterModifier.Out)) prefix += "out ";
+        if (node.Modifier.HasFlag(ParameterModifier.In)) prefix += "in ";
+        if (node.Modifier.HasFlag(ParameterModifier.Params)) prefix += "params ";
+        var result = $"{attrPrefix}{prefix}{MapTypeName(node.TypeName)} {SanitizeIdentifier(node.Name)}";
+        if (node.DefaultValue != null)
+        {
+            result += $" = {node.DefaultValue.Accept(this)}";
+        }
+        return result;
     }
 
     public string Visit(CallStatementNode node)
     {
         var target = node.Target;
-        var args = string.Join(", ", node.Arguments.Select(a => a.Accept(this)));
+        var argStrings = new List<string>();
+        for (int i = 0; i < node.Arguments.Count; i++)
+        {
+            var argStr = node.Arguments[i].Accept(this);
+            if (node.ArgumentNames != null && i < node.ArgumentNames.Count && node.ArgumentNames[i] != null)
+            {
+                argStr = $"{node.ArgumentNames[i]}: {argStr}";
+            }
+            argStrings.Add(argStr);
+        }
+        var args = string.Join(", ", argStrings);
 
         return $"{target}({args});";
     }
@@ -484,15 +534,12 @@ public sealed class CSharpEmitter : IAstVisitor<string>
 
     public string Visit(StringLiteralNode node)
     {
-        // Check if this is an interpolated string (contains ${identifier})
-        // Only match Calor interpolation syntax: ${identifier}, not format placeholders ${0}
-        // Calor interpolation uses identifiers (letters, underscores), not numbers
-        var interpolationRegex = new System.Text.RegularExpressions.Regex(@"\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}");
-        if (interpolationRegex.IsMatch(node.Value))
+        // Check if this is an interpolated string (contains ${expr})
+        // Uses brace-depth matching to support complex expressions like ${arr[0]}, ${obj.Method()}, etc.
+        // Content starting with a digit (e.g., ${0}) is treated as a format placeholder, not interpolation
+        var (converted, hasInterpolation) = ConvertInlineInterpolation(node.Value);
+        if (hasInterpolation)
         {
-            // Convert Calor interpolation ${expr} to C# interpolation {expr}
-            var converted = interpolationRegex.Replace(node.Value, "{$1}");
-
             // Escape for C# string literal (but not the interpolation braces)
             var escaped = converted
                 .Replace("\\", "\\\\")
@@ -504,6 +551,13 @@ public sealed class CSharpEmitter : IAstVisitor<string>
             return $"$\"{escaped}\"";
         }
 
+        // Multiline strings (from triple-quote """ ... """) emit as C# verbatim strings
+        if (node.IsMultiline && node.Value.Contains('\n'))
+        {
+            var verbatimValue = node.Value.Replace("\"", "\"\"");
+            return $"@\"{verbatimValue}\"";
+        }
+
         // Escape the string for C#
         var escapedValue = node.Value
             .Replace("\\", "\\\\")
@@ -513,6 +567,84 @@ public sealed class CSharpEmitter : IAstVisitor<string>
             .Replace("\t", "\\t");
 
         return $"\"{escapedValue}\"";
+    }
+
+    /// <summary>
+    /// Converts inline Calor interpolation syntax ${expr} to C# interpolation {expr}.
+    /// Uses brace-depth tracking to support complex expressions (indexers, method calls, etc.).
+    /// Content starting with a digit (e.g., ${0}) is treated as a format placeholder, not interpolation.
+    /// Limitation: quoted strings containing braces inside interpolation (e.g., ${map["key"]})
+    /// will miscount brace depth because the Lexer terminates the string at the inner quote.
+    /// Supporting that would require Lexer-level interpolation parsing.
+    /// </summary>
+    internal static (string converted, bool hasInterpolation) ConvertInlineInterpolation(string value)
+    {
+        // Fast path: skip StringBuilder allocation if there's no interpolation marker
+        if (!value.Contains("${"))
+            return (value, false);
+
+        var sb = new System.Text.StringBuilder(value.Length);
+        bool foundInterpolation = false;
+        int i = 0;
+
+        while (i < value.Length)
+        {
+            if (i + 1 < value.Length && value[i] == '$' && value[i + 1] == '{')
+            {
+                // Found ${, now find matching } using brace-depth tracking
+                int exprStart = i + 2;
+                int depth = 1;
+                int j = exprStart;
+
+                while (j < value.Length && depth > 0)
+                {
+                    if (value[j] == '{')
+                        depth++;
+                    else if (value[j] == '}')
+                        depth--;
+                    if (depth > 0)
+                        j++;
+                }
+
+                if (depth == 0)
+                {
+                    // Found matching } at position j
+                    string expr = value.Substring(exprStart, j - exprStart);
+
+                    // Check if this is a format placeholder (starts with digit)
+                    if (expr.Length > 0 && char.IsDigit(expr[0]))
+                    {
+                        // Keep as literal text
+                        sb.Append("${");
+                        sb.Append(expr);
+                        sb.Append('}');
+                    }
+                    else
+                    {
+                        // Convert to C# interpolation
+                        sb.Append('{');
+                        sb.Append(expr);
+                        sb.Append('}');
+                        foundInterpolation = true;
+                    }
+
+                    i = j + 1; // Skip past the closing }
+                }
+                else
+                {
+                    // Unmatched ${ — no closing }, treat as literal text
+                    sb.Append(value[i]);
+                    i++;
+                }
+            }
+            else
+            {
+                sb.Append(value[i]);
+                i++;
+            }
+        }
+
+        return (sb.ToString(), foundInterpolation);
     }
 
     public string Visit(BoolLiteralNode node)
@@ -530,18 +662,23 @@ public sealed class CSharpEmitter : IAstVisitor<string>
 
     public string Visit(FloatLiteralNode node)
     {
-        return node.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var str = node.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        // Ensure float literals always contain a decimal point so they aren't
+        // reinterpreted as integers in the generated C# code.
+        if (!node.IsDecimal && !str.Contains('.') && !str.Contains('E') && !str.Contains('e'))
+        {
+            str += ".0";
+        }
+        return node.IsDecimal ? str + "m" : str;
+    }
+
+    public string Visit(DecimalLiteralNode node)
+    {
+        return node.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) + "m";
     }
 
     public string Visit(ReferenceNode node)
     {
-        // Handle 'is' pattern expressions like "other is UnitSystem otherUnitSystem"
-        // These should be emitted as-is without sanitization
-        if (node.Name.Contains(" is "))
-        {
-            return node.Name;
-        }
-
         // Handle C# keywords that are used as literals (not identifiers)
         if (node.Name is "null" or "true" or "false")
         {
@@ -739,6 +876,8 @@ public sealed class CSharpEmitter : IAstVisitor<string>
     {
         var operand = node.Operand.Accept(this);
         var op = node.Operator.ToCSharpOperator();
+        if (node.Operator is UnaryOperator.PostIncrement or UnaryOperator.PostDecrement)
+            return $"({operand}{op})";
         return $"({op}{operand})";
     }
 
@@ -757,6 +896,21 @@ public sealed class CSharpEmitter : IAstVisitor<string>
     public string Visit(BreakStatementNode node)
     {
         return "break;";
+    }
+
+    public string Visit(YieldReturnStatementNode node)
+    {
+        if (node.Expression == null)
+        {
+            return "yield return;";
+        }
+        var expr = node.Expression.Accept(this);
+        return $"yield return {expr};";
+    }
+
+    public string Visit(YieldBreakStatementNode node)
+    {
+        return "yield break;";
     }
 
     // Phase 3: Type System
@@ -884,7 +1038,9 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         var visibility = method.Visibility switch
         {
             Visibility.Public => "public",
+            Visibility.ProtectedInternal => "protected internal",
             Visibility.Internal => "internal",
+            Visibility.Protected => "protected",
             Visibility.Private => "private",
             _ => "public"
         };
@@ -930,7 +1086,7 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         var whereClause = "";
         if (method.TypeParameters.Count > 0)
         {
-            typeParams = "<" + string.Join(", ", method.TypeParameters.Select(tp => tp.Name)) + ">";
+            typeParams = "<" + string.Join(", ", method.TypeParameters.Select(tp => tp.Accept(this))) + ">";
 
             var whereClauses = new List<string>();
             foreach (var tp in method.TypeParameters)
@@ -1094,8 +1250,15 @@ public sealed class CSharpEmitter : IAstVisitor<string>
 
         foreach (var matchCase in node.Cases)
         {
-            var pattern = EmitPattern(matchCase.Pattern);
-            AppendLine($"case {pattern}:");
+            if (matchCase.Pattern is WildcardPatternNode)
+            {
+                AppendLine("default:");
+            }
+            else
+            {
+                var pattern = EmitPattern(matchCase.Pattern);
+                AppendLine($"case {pattern}:");
+            }
             Indent();
 
             foreach (var stmt in matchCase.Body)
@@ -1131,6 +1294,9 @@ public sealed class CSharpEmitter : IAstVisitor<string>
             OkPatternNode op => $"{{ IsOk: true, Value: {EmitPattern(op.InnerPattern)} }}",
             ErrPatternNode ep => $"{{ IsErr: true, Error: {EmitPattern(ep.InnerPattern)} }}",
             ListPatternNode lp => Visit(lp),
+            NegatedPatternNode np => $"not {EmitPattern(np.Inner)}",
+            OrPatternNode orp => $"{EmitPattern(orp.Left)} or {EmitPattern(orp.Right)}",
+            AndPatternNode andp => $"{EmitPattern(andp.Left)} and {EmitPattern(andp.Right)}",
             _ => "_"
         };
     }
@@ -1361,18 +1527,42 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         var varName = SanitizeIdentifier(node.VariableName);
         var collection = node.Collection.Accept(this);
 
-        AppendLine($"foreach ({varType} {varName} in {collection})");
-        AppendLine("{");
-        Indent();
-
-        foreach (var stmt in node.Body)
+        if (node.IndexVariableName != null)
         {
-            var stmtCode = stmt.Accept(this);
-            AppendLine(stmtCode);
-        }
+            // Index starts at -1 and increments at the top of each iteration so that
+            // `continue` statements in the body don't skip the increment — matching
+            // the semantics of C#'s Select((item, index) => ...).
+            var indexName = SanitizeIdentifier(node.IndexVariableName);
+            AppendLine($"var {indexName} = -1;");
+            AppendLine($"foreach ({varType} {varName} in {collection})");
+            AppendLine("{");
+            Indent();
+            AppendLine($"{indexName}++;");
 
-        Dedent();
-        AppendLine("}");
+            foreach (var stmt in node.Body)
+            {
+                var stmtCode = stmt.Accept(this);
+                AppendLine(stmtCode);
+            }
+
+            Dedent();
+            AppendLine("}");
+        }
+        else
+        {
+            AppendLine($"foreach ({varType} {varName} in {collection})");
+            AppendLine("{");
+            Indent();
+
+            foreach (var stmt in node.Body)
+            {
+                var stmtCode = stmt.Accept(this);
+                AppendLine(stmtCode);
+            }
+
+            Dedent();
+            AppendLine("}");
+        }
 
         return "";
     }
@@ -1528,7 +1718,13 @@ public sealed class CSharpEmitter : IAstVisitor<string>
     public string Visit(TypeParameterNode node)
     {
         // Type parameters are handled in function/method signature emission
-        return node.Name;
+        var variance = node.Variance switch
+        {
+            VarianceKind.In => "in ",
+            VarianceKind.Out => "out ",
+            _ => ""
+        };
+        return $"{variance}{node.Name}";
     }
 
     public string Visit(TypeConstraintNode node)
@@ -1558,6 +1754,7 @@ public sealed class CSharpEmitter : IAstVisitor<string>
             TypeConstraintKind.Interface => constraint.TypeName ?? "object",
             TypeConstraintKind.BaseClass => constraint.TypeName ?? "object",
             TypeConstraintKind.TypeName => MapTypeName(constraint.TypeName ?? "object"),
+            TypeConstraintKind.NotNull => "notnull",
             _ => "object"
         };
     }
@@ -1575,7 +1772,7 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         var whereClause = "";
         if (node.TypeParameters.Count > 0)
         {
-            typeParams = "<" + string.Join(", ", node.TypeParameters.Select(tp => tp.Name)) + ">";
+            typeParams = "<" + string.Join(", ", node.TypeParameters.Select(tp => tp.Accept(this))) + ">";
 
             // Build where clauses
             var whereClauses = new List<string>();
@@ -1600,6 +1797,12 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         AppendLine($"public interface {name}{typeParams}{baseList}{whereClause}");
         AppendLine("{");
         Indent();
+
+        foreach (var prop in node.Properties)
+        {
+            Visit(prop);
+            AppendLine();
+        }
 
         foreach (var method in node.Methods)
         {
@@ -1644,7 +1847,7 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         var whereClause = "";
         if (node.TypeParameters.Count > 0)
         {
-            typeParams = "<" + string.Join(", ", node.TypeParameters.Select(tp => tp.Name)) + ">";
+            typeParams = "<" + string.Join(", ", node.TypeParameters.Select(tp => tp.Accept(this))) + ">";
 
             // Build where clauses
             var whereClauses = new List<string>();
@@ -1662,8 +1865,7 @@ public sealed class CSharpEmitter : IAstVisitor<string>
             }
         }
 
-        var parameters = string.Join(", ", node.Parameters.Select(p =>
-            $"{MapTypeName(p.TypeName)} {SanitizeIdentifier(p.Name)}"));
+        var parameters = string.Join(", ", node.Parameters.Select(p => Visit(p)));
 
         AppendLine($"{mappedReturnType} {methodName}{typeParams}({parameters}){whereClause};");
 
@@ -1676,16 +1878,29 @@ public sealed class CSharpEmitter : IAstVisitor<string>
 
         var name = SanitizeIdentifier(node.Name);
 
-        var modifiers = "public";
+        var modifiers = node.Visibility switch
+        {
+            Visibility.Public => "public",
+            Visibility.ProtectedInternal => "protected internal",
+            Visibility.Internal => "internal",
+            Visibility.Protected => "protected",
+            Visibility.Private => "private",
+            _ => "internal"
+        };
         if (node.IsAbstract) modifiers += " abstract";
-        if (node.IsSealed) modifiers += " sealed";
+        if (!node.IsStruct && node.IsSealed) modifiers += " sealed";
+        if (node.IsStatic) modifiers += " static";
+        if (node.IsReadOnly) modifiers += " readonly";
+        if (node.IsPartial) modifiers += " partial";
+
+        var keyword = node.IsStruct ? "struct" : "class";
 
         // Build type parameters
         var typeParams = "";
         var whereClause = "";
         if (node.TypeParameters.Count > 0)
         {
-            typeParams = "<" + string.Join(", ", node.TypeParameters.Select(tp => tp.Name)) + ">";
+            typeParams = "<" + string.Join(", ", node.TypeParameters.Select(tp => tp.Accept(this))) + ">";
 
             var whereClauses = new List<string>();
             foreach (var tp in node.TypeParameters)
@@ -1711,7 +1926,7 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         baseList.AddRange(node.ImplementedInterfaces);
         var inheritance = baseList.Count > 0 ? " : " + string.Join(", ", baseList) : "";
 
-        AppendLine($"{modifiers} class {name}{typeParams}{inheritance}{whereClause}");
+        AppendLine($"{modifiers} {keyword} {name}{typeParams}{inheritance}{whereClause}");
         AppendLine("{");
         Indent();
 
@@ -1773,10 +1988,20 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         var visibility = node.Visibility switch
         {
             Visibility.Public => "public",
+            Visibility.ProtectedInternal => "protected internal",
             Visibility.Internal => "internal",
+            Visibility.Protected => "protected",
             Visibility.Private => "private",
             _ => "private"
         };
+
+        var parts = new List<string>();
+        if (node.IsRequired) parts.Add("required");
+        parts.Add(visibility);
+        if (node.Modifiers.HasFlag(MethodModifiers.Const)) parts.Add("const");
+        else if (node.IsStatic) parts.Add("static");
+        if (node.Modifiers.HasFlag(MethodModifiers.Readonly)) parts.Add("readonly");
+        var fullModifiers = string.Join(" ", parts);
 
         var typeName = MapTypeName(node.TypeName);
         var fieldName = SanitizeIdentifier(node.Name);
@@ -1784,11 +2009,11 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         if (node.DefaultValue != null)
         {
             var defaultVal = node.DefaultValue.Accept(this);
-            AppendLine($"{visibility} {typeName} {fieldName} = {defaultVal};");
+            AppendLine($"{fullModifiers} {typeName} {fieldName} = {defaultVal};");
         }
         else
         {
-            AppendLine($"{visibility} {typeName} {fieldName};");
+            AppendLine($"{fullModifiers} {typeName} {fieldName};");
         }
 
         return "";
@@ -1804,13 +2029,16 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         var visibility = node.Visibility switch
         {
             Visibility.Public => "public",
+            Visibility.ProtectedInternal => "protected internal",
             Visibility.Internal => "internal",
+            Visibility.Protected => "protected",
             Visibility.Private => "private",
             _ => "private"
         };
 
         var modifiers = new List<string> { visibility };
         if (node.IsStatic) modifiers.Add("static");
+        if (node.IsPartial) modifiers.Add("partial");
         if (node.IsAsync) modifiers.Add("async");
         if (node.IsAbstract) modifiers.Add("abstract");
         else if (node.IsVirtual) modifiers.Add("virtual");
@@ -1819,6 +2047,11 @@ public sealed class CSharpEmitter : IAstVisitor<string>
 
         var returnType = node.Output?.TypeName ?? "void";
         var mappedReturnType = MapTypeName(returnType);
+        // Wrap in IEnumerable if body contains yield statements
+        if (ContainsYieldStatements(node.Body))
+        {
+            mappedReturnType = WrapInIEnumerable(mappedReturnType);
+        }
         // Wrap in Task if async
         if (node.IsAsync)
         {
@@ -1832,7 +2065,7 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         var whereClause = "";
         if (node.TypeParameters.Count > 0)
         {
-            typeParams = "<" + string.Join(", ", node.TypeParameters.Select(tp => tp.Name)) + ">";
+            typeParams = "<" + string.Join(", ", node.TypeParameters.Select(tp => tp.Accept(this))) + ">";
 
             var whereClauses = new List<string>();
             foreach (var tp in node.TypeParameters)
@@ -1849,11 +2082,16 @@ public sealed class CSharpEmitter : IAstVisitor<string>
             }
         }
 
-        var parameters = string.Join(", ", node.Parameters.Select(p =>
-            $"{MapTypeName(p.TypeName)} {SanitizeIdentifier(p.Name)}"));
+        var parameters = string.Join(", ", node.Parameters.Select(p => Visit(p)));
 
-        // Abstract methods have no body
-        if (node.IsAbstract)
+        // Operator overload detection: op_ prefix methods emit C# operator syntax
+        if (node.Name.StartsWith("op_"))
+        {
+            return EmitOperatorMethod(node, modifiers, mappedReturnType, parameters);
+        }
+
+        // Abstract methods and partial method stubs have no body
+        if (node.IsAbstract || (node.IsPartial && node.Body.Count == 0))
         {
             AppendLine($"{string.Join(" ", modifiers)} {mappedReturnType} {methodName}{typeParams}({parameters}){whereClause};");
             return "";
@@ -1966,6 +2204,113 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         return "";
     }
 
+    private static readonly Dictionary<string, string> CilNameToOperator = new()
+    {
+        ["op_Addition"] = "+",
+        ["op_Subtraction"] = "-",
+        ["op_Multiply"] = "*",
+        ["op_Division"] = "/",
+        ["op_Modulus"] = "%",
+        ["op_Equality"] = "==",
+        ["op_Inequality"] = "!=",
+        ["op_LessThan"] = "<",
+        ["op_GreaterThan"] = ">",
+        ["op_LessThanOrEqual"] = "<=",
+        ["op_GreaterThanOrEqual"] = ">=",
+        ["op_UnaryNegation"] = "-",
+        ["op_UnaryPlus"] = "+",
+        ["op_LogicalNot"] = "!",
+        ["op_BitwiseAnd"] = "&",
+        ["op_BitwiseOr"] = "|",
+        ["op_ExclusiveOr"] = "^",
+    };
+
+    private string EmitOperatorMethod(MethodNode node, List<string> modifiers, string mappedReturnType, string parameters)
+    {
+        var modStr = string.Join(" ", modifiers);
+
+        if (node.Name == "op_Implicit")
+        {
+            AppendLine($"{modStr} implicit operator {mappedReturnType}({parameters})");
+        }
+        else if (node.Name == "op_Explicit")
+        {
+            AppendLine($"{modStr} explicit operator {mappedReturnType}({parameters})");
+        }
+        else if (CilNameToOperator.TryGetValue(node.Name, out var op))
+        {
+            AppendLine($"{modStr} {mappedReturnType} operator {op}({parameters})");
+        }
+        else
+        {
+            // Unknown operator — fall back to regular method
+            AppendLine($"{modStr} {mappedReturnType} {SanitizeIdentifier(node.Name)}({parameters})");
+        }
+
+        AppendLine("{");
+        Indent();
+
+        // Emit explicit preconditions
+        foreach (var requires in node.Preconditions)
+        {
+            var check = Visit(requires);
+            AppendLine(check);
+        }
+
+        var returnType = node.Output?.TypeName ?? "void";
+        var hasReturnValue = returnType.ToUpperInvariant() != "VOID";
+
+        // Handle postconditions
+        if (node.Postconditions.Count > 0 && hasReturnValue)
+        {
+            AppendLine($"{mappedReturnType} __result__ = default;");
+            AppendLine();
+
+            foreach (var statement in node.Body)
+            {
+                if (statement is ReturnStatementNode returnStmt && returnStmt.Expression != null)
+                {
+                    var expr = returnStmt.Expression.Accept(this);
+                    AppendLine($"__result__ = {expr};");
+                }
+                else
+                {
+                    var stmtCode = statement.Accept(this);
+                    AppendLine(stmtCode);
+                }
+            }
+
+            AppendLine();
+
+            foreach (var ensures in node.Postconditions)
+            {
+                var check = Visit(ensures).Replace("result", "__result__");
+                AppendLine(check);
+            }
+
+            AppendLine("return __result__;");
+        }
+        else
+        {
+            foreach (var statement in node.Body)
+            {
+                var stmtCode = statement.Accept(this);
+                AppendLine(stmtCode);
+            }
+
+            foreach (var ensures in node.Postconditions)
+            {
+                var check = Visit(ensures);
+                AppendLine(check);
+            }
+        }
+
+        Dedent();
+        AppendLine("}");
+
+        return "";
+    }
+
     public string Visit(NewExpressionNode node)
     {
         var typeName = SanitizeIdentifier(node.TypeName);
@@ -1975,14 +2320,40 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         }
 
         var args = string.Join(", ", node.Arguments.Select(a => a.Accept(this)));
-        return $"new {typeName}({args})";
+        var result = $"new {typeName}({args})";
+
+        if (node.Initializers.Count > 0)
+        {
+            var inits = node.Initializers.Select(i =>
+                $"{SanitizeIdentifier(i.PropertyName)} = {i.Value.Accept(this)}");
+            result += $" {{ {string.Join(", ", inits)} }}";
+        }
+
+        return result;
+    }
+
+    public string Visit(AnonymousObjectCreationNode node)
+    {
+        var props = node.Initializers.Select(i =>
+            $"{SanitizeIdentifier(i.PropertyName)} = {i.Value.Accept(this)}");
+        return $"new {{ {string.Join(", ", props)} }}";
     }
 
     public string Visit(CallExpressionNode node)
     {
         // Unescape braces that were escaped for Calor syntax: \{ -> { and \} -> }
         var target = UnescapeBraces(node.Target);
-        var args = string.Join(", ", node.Arguments.Select(a => a.Accept(this)));
+        var argStrings = new List<string>();
+        for (int i = 0; i < node.Arguments.Count; i++)
+        {
+            var argStr = node.Arguments[i].Accept(this);
+            if (node.ArgumentNames != null && i < node.ArgumentNames.Count && node.ArgumentNames[i] != null)
+            {
+                argStr = $"{node.ArgumentNames[i]}: {argStr}";
+            }
+            argStrings.Add(argStr);
+        }
+        var args = string.Join(", ", argStrings);
         return $"{target}({args})";
     }
 
@@ -2008,6 +2379,12 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         return "base";
     }
 
+    public string Visit(TupleLiteralNode node)
+    {
+        var elements = string.Join(", ", node.Elements.Select(e => e.Accept(this)));
+        return $"({elements})";
+    }
+
     // Phase 9: Properties and Constructors
 
     public string Visit(PropertyNode node)
@@ -2017,31 +2394,46 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         var visibility = node.Visibility switch
         {
             Visibility.Public => "public",
+            Visibility.ProtectedInternal => "protected internal",
             Visibility.Internal => "internal",
+            Visibility.Protected => "protected",
             Visibility.Private => "private",
             _ => "public"
         };
 
+        var modifiers = new List<string>();
+        if (node.IsRequired) modifiers.Add("required");
+        modifiers.Add(visibility);
+        if (node.IsStatic) modifiers.Add("static");
+        if (node.IsAbstract) modifiers.Add("abstract");
+        else if (node.IsVirtual) modifiers.Add("virtual");
+        if (node.IsOverride) modifiers.Add("override");
+        if (node.IsSealed && node.IsOverride) modifiers.Add("sealed");
+
+        var modifierStr = string.Join(" ", modifiers);
         var typeName = MapTypeName(node.TypeName);
         var propName = SanitizeIdentifier(node.Name);
 
         // Auto-property with default value
         if (node.IsAutoProperty)
         {
+            var accessors = node.Setter != null ? "get; set;" :
+                            node.Initer != null ? "get; init;" :
+                            "get;";
             if (node.DefaultValue != null)
             {
                 var defaultVal = node.DefaultValue.Accept(this);
-                AppendLine($"{visibility} {typeName} {propName} {{ get; set; }} = {defaultVal};");
+                AppendLine($"{modifierStr} {typeName} {propName} {{ {accessors} }} = {defaultVal};");
             }
             else
             {
-                AppendLine($"{visibility} {typeName} {propName} {{ get; set; }}");
+                AppendLine($"{modifierStr} {typeName} {propName} {{ {accessors} }}");
             }
             return "";
         }
 
         // Property with accessors
-        AppendLine($"{visibility} {typeName} {propName}");
+        AppendLine($"{modifierStr} {typeName} {propName}");
         AppendLine("{");
         Indent();
 
@@ -2079,6 +2471,7 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         var visibilityPrefix = node.Visibility switch
         {
             Visibility.Private => "private ",
+            Visibility.ProtectedInternal => "protected internal ",
             Visibility.Internal => "internal ",
             Visibility.Protected => "protected ",
             _ => ""
@@ -2124,15 +2517,16 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         var visibility = node.Visibility switch
         {
             Visibility.Public => "public",
+            Visibility.ProtectedInternal => "protected internal",
             Visibility.Internal => "internal",
+            Visibility.Protected => "protected",
             Visibility.Private => "private",
             _ => "public"
         };
 
         // Constructor name is the class name
         var ctorName = _currentClassName ?? "UnknownClass";
-        var parameters = string.Join(", ", node.Parameters.Select(p =>
-            $"{MapTypeName(p.TypeName)} {SanitizeIdentifier(p.Name)}"));
+        var parameters = string.Join(", ", node.Parameters.Select(p => Visit(p)));
 
         var initializerStr = "";
         if (node.Initializer != null)
@@ -2178,9 +2572,7 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         }
         else
         {
-            // true/false operators need a space: operator true(...), operator false(...)
-            var opSpace = node.OperatorToken is "true" or "false" ? " " : "";
-            AppendLine($"public static {returnType} operator{opSpace}{node.OperatorToken}({parameters})");
+            AppendLine($"public static {returnType} operator {node.OperatorToken}({parameters})");
         }
 
         AppendLine("{");
@@ -2396,6 +2788,7 @@ public sealed class CSharpEmitter : IAstVisitor<string>
 
     public string Visit(LambdaExpressionNode node)
     {
+        var staticMod = node.IsStatic ? "static " : "";
         var async = node.IsAsync ? "async " : "";
         var parameters = node.Parameters.Count switch
         {
@@ -2407,12 +2800,12 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         if (node.IsExpressionLambda && node.ExpressionBody != null)
         {
             var body = node.ExpressionBody.Accept(this);
-            return $"{async}{parameters} => {body}";
+            return $"{staticMod}{async}{parameters} => {body}";
         }
         else if (node.StatementBody != null && node.StatementBody.Count > 0)
         {
             var sb = new StringBuilder();
-            sb.Append($"{async}{parameters} => {{\n");
+            sb.Append($"{staticMod}{async}{parameters} => {{\n");
             foreach (var stmt in node.StatementBody)
             {
                 sb.Append($"    {stmt.Accept(this)}\n");
@@ -2421,7 +2814,7 @@ public sealed class CSharpEmitter : IAstVisitor<string>
             return sb.ToString();
         }
 
-        return $"{async}{parameters} => default";
+        return $"{staticMod}{async}{parameters} => default";
     }
 
     public string Visit(DelegateDefinitionNode node)
@@ -2429,8 +2822,7 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         var name = SanitizeIdentifier(node.Name);
         var returnType = node.Output?.TypeName ?? "void";
         var mappedReturnType = MapTypeName(returnType);
-        var parameters = string.Join(", ", node.Parameters.Select(p =>
-            $"{MapTypeName(p.TypeName)} {SanitizeIdentifier(p.Name)}"));
+        var parameters = string.Join(", ", node.Parameters.Select(p => Visit(p)));
 
         AppendLine($"public delegate {mappedReturnType} {name}({parameters});");
         return "";
@@ -2441,7 +2833,9 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         var visibility = node.Visibility switch
         {
             Visibility.Public => "public",
+            Visibility.ProtectedInternal => "protected internal",
             Visibility.Internal => "internal",
+            Visibility.Protected => "protected",
             Visibility.Private => "private",
             _ => "public"
         };
@@ -2506,6 +2900,16 @@ public sealed class CSharpEmitter : IAstVisitor<string>
             {
                 sb.Append("{");
                 sb.Append(exprPart.Expression.Accept(this));
+                if (!string.IsNullOrEmpty(exprPart.AlignmentClause))
+                {
+                    sb.Append(",");
+                    sb.Append(exprPart.AlignmentClause);
+                }
+                if (!string.IsNullOrEmpty(exprPart.FormatSpecifier))
+                {
+                    sb.Append(":");
+                    sb.Append(exprPart.FormatSpecifier);
+                }
                 sb.Append("}");
             }
         }
@@ -2523,7 +2927,9 @@ public sealed class CSharpEmitter : IAstVisitor<string>
     public string Visit(InterpolatedStringExpressionNode node)
     {
         // This is typically only called standalone, not as part of interpolation
-        return node.Expression.Accept(this);
+        var alignment = !string.IsNullOrEmpty(node.AlignmentClause) ? $",{node.AlignmentClause}" : "";
+        var format = !string.IsNullOrEmpty(node.FormatSpecifier) ? $":{node.FormatSpecifier}" : "";
+        return $"{node.Expression.Accept(this)}{alignment}{format}";
     }
 
     public string Visit(NullCoalesceNode node)
@@ -2624,6 +3030,21 @@ public sealed class CSharpEmitter : IAstVisitor<string>
     public string Visit(ConstantPatternNode node)
     {
         return node.Value.Accept(this);
+    }
+
+    public string Visit(NegatedPatternNode node)
+    {
+        return $"not {EmitPattern(node.Inner)}";
+    }
+
+    public string Visit(OrPatternNode node)
+    {
+        return $"{EmitPattern(node.Left)} or {EmitPattern(node.Right)}";
+    }
+
+    public string Visit(AndPatternNode node)
+    {
+        return $"{EmitPattern(node.Left)} and {EmitPattern(node.Right)}";
     }
 
     #region Extended Features Visit Methods
@@ -2935,6 +3356,65 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         return returnType == "void" ? "Task" : $"Task<{returnType}>";
     }
 
+    /// <summary>
+    /// Wraps a return type in IEnumerable for iterator methods.
+    /// </summary>
+    private static string WrapInIEnumerable(string returnType)
+    {
+        // Don't wrap types that are already IEnumerable/IEnumerator
+        if (returnType.StartsWith("IEnumerable<", StringComparison.Ordinal) ||
+            returnType == "IEnumerable" ||
+            returnType.StartsWith("IEnumerator<", StringComparison.Ordinal) ||
+            returnType == "IEnumerator")
+        {
+            return returnType;
+        }
+
+        // void -> IEnumerable, T -> IEnumerable<T>
+        return returnType == "void" ? "IEnumerable" : $"IEnumerable<{returnType}>";
+    }
+
+    /// <summary>
+    /// Checks whether a statement list contains any yield statements.
+    /// </summary>
+    private static bool ContainsYieldStatements(IReadOnlyList<StatementNode> statements)
+    {
+        foreach (var stmt in statements)
+        {
+            if (stmt is YieldReturnStatementNode or YieldBreakStatementNode)
+                return true;
+            // Check nested blocks
+            if (stmt is IfStatementNode ifStmt)
+            {
+                if (ContainsYieldStatements(ifStmt.ThenBody)) return true;
+                if (ifStmt.ElseBody != null && ContainsYieldStatements(ifStmt.ElseBody)) return true;
+                foreach (var elseIf in ifStmt.ElseIfClauses)
+                    if (ContainsYieldStatements(elseIf.Body)) return true;
+            }
+            else if (stmt is ForStatementNode forStmt)
+            {
+                if (ContainsYieldStatements(forStmt.Body)) return true;
+            }
+            else if (stmt is WhileStatementNode whileStmt)
+            {
+                if (ContainsYieldStatements(whileStmt.Body)) return true;
+            }
+            else if (stmt is ForeachStatementNode foreachStmt)
+            {
+                if (ContainsYieldStatements(foreachStmt.Body)) return true;
+            }
+            else if (stmt is DoWhileStatementNode doWhileStmt)
+            {
+                if (ContainsYieldStatements(doWhileStmt.Body)) return true;
+            }
+            else if (stmt is TryStatementNode tryStmt)
+            {
+                if (ContainsYieldStatements(tryStmt.TryBody)) return true;
+            }
+        }
+        return false;
+    }
+
     private static string SanitizeIdentifier(string name)
     {
         // Replace any characters that aren't valid in C# identifiers
@@ -2948,7 +3428,7 @@ public sealed class CSharpEmitter : IAstVisitor<string>
             }
             else if (c == '.')
             {
-                sb.Append('_');
+                sb.Append('.');
             }
         }
 
@@ -2960,7 +3440,9 @@ public sealed class CSharpEmitter : IAstVisitor<string>
             result = "_" + result;
         }
 
-        // Handle reserved words
+        // Handle reserved words — prefix with @ to make valid C# identifiers.
+        // Exclude this/base/null/true/false — they are C# keywords with special
+        // meaning and should not appear as user-defined identifiers.
         return result switch
         {
             "class" or "struct" or "interface" or "enum" or
@@ -2969,7 +3451,7 @@ public sealed class CSharpEmitter : IAstVisitor<string>
             "int" or "string" or "bool" or "float" or "double" or
             "return" or "if" or "else" or "for" or "while" or
             "do" or "switch" or "case" or "break" or "continue" or
-            "new" or "this" or "base" or "null" or "true" or "false"
+            "new"
             => "@" + result,
             _ => result
         };
@@ -3190,6 +3672,9 @@ public sealed class CSharpEmitter : IAstVisitor<string>
 
         return node.Operation switch
         {
+            // Literal
+            CharOp.CharLiteral => EmitCharLiteral(args[0]),
+
             // Extraction
             CharOp.CharAt => $"{args[0]}[{args[1]}]",
             CharOp.CharCode => $"(int){args[0]}",
@@ -3210,6 +3695,33 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         };
     }
 
+    /// <summary>
+    /// Emits a C# char literal from a string literal argument.
+    /// Input is the emitted C# string (e.g., "\"Y\""), output is a char literal (e.g., "'Y'").
+    /// Handles special characters that need different escaping in char vs string context.
+    /// </summary>
+    private static string EmitCharLiteral(string stringArg)
+    {
+        // Strip surrounding double quotes from the emitted string literal
+        var inner = stringArg;
+        if (inner.StartsWith('"') && inner.EndsWith('"'))
+        {
+            inner = inner[1..^1];
+        }
+
+        // Handle characters that need escaping in a char literal
+        return inner switch
+        {
+            "'" => @"'\''",        // single quote needs escaping in char context
+            "\\\\" => @"'\\'",     // already-escaped backslash stays as-is
+            "\\n" => "'\\n'",      // newline
+            "\\r" => "'\\r'",      // carriage return
+            "\\t" => "'\\t'",      // tab
+            "\\0" => "'\\0'",      // null
+            _ => $"'{inner}'"      // normal character
+        };
+    }
+
     // Native Type Operations
 
     public string Visit(TypeOperationNode node)
@@ -3223,6 +3735,15 @@ public sealed class CSharpEmitter : IAstVisitor<string>
             TypeOp.As => $"{operand} as {csharpType}",
             _ => throw new NotSupportedException($"Unknown type operation: {node.Operation}")
         };
+    }
+
+    public string Visit(IsPatternNode node)
+    {
+        var operand = node.Operand.Accept(this);
+        var csharpType = MapTypeName(node.TargetType);
+        return node.VariableName != null
+            ? $"{operand} is {csharpType} {node.VariableName}"
+            : $"{operand} is {csharpType}";
     }
 
     // Native StringBuilder Operations
@@ -3260,6 +3781,13 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         return $"/* TODO: {node.FeatureName} */ {node.OriginalCSharp}";
     }
 
+    public string Visit(ExpressionStatementNode node)
+    {
+        var expr = node.Expression.Accept(this);
+        AppendLine($"{expr};");
+        return "";
+    }
+
     public string Visit(FallbackCommentNode node)
     {
         // Emit as a comment block
@@ -3271,6 +3799,29 @@ public sealed class CSharpEmitter : IAstVisitor<string>
             AppendLine($"   Suggestion: {node.Suggestion}");
         }
         AppendLine("*/");
+        return "";
+    }
+
+    public string Visit(TypeOfExpressionNode node)
+    {
+        return $"typeof({MapTypeName(node.TypeName)})";
+    }
+
+    public string Visit(ExpressionCallNode node)
+    {
+        var target = node.TargetExpression.Accept(this);
+        var args = string.Join(", ", node.Arguments.Select(a => a.Accept(this)));
+        return $"{target}({args})";
+    }
+
+    public string Visit(RawCSharpNode node)
+    {
+        // Emit raw C# content verbatim without applying scope indentation,
+        // since the raw content has its own formatting.
+        foreach (var line in node.CSharpCode.Split('\n'))
+        {
+            _builder.AppendLine(line.TrimEnd('\r'));
+        }
         return "";
     }
 

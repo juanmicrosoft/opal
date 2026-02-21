@@ -10,6 +10,7 @@ public sealed class CsprojInitializer
     private const string CalorTargetComment = " Calor Compilation Configuration ";
     private const string CompileCalorFilesTargetName = "CompileCalorFiles";
     private const string IncludeCalorGeneratedFilesTargetName = "IncludeCalorGeneratedFiles";
+    private const string ValidateCalorCompilerOverrideTargetName = "ValidateCalorCompilerOverride";
     private const string CleanCalorFilesTargetName = "CleanCalorFiles";
 
     private readonly ProjectDetector _detector;
@@ -89,7 +90,8 @@ public sealed class CsprojInitializer
         // Remove existing Calor targets
         var targetsToRemove = doc.Root!.Elements()
             .Where(e => e.Name.LocalName == "Target" &&
-                       (e.Attribute("Name")?.Value == CompileCalorFilesTargetName ||
+                       (e.Attribute("Name")?.Value == ValidateCalorCompilerOverrideTargetName ||
+                        e.Attribute("Name")?.Value == CompileCalorFilesTargetName ||
                         e.Attribute("Name")?.Value == IncludeCalorGeneratedFilesTargetName ||
                         e.Attribute("Name")?.Value == CleanCalorFilesTargetName))
             .ToList();
@@ -103,6 +105,8 @@ public sealed class CsprojInitializer
         var propsToRemove = doc.Root.Elements()
             .Where(e => e.Name.LocalName == "PropertyGroup" &&
                        e.Elements().Any(p => p.Name.LocalName == "CalorOutputDirectory" ||
+                                            p.Name.LocalName == "CalorCompilerPath" ||
+                                            p.Name.LocalName == "CalorCompilerOverride" ||
                                             p.Name.LocalName == "CalorToolVersion" ||
                                             p.Name.LocalName == "CalorRuntimePath"))
             .ToList();
@@ -161,6 +165,9 @@ public sealed class CsprojInitializer
                 new XAttribute("Condition", "'$(CalorOutputDirectory)' == ''"),
                 @"$(BaseIntermediateOutputPath)$(Configuration)\$(TargetFramework)\calor\"),
             new XElement("CalorCompilerPath",
+                new XAttribute("Condition", "'$(CalorCompilerOverride)' != '' and '$(CalorCompilerPath)' == ''"),
+                "$(CalorCompilerOverride)"),
+            new XElement("CalorCompilerPath",
                 new XAttribute("Condition", "'$(CalorCompilerPath)' == ''"),
                 "calor"));
 
@@ -170,7 +177,7 @@ public sealed class CsprojInitializer
         var runtimePropertyGroup = new XElement("PropertyGroup",
             new XElement("CalorToolVersion",
                 new XAttribute("Condition", "'$(CalorToolVersion)' == ''"),
-                "0.1.6"),
+                EmbeddedResourceHelper.GetVersion()),
             new XElement("CalorRuntimePath",
                 @"$(HOME)/.dotnet/tools/.store/calor/$(CalorToolVersion)/calor/$(CalorToolVersion)/tools/net8.0/any/Calor.Runtime.dll"));
 
@@ -191,6 +198,19 @@ public sealed class CsprojInitializer
                 new XAttribute("Exclude", "$(DefaultItemExcludes);$(DefaultExcludesInProjectFolder)")));
 
         root.Add(itemGroup);
+
+        // Add ValidateCalorCompilerOverride target (no Inputs/Outputs so it always runs)
+        var validateTarget = new XElement("Target",
+            new XAttribute("Name", ValidateCalorCompilerOverrideTargetName),
+            new XAttribute("BeforeTargets", CompileCalorFilesTargetName),
+            new XAttribute("Condition", "'$(CalorCompilerOverride)' != '' and '@(CalorCompile)' != ''"),
+            new XElement("Error",
+                new XAttribute("Condition", "!Exists('$(CalorCompilerOverride)')"),
+                new XAttribute("Text", "CalorCompilerOverride points to '$(CalorCompilerOverride)' which does not exist.")),
+            new XElement("Warning",
+                new XAttribute("Text", "CalorCompilerOverride is set — using local compiler from '$(CalorCompilerOverride)'")));
+
+        root.Add(validateTarget);
 
         // Add CompileCalorFiles target
         var compileTarget = new XElement("Target",
@@ -264,15 +284,16 @@ public sealed class CsprojInitializer
     /// </summary>
     public static string GenerateCalorTargetsXml()
     {
-        return """
+        return $"""
             <!-- Calor Compilation Configuration -->
             <PropertyGroup>
               <CalorOutputDirectory Condition="'$(CalorOutputDirectory)' == ''">$(BaseIntermediateOutputPath)$(Configuration)\$(TargetFramework)\calor\</CalorOutputDirectory>
+              <CalorCompilerPath Condition="'$(CalorCompilerOverride)' != '' and '$(CalorCompilerPath)' == ''">$(CalorCompilerOverride)</CalorCompilerPath>
               <CalorCompilerPath Condition="'$(CalorCompilerPath)' == ''">calor</CalorCompilerPath>
             </PropertyGroup>
 
             <PropertyGroup>
-              <CalorToolVersion Condition="'$(CalorToolVersion)' == ''">0.1.6</CalorToolVersion>
+              <CalorToolVersion Condition="'$(CalorToolVersion)' == ''">{EmbeddedResourceHelper.GetVersion()}</CalorToolVersion>
               <CalorRuntimePath>$(HOME)/.dotnet/tools/.store/calor/$(CalorToolVersion)/calor/$(CalorToolVersion)/tools/net8.0/any/Calor.Runtime.dll</CalorRuntimePath>
             </PropertyGroup>
 
@@ -286,6 +307,15 @@ public sealed class CsprojInitializer
             <ItemGroup>
               <CalorCompile Include="**\*.calr" Exclude="$(DefaultItemExcludes);$(DefaultExcludesInProjectFolder)" />
             </ItemGroup>
+
+            <!-- Validate CalorCompilerOverride (runs unconditionally, not subject to incremental build skip) -->
+            <Target Name="ValidateCalorCompilerOverride"
+                    BeforeTargets="CompileCalorFiles"
+                    Condition="'$(CalorCompilerOverride)' != '' and '@(CalorCompile)' != ''">
+              <Error Condition="!Exists('$(CalorCompilerOverride)')"
+                     Text="CalorCompilerOverride points to '$(CalorCompilerOverride)' which does not exist." />
+              <Warning Text="CalorCompilerOverride is set — using local compiler from '$(CalorCompilerOverride)'" />
+            </Target>
 
             <!-- Compile Calor files before C# compilation -->
             <Target Name="CompileCalorFiles"

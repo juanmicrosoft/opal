@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Calor.Compiler.Migration;
+using Calor.Compiler.Telemetry;
 
 namespace Calor.Compiler.Mcp.Tools;
 
@@ -90,18 +91,55 @@ public sealed class ConvertTool : McpToolBase
                 };
             }
 
+            // Track unsupported features in telemetry
+            if (CalorTelemetry.IsInitialized)
+            {
+                var telExplanation = result.Context.GetExplanation();
+                if (telExplanation.TotalUnsupportedCount > 0)
+                {
+                    CalorTelemetry.Instance.TrackUnsupportedFeatures(
+                        telExplanation.GetFeatureCounts(),
+                        telExplanation.TotalUnsupportedCount);
+                }
+            }
+
+            // Post-conversion validation: re-parse the generated Calor to catch invalid output
+            var issues = result.Issues.Select(i => new ConversionIssueOutput
+            {
+                Severity = i.Severity.ToString().ToLowerInvariant(),
+                Message = i.Message,
+                Line = i.Line ?? 0,
+                Column = i.Column ?? 0,
+                Suggestion = i.Suggestion
+            }).ToList();
+
+            var success = result.Success;
+
+            if (success && !string.IsNullOrWhiteSpace(result.CalorSource))
+            {
+                var parseResult = CalorSourceHelper.Parse(result.CalorSource, "converted-output.calr");
+                if (!parseResult.IsSuccess)
+                {
+                    success = false;
+                    foreach (var error in parseResult.Errors)
+                    {
+                        issues.Add(new ConversionIssueOutput
+                        {
+                            Severity = "error",
+                            Message = $"Generated Calor failed to parse: {error}",
+                            Line = 0,
+                            Column = 0,
+                            Suggestion = "The converter produced invalid Calor syntax. This is a converter bug — please report it."
+                        });
+                    }
+                }
+            }
+
             var output = new ConvertToolOutput
             {
-                Success = result.Success,
+                Success = success,
                 CalorSource = result.CalorSource,
-                Issues = result.Issues.Select(i => new ConversionIssueOutput
-                {
-                    Severity = i.Severity.ToString().ToLowerInvariant(),
-                    Message = i.Message,
-                    Line = i.Line ?? 0,
-                    Column = i.Column ?? 0,
-                    Suggestion = i.Suggestion
-                }).ToList(),
+                Issues = issues,
                 Stats = new ConversionStatsOutput
                 {
                     ClassesConverted = result.Context.Stats.ClassesConverted,
@@ -114,7 +152,7 @@ public sealed class ConvertTool : McpToolBase
                 Explanation = explanationOutput
             };
 
-            return Task.FromResult(McpToolResult.Json(output, isError: !result.Success));
+            return Task.FromResult(McpToolResult.Json(output, isError: !success));
         }
         catch (Exception ex)
         {

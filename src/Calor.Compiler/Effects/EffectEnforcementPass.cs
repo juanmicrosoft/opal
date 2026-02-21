@@ -33,6 +33,9 @@ public sealed class EffectEnforcementPass
     // Maps function name to ID for resolving internal calls
     private readonly Dictionary<string, string> _functionNameToId = new(StringComparer.Ordinal);
 
+    // Maps bare method name to ALL qualified function IDs (handles name collisions across classes)
+    private readonly Dictionary<string, List<string>> _methodNameToIds = new(StringComparer.Ordinal);
+
     public EffectEnforcementPass(
         DiagnosticBag diagnostics,
         EffectsCatalog? catalog = null,
@@ -53,11 +56,11 @@ public sealed class EffectEnforcementPass
     }
 
     /// <summary>
-    /// Enforces effect declarations across all functions in the module.
+    /// Enforces effect declarations across all functions and class methods in the module.
     /// </summary>
     public void Enforce(ModuleNode module)
     {
-        // Phase 1: Build function map and call graph
+        // Phase 1: Build function map and call graph (includes §F functions and §MT methods)
         BuildCallGraph(module);
 
         // Phase 2: Compute SCCs using Tarjan's algorithm
@@ -75,11 +78,129 @@ public sealed class EffectEnforcementPass
         {
             CheckEffects(function);
         }
+
+        // Phase 4b: Also check class methods and constructors
+        foreach (var cls in module.Classes)
+        {
+            foreach (var method in cls.Methods)
+            {
+                var wrappedId = $"{cls.Name}.{method.Id}";
+                if (_functions.TryGetValue(wrappedId, out var wrapped))
+                {
+                    CheckEffects(wrapped);
+                }
+            }
+            // Note: Constructors participate in the call graph (for SCC analysis)
+            // but are not checked for effects here because:
+            // 1. §CTOR has no §E{...} declaration syntax yet
+            // 2. Constructors inherently assign to fields (mut) which would always fail
+            // Constructor enforcement requires language-level §E support on §CTOR first.
+        }
+    }
+
+    /// <summary>
+    /// Creates a lightweight FunctionNode wrapper from a MethodNode for effect analysis.
+    /// Uses a qualified ID (className.methodId) to avoid collisions with top-level functions.
+    /// </summary>
+    private static FunctionNode ToFunctionNode(MethodNode method, string className)
+    {
+        var qualifiedId = $"{className}.{method.Id}";
+        return new FunctionNode(
+            method.Span,
+            qualifiedId,
+            method.Name,
+            method.Visibility,
+            method.Parameters,
+            method.Output,
+            method.Effects,
+            method.Body,
+            method.Attributes);
+    }
+
+    /// <summary>
+    /// Creates a lightweight FunctionNode wrapper from a ConstructorNode for effect analysis.
+    /// Constructors don't have §E{...} declarations, so effects will be null (treated as pure).
+    /// </summary>
+    private static FunctionNode ToFunctionNode(ConstructorNode ctor, string className)
+    {
+        var qualifiedId = $"{className}.{ctor.Id}";
+        return new FunctionNode(
+            ctor.Span,
+            qualifiedId,
+            $"{className}..ctor",
+            ctor.Visibility,
+            ctor.Parameters,
+            output: null,
+            effects: null,  // Constructors can't declare effects yet
+            ctor.Body,
+            ctor.Attributes);
+    }
+
+    /// <summary>
+    /// Resolves a call target string to an internal function ID.
+    /// Handles dotted targets like "variable.MethodName" or "ClassName.MethodName"
+    /// by extracting the bare method name and looking it up in the function name index.
+    /// When multiple classes define the same method name (ambiguous), returns null
+    /// to avoid false resolution. Use ResolveToAllInternalIds for call graph edges.
+    /// </summary>
+    private string? ResolveToInternalId(string callee)
+    {
+        // Exact match by function name (handles top-level calls and pre-resolved IDs)
+        if (_functionNameToId.TryGetValue(callee, out var id) && _functions.ContainsKey(id))
+            return id;
+
+        // Direct function ID match (for pre-resolved call targets)
+        if (_functions.ContainsKey(callee))
+            return callee;
+
+        // For dotted targets, try bare method name
+        var lastDot = callee.LastIndexOf('.');
+        if (lastDot > 0)
+        {
+            var bareMethodName = callee[(lastDot + 1)..];
+
+            // Check the multi-map for ambiguity: if multiple classes define this method,
+            // we can't safely resolve without type information
+            if (_methodNameToIds.TryGetValue(bareMethodName, out var candidates) && candidates.Count > 1)
+                return null; // Ambiguous — fall through to external resolution
+
+            if (_functionNameToId.TryGetValue(bareMethodName, out var bareId) && _functions.ContainsKey(bareId))
+                return bareId;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Resolves a call target to ALL possible internal function IDs.
+    /// Used for call graph edges where we want to be conservative
+    /// (track all possible callees for SCC computation).
+    /// </summary>
+    private List<string> ResolveToAllInternalIds(string callee)
+    {
+        // Exact match by function name
+        if (_functionNameToId.TryGetValue(callee, out var id) && _functions.ContainsKey(id))
+            return new List<string> { id };
+
+        // Direct function ID match
+        if (_functions.ContainsKey(callee))
+            return new List<string> { callee };
+
+        // For dotted targets, try bare method name — return ALL candidates
+        var lastDot = callee.LastIndexOf('.');
+        if (lastDot > 0)
+        {
+            var bareMethodName = callee[(lastDot + 1)..];
+            if (_methodNameToIds.TryGetValue(bareMethodName, out var candidates))
+                return candidates;
+        }
+
+        return new List<string>();
     }
 
     private void BuildCallGraph(ModuleNode module)
     {
-        // Index all functions by ID and name
+        // Index all top-level functions by ID and name
         foreach (var function in module.Functions)
         {
             _functions[function.Id] = function;
@@ -88,19 +209,48 @@ public sealed class EffectEnforcementPass
             _reverseCallGraph[function.Id] = new List<(string, TextSpan)>();
         }
 
-        // Build call edges
-        foreach (var function in module.Functions)
+        // Index class methods and constructors as wrapped FunctionNodes
+        foreach (var cls in module.Classes)
+        {
+            foreach (var method in cls.Methods)
+            {
+                var wrapped = ToFunctionNode(method, cls.Name);
+                _functions[wrapped.Id] = wrapped;
+                _functionNameToId[wrapped.Name] = wrapped.Id;
+                _callGraph[wrapped.Id] = new List<string>();
+                _reverseCallGraph[wrapped.Id] = new List<(string, TextSpan)>();
+
+                // Track all IDs for this method name (handles name collisions across classes)
+                if (!_methodNameToIds.TryGetValue(wrapped.Name, out var ids))
+                {
+                    ids = new List<string>();
+                    _methodNameToIds[wrapped.Name] = ids;
+                }
+                ids.Add(wrapped.Id);
+            }
+            foreach (var ctor in cls.Constructors)
+            {
+                var wrapped = ToFunctionNode(ctor, cls.Name);
+                _functions[wrapped.Id] = wrapped;
+                // Don't add to _functionNameToId — constructors aren't called by name
+                _callGraph[wrapped.Id] = new List<string>();
+                _reverseCallGraph[wrapped.Id] = new List<(string, TextSpan)>();
+            }
+        }
+
+        // Build call edges for all indexed functions (top-level and class methods)
+        foreach (var function in _functions.Values)
         {
             var calls = CollectCalls(function);
             foreach (var (callee, span) in calls)
             {
                 _reverseCallGraph[function.Id].Add((callee, span));
 
-                // Resolve callee name to ID for internal calls
-                var calleeId = _functionNameToId.TryGetValue(callee, out var id) ? id : callee;
+                // Resolve callee name to ALL possible internal IDs (conservative for SCC)
+                var calleeIds = ResolveToAllInternalIds(callee);
 
-                // Only track internal calls for SCC computation
-                if (_functions.ContainsKey(calleeId))
+                // Track internal calls for SCC computation
+                foreach (var calleeId in calleeIds)
                 {
                     if (!_callGraph.ContainsKey(calleeId))
                     {
@@ -162,11 +312,11 @@ public sealed class EffectEnforcementPass
         // Process successors (functions that v calls)
         foreach (var (calleeName, _) in _reverseCallGraph.GetValueOrDefault(v, new List<(string, TextSpan)>()))
         {
-            // Resolve callee name to ID for internal calls
-            var calleeId = _functionNameToId.TryGetValue(calleeName, out var id) ? id : calleeName;
+            // Resolve callee name to ID for internal calls (handles cross-class method calls)
+            var calleeId = ResolveToInternalId(calleeName);
 
             // Only consider internal functions for SCC
-            if (!_functions.ContainsKey(calleeId))
+            if (calleeId == null)
                 continue;
 
             if (!indices.ContainsKey(calleeId))
@@ -249,7 +399,7 @@ public sealed class EffectEnforcementPass
 
     private EffectSet InferEffects(FunctionNode function, HashSet<string> sccMembers)
     {
-        var context = new InferenceContext(_catalog, _resolver, _computedEffects, _functions, sccMembers, _policy, _strictEffects, _diagnostics, function.Id);
+        var context = new InferenceContext(_catalog, _resolver, _computedEffects, _functions, _functionNameToId, _methodNameToIds, sccMembers, _policy, _strictEffects, _diagnostics, function.Id);
         var inferrer = new EffectInferrer(context);
         return inferrer.InferFromStatements(function.Body);
     }
@@ -264,6 +414,11 @@ public sealed class EffectEnforcementPass
         {
             var forbidden = computedEffects.Except(declaredEffects).ToList();
 
+            // In permissive mode, demote forbidden-effect errors to warnings
+            var severity = _policy == UnknownCallPolicy.Permissive
+                ? DiagnosticSeverity.Warning
+                : DiagnosticSeverity.Error;
+
             foreach (var (kind, value) in forbidden)
             {
                 // Find the call chain that leads to this effect
@@ -274,7 +429,7 @@ public sealed class EffectEnforcementPass
                     function.Effects?.Span ?? function.Span,
                     DiagnosticCode.ForbiddenEffect,
                     $"Function '{function.Name}' uses effect '{EffectSetExtensions.ToSurfaceCode(kind, value)}' but does not declare it{chainStr}",
-                    DiagnosticSeverity.Error);
+                    severity);
             }
         }
     }
@@ -337,11 +492,11 @@ public sealed class EffectEnforcementPass
             {
                 foreach (var (calleeName, span) in calls)
                 {
-                    // Resolve callee name to ID for internal calls
-                    var calleeId = _functionNameToId.TryGetValue(calleeName, out var id) ? id : calleeName;
+                    // Resolve callee name to ID for internal calls (handles cross-class method calls)
+                    var calleeId = ResolveToInternalId(calleeName);
 
                     // Check external calls
-                    if (!_functions.ContainsKey(calleeId))
+                    if (calleeId == null)
                     {
                         var effects = _catalog.TryGetEffects(calleeName);
                         if (effects != null && effects.Contains(targetKind, targetValue))
@@ -373,6 +528,8 @@ public sealed class EffectEnforcementPass
         public EffectResolver Resolver { get; }
         public Dictionary<string, EffectSet> ComputedEffects { get; }
         public Dictionary<string, FunctionNode> Functions { get; }
+        public Dictionary<string, string> FunctionNameToId { get; }
+        public Dictionary<string, List<string>> MethodNameToIds { get; }
         public HashSet<string> SccMembers { get; }
         public UnknownCallPolicy Policy { get; }
         public bool StrictEffects { get; }
@@ -384,6 +541,8 @@ public sealed class EffectEnforcementPass
             EffectResolver resolver,
             Dictionary<string, EffectSet> computedEffects,
             Dictionary<string, FunctionNode> functions,
+            Dictionary<string, string> functionNameToId,
+            Dictionary<string, List<string>> methodNameToIds,
             HashSet<string> sccMembers,
             UnknownCallPolicy policy,
             bool strictEffects,
@@ -394,6 +553,8 @@ public sealed class EffectEnforcementPass
             Resolver = resolver;
             ComputedEffects = computedEffects;
             Functions = functions;
+            FunctionNameToId = functionNameToId;
+            MethodNameToIds = methodNameToIds;
             SccMembers = sccMembers;
             Policy = policy;
             StrictEffects = strictEffects;
@@ -408,6 +569,51 @@ public sealed class EffectEnforcementPass
     private sealed class EffectInferrer
     {
         private readonly InferenceContext _context;
+
+        /// <summary>
+        /// Known-pure method names (LINQ extension methods and similar).
+        /// Used as a last-resort fallback when full type resolution fails
+        /// because extension methods are called on instances (e.g., items.OrderBy(...)).
+        /// </summary>
+        private static readonly HashSet<string> KnownPureMethodNames = new(StringComparer.Ordinal)
+        {
+            "Where", "Select", "SelectMany",
+            "OrderBy", "OrderByDescending", "ThenBy", "ThenByDescending",
+            "GroupBy", "Join", "GroupJoin",
+            "First", "FirstOrDefault", "Single", "SingleOrDefault",
+            "Last", "LastOrDefault",
+            "Any", "All", "Count", "LongCount",
+            "Sum", "Average", "Min", "Max",
+            "Distinct", "DistinctBy", "Union", "UnionBy", "Intersect", "IntersectBy", "Except", "ExceptBy",
+            "Skip", "Take", "SkipWhile", "TakeWhile", "SkipLast", "TakeLast",
+            "Reverse", "Concat", "Zip",
+            "Aggregate",
+            "ToList", "ToArray", "ToDictionary", "ToHashSet", "ToLookup",
+            "OfType", "Cast", "AsEnumerable",
+            "DefaultIfEmpty", "Append", "Prepend",
+            "Contains", "SequenceEqual",
+            "Range", "Repeat", "Empty",
+            "ElementAt", "ElementAtOrDefault",
+            "Chunk", "Order", "OrderDescending",
+            // Common pure instance methods
+            "ToString", "GetHashCode", "Equals", "CompareTo", "GetType",
+            "Clone", "CopyTo", "GetEnumerator",
+            "Substring", "Trim", "TrimStart", "TrimEnd",
+            "StartsWith", "EndsWith", "Contains", "IndexOf", "LastIndexOf",
+            "Replace", "Split", "Join", "ToUpper", "ToLower", "ToUpperInvariant", "ToLowerInvariant",
+            "PadLeft", "PadRight", "Insert", "Remove",
+            // Collection methods
+            "Add", "Remove", "Clear", "ContainsKey", "ContainsValue",
+            "TryGetValue", "AddRange", "RemoveAt", "RemoveAll",
+            "Sort", "BinarySearch", "Find", "FindAll", "FindIndex", "FindLast",
+            "Exists", "TrueForAll", "ForEach", "ConvertAll",
+            // StringBuilder
+            "Append", "AppendLine", "AppendFormat",
+            // Math functions
+            "Abs", "Sqrt", "Pow", "Floor", "Ceiling", "Round",
+            "Log", "Log10", "Log2", "Sin", "Cos", "Tan",
+            "Clamp", "Sign", "Truncate",
+        };
 
         public EffectInferrer(InferenceContext context)
         {
@@ -498,6 +704,40 @@ public sealed class EffectEnforcementPass
                 }
             }
 
+            // Method-name fallback: extract just the method name and check
+            // against known-pure names (handles extension method calls like items.OrderBy(...))
+            var lastDotFallback = target.LastIndexOf('.');
+            if (lastDotFallback > 0)
+            {
+                var bareMethodName = target[(lastDotFallback + 1)..];
+                if (KnownPureMethodNames.Contains(bareMethodName))
+                {
+                    return EffectSet.Empty;
+                }
+            }
+
+            // Single-word targets with no dot are local variable/delegate invocations,
+            // not external calls. Assume pure since we lack type information.
+            // In strict mode, emit a warning so users know the effects are unverified.
+            if (!target.Contains('.'))
+            {
+                if (_context.StrictEffects)
+                {
+                    _context.Diagnostics.Report(
+                        span,
+                        DiagnosticCode.UnknownExternalCall,
+                        $"Delegate/variable invocation '{target}' has unverified effects. Consider wrapping in a function with declared effects.",
+                        DiagnosticSeverity.Warning);
+                }
+                return EffectSet.Empty;
+            }
+
+            // Permissive mode: assume pure for unknown calls (no diagnostic)
+            if (_context.Policy == UnknownCallPolicy.Permissive)
+            {
+                return EffectSet.Empty;
+            }
+
             // Unknown external call - report diagnostic based on policy
             ReportUnknownCall(target, span);
             return EffectSet.Unknown;
@@ -555,6 +795,7 @@ public sealed class EffectEnforcementPass
                     "HttpClient" => "System.Net.Http.HttpClient",
                     "Math" => "System.Math",
                     "Guid" => "System.Guid",
+                    "Enumerable" => "System.Linq.Enumerable",
                     _ => typePart
                 };
             }
@@ -564,6 +805,7 @@ public sealed class EffectEnforcementPass
 
         private FunctionNode? FindInternalFunctionByName(string name)
         {
+            // Try exact name match against computed effects
             foreach (var kvp in _context.ComputedEffects)
             {
                 if (_context.Functions.TryGetValue(kvp.Key, out var func) &&
@@ -572,6 +814,32 @@ public sealed class EffectEnforcementPass
                     return func;
                 }
             }
+
+            // For dotted targets (e.g., "_calculator.Add", "Helper.Format"),
+            // extract the bare method name and resolve via function name index.
+            // This handles cross-class method calls within the same module.
+            var lastDot = name.LastIndexOf('.');
+            if (lastDot > 0)
+            {
+                var bareMethodName = name[(lastDot + 1)..];
+
+                // Check for ambiguity: if multiple classes define the same method name,
+                // return null to fall through to external resolution (conservative).
+                if (_context.MethodNameToIds.TryGetValue(bareMethodName, out var candidates) && candidates.Count > 1)
+                    return null;
+
+                if (_context.FunctionNameToId.TryGetValue(bareMethodName, out var resolvedId) &&
+                    _context.Functions.TryGetValue(resolvedId, out var resolved))
+                {
+                    // Verify the resolved function has computed effects or is in current SCC
+                    if (_context.ComputedEffects.ContainsKey(resolvedId) ||
+                        _context.SccMembers.Contains(resolvedId))
+                    {
+                        return resolved;
+                    }
+                }
+            }
+
             return null;
         }
 
@@ -595,7 +863,8 @@ public sealed class EffectEnforcementPass
                     "System.Net.Http",
                     "System.Threading",
                     "System.Threading.Tasks",
-                    "System.Diagnostics"
+                    "System.Diagnostics",
+                    "System.Linq"
                 };
 
                 foreach (var ns in namespaces)
@@ -926,7 +1195,14 @@ public enum UnknownCallPolicy
     /// <summary>
     /// Unknown calls are errors unless stubbed.
     /// </summary>
-    StubRequired
+    StubRequired,
+
+    /// <summary>
+    /// Unknown calls are silently assumed pure.
+    /// Forbidden-effect checks (Calor0410) are demoted to warnings.
+    /// Designed for converted code that lacks effect annotations.
+    /// </summary>
+    Permissive
 }
 
 /// <summary>

@@ -55,11 +55,15 @@ public sealed class InterpolatedStringTextNode : InterpolatedStringPartNode
 public sealed class InterpolatedStringExpressionNode : InterpolatedStringPartNode
 {
     public ExpressionNode Expression { get; }
+    public string? FormatSpecifier { get; }
+    public string? AlignmentClause { get; }
 
-    public InterpolatedStringExpressionNode(TextSpan span, ExpressionNode expression)
+    public InterpolatedStringExpressionNode(TextSpan span, ExpressionNode expression, string? formatSpecifier = null, string? alignmentClause = null)
         : base(span)
     {
         Expression = expression ?? throw new ArgumentNullException(nameof(expression));
+        FormatSpecifier = formatSpecifier;
+        AlignmentClause = alignmentClause;
     }
 
     public override void Accept(IAstVisitor visitor) => visitor.Visit(this);
@@ -166,6 +170,44 @@ public sealed class IndexFromEndNode : ExpressionNode
         : base(span)
     {
         Offset = offset ?? throw new ArgumentNullException(nameof(offset));
+    }
+
+    public override void Accept(IAstVisitor visitor) => visitor.Visit(this);
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.Visit(this);
+}
+
+/// <summary>
+/// Represents a typeof expression.
+/// (typeof int) generates: typeof(int)
+/// </summary>
+public sealed class TypeOfExpressionNode : ExpressionNode
+{
+    public string TypeName { get; }
+
+    public TypeOfExpressionNode(TextSpan span, string typeName)
+        : base(span)
+    {
+        TypeName = typeName ?? throw new ArgumentNullException(nameof(typeName));
+    }
+
+    public override void Accept(IAstVisitor visitor) => visitor.Visit(this);
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.Visit(this);
+}
+
+/// <summary>
+/// Represents a call expression where the target is an expression rather than a string name.
+/// §C §NEW{object}§/NEW.GetType §/C generates: new object().GetType()
+/// </summary>
+public sealed class ExpressionCallNode : ExpressionNode
+{
+    public ExpressionNode TargetExpression { get; }
+    public IReadOnlyList<ExpressionNode> Arguments { get; }
+
+    public ExpressionCallNode(TextSpan span, ExpressionNode targetExpression, IReadOnlyList<ExpressionNode> arguments)
+        : base(span)
+    {
+        TargetExpression = targetExpression ?? throw new ArgumentNullException(nameof(targetExpression));
+        Arguments = arguments ?? throw new ArgumentNullException(nameof(arguments));
     }
 
     public override void Accept(IAstVisitor visitor) => visitor.Visit(this);

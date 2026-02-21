@@ -22,31 +22,6 @@ public class CodexInitializerTests : IDisposable
     }
 
     [Fact]
-    public void EmbeddedResourceHelper_ReadSkill_ReturnsCodexCalorSkill()
-    {
-        var content = EmbeddedResourceHelper.ReadSkill("codex-calor-SKILL.md");
-
-        Assert.NotEmpty(content);
-        Assert.Contains("---", content); // YAML frontmatter
-        Assert.Contains("name: calor", content);
-        Assert.Contains("description:", content);
-        Assert.Contains("Calor", content);
-        Assert.Contains("§M", content);
-    }
-
-    [Fact]
-    public void EmbeddedResourceHelper_ReadSkill_ReturnsCodexConvertSkill()
-    {
-        var content = EmbeddedResourceHelper.ReadSkill("codex-calor-convert-SKILL.md");
-
-        Assert.NotEmpty(content);
-        Assert.Contains("---", content); // YAML frontmatter
-        Assert.Contains("name: calor-convert", content);
-        Assert.Contains("description:", content);
-        Assert.Contains("Type Mappings", content);
-    }
-
-    [Fact]
     public void EmbeddedResourceHelper_ReadTemplate_ReturnsAgentsMdTemplate()
     {
         var content = EmbeddedResourceHelper.ReadTemplate("AGENTS.md.template");
@@ -54,53 +29,10 @@ public class CodexInitializerTests : IDisposable
         Assert.NotEmpty(content);
         Assert.Contains("Calor-First Project", content);
         Assert.Contains("{{VERSION}}", content);
-        Assert.Contains("$calor", content);
-        Assert.Contains("$calor-convert", content);
+        Assert.Contains("calor_syntax_help", content);
+        Assert.Contains("calor_syntax_lookup", content);
         Assert.Contains("<!-- BEGIN CalorC SECTION - DO NOT EDIT -->", content);
         Assert.Contains("<!-- END CalorC SECTION -->", content);
-    }
-
-    [Fact]
-    public async Task CodexInitializer_Initialize_CreatesSkillsDirectories()
-    {
-        var initializer = new CodexInitializer();
-
-        var result = await initializer.InitializeAsync(_testDirectory, force: false);
-
-        Assert.True(result.Success);
-        Assert.True(Directory.Exists(Path.Combine(_testDirectory, ".codex", "skills", "calor")));
-        Assert.True(Directory.Exists(Path.Combine(_testDirectory, ".codex", "skills", "calor-convert")));
-    }
-
-    [Fact]
-    public async Task CodexInitializer_Initialize_CreatesCalorSkill()
-    {
-        var initializer = new CodexInitializer();
-
-        var result = await initializer.InitializeAsync(_testDirectory, force: false);
-
-        var skillPath = Path.Combine(_testDirectory, ".codex", "skills", "calor", "SKILL.md");
-        Assert.True(File.Exists(skillPath));
-        Assert.Contains(skillPath, result.CreatedFiles);
-
-        var content = await File.ReadAllTextAsync(skillPath);
-        Assert.Contains("name: calor", content);
-        Assert.Contains("Calor", content);
-    }
-
-    [Fact]
-    public async Task CodexInitializer_Initialize_CreatesConvertSkill()
-    {
-        var initializer = new CodexInitializer();
-
-        var result = await initializer.InitializeAsync(_testDirectory, force: false);
-
-        var skillPath = Path.Combine(_testDirectory, ".codex", "skills", "calor-convert", "SKILL.md");
-        Assert.True(File.Exists(skillPath));
-        Assert.Contains(skillPath, result.CreatedFiles);
-
-        var content = await File.ReadAllTextAsync(skillPath);
-        Assert.Contains("name: calor-convert", content);
     }
 
     [Fact]
@@ -135,54 +67,6 @@ public class CodexInitializerTests : IDisposable
         // Should contain note about guidance-based enforcement
         Assert.Contains("guidance-based", content);
         Assert.Contains("Unlike Claude Code which uses hooks", content);
-    }
-
-    [Fact]
-    public async Task CodexInitializer_Initialize_SkipsExistingSkillFilesWithoutForce()
-    {
-        var initializer = new CodexInitializer();
-
-        // First initialization
-        await initializer.InitializeAsync(_testDirectory, force: false);
-
-        // Modify a skill file
-        var skillPath = Path.Combine(_testDirectory, ".codex", "skills", "calor", "SKILL.md");
-        await File.WriteAllTextAsync(skillPath, "Custom skill content");
-
-        // Second initialization without force
-        var result = await initializer.InitializeAsync(_testDirectory, force: false);
-
-        Assert.True(result.Success);
-        Assert.NotEmpty(result.Warnings);
-        Assert.Contains(result.Warnings, w => w.Contains(skillPath));
-
-        // Skill file should not be overwritten
-        var content = await File.ReadAllTextAsync(skillPath);
-        Assert.Equal("Custom skill content", content);
-    }
-
-    [Fact]
-    public async Task CodexInitializer_Initialize_OverwritesSkillsWithForce()
-    {
-        var initializer = new CodexInitializer();
-
-        // First initialization
-        await initializer.InitializeAsync(_testDirectory, force: false);
-
-        // Modify a skill file
-        var skillPath = Path.Combine(_testDirectory, ".codex", "skills", "calor", "SKILL.md");
-        await File.WriteAllTextAsync(skillPath, "Custom skill content");
-
-        // Second initialization with force
-        var result = await initializer.InitializeAsync(_testDirectory, force: true);
-
-        Assert.True(result.Success);
-        Assert.Contains(skillPath, result.CreatedFiles);
-
-        // Skill file should be overwritten
-        var content = await File.ReadAllTextAsync(skillPath);
-        Assert.Contains("Calor", content);
-        Assert.DoesNotContain("Custom skill content", content);
     }
 
     [Fact]
@@ -356,30 +240,6 @@ This should be preserved.
     }
 
     [Fact]
-    public async Task CodexInitializer_Initialize_SkillsHaveYamlFrontmatter()
-    {
-        var initializer = new CodexInitializer();
-
-        await initializer.InitializeAsync(_testDirectory, force: false);
-
-        var calorSkillPath = Path.Combine(_testDirectory, ".codex", "skills", "calor", "SKILL.md");
-        var convertSkillPath = Path.Combine(_testDirectory, ".codex", "skills", "calor-convert", "SKILL.md");
-
-        var calorContent = await File.ReadAllTextAsync(calorSkillPath);
-        var convertContent = await File.ReadAllTextAsync(convertSkillPath);
-
-        // Both skills should start with YAML frontmatter
-        Assert.StartsWith("---", calorContent);
-        Assert.StartsWith("---", convertContent);
-
-        // YAML frontmatter should have required fields
-        Assert.Contains("name:", calorContent);
-        Assert.Contains("description:", calorContent);
-        Assert.Contains("name:", convertContent);
-        Assert.Contains("description:", convertContent);
-    }
-
-    [Fact]
     public void AiInitializerFactory_Create_ReturnsCodexInitializer()
     {
         var initializer = AiInitializerFactory.Create("codex");
@@ -389,13 +249,14 @@ This should be preserved.
     }
 
     [Fact]
-    public void AgentsMdTemplate_ContainsSkillReferences()
+    public void AgentsMdTemplate_ContainsMcpToolReferences()
     {
         var template = EmbeddedResourceHelper.ReadTemplate("AGENTS.md.template");
 
-        // Should reference Codex skill format ($skill)
-        Assert.Contains("$calor", template);
-        Assert.Contains("$calor-convert", template);
+        // Should reference MCP tools
+        Assert.Contains("calor_syntax_help", template);
+        Assert.Contains("calor_syntax_lookup", template);
+        Assert.Contains("calor_compile", template);
     }
 
     [Fact]

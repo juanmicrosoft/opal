@@ -38,9 +38,11 @@ public class ConverterImprovementTests
         var method = Assert.Single(cls.Methods);
         var ret = Assert.IsType<ReturnStatementNode>(method.Body[0]);
 
-        // The null-coalescing (??) is converted as BinaryOperationNode; right side should be ErrExpressionNode
-        var binary = Assert.IsType<BinaryOperationNode>(ret.Expression);
-        Assert.IsType<ErrExpressionNode>(binary.Right);
+        // The null-coalescing (??) is converted as ConditionalExpressionNode:
+        // (if (== input null) <throw-expr> input)
+        var conditional = Assert.IsType<ConditionalExpressionNode>(ret.Expression);
+        // WhenTrue is the throw expression (ERR), WhenFalse is the input variable
+        Assert.IsType<ErrExpressionNode>(conditional.WhenTrue);
     }
 
     [Fact]
@@ -190,7 +192,7 @@ public class ConverterImprovementTests
         // First statement should be a bind statement with a NewExpressionNode
         var bindStmt = Assert.IsType<BindStatementNode>(method.Body[0]);
         var newExpr = Assert.IsType<NewExpressionNode>(bindStmt.Initializer);
-        Assert.Equal("object", newExpr.TypeName);
+        Assert.Equal("List<i32>", newExpr.TypeName); // Type inferred from declaration
         Assert.Single(newExpr.Arguments);
     }
 
@@ -344,10 +346,12 @@ public class ConverterImprovementTests
         var cls = Assert.Single(result.Ast!.Classes);
         var method = Assert.Single(cls.Methods);
         var ret = Assert.IsType<ReturnStatementNode>(method.Body[0]);
-        var binary = Assert.IsType<BinaryOperationNode>(ret.Expression);
 
+        // The null-coalescing (??) is now a ConditionalExpressionNode:
+        // (if (== input null) <throw-expr> input)
+        var conditional = Assert.IsType<ConditionalExpressionNode>(ret.Expression);
         // throw ex → ErrExpressionNode wrapping a ReferenceNode
-        var err = Assert.IsType<ErrExpressionNode>(binary.Right);
+        var err = Assert.IsType<ErrExpressionNode>(conditional.WhenTrue);
         Assert.IsType<ReferenceNode>(err.Error);
     }
 
@@ -410,7 +414,7 @@ public class ConverterImprovementTests
         var method = Assert.Single(service.Methods);
         var bindStmt = Assert.IsType<BindStatementNode>(method.Body[0]);
         var newExpr = Assert.IsType<NewExpressionNode>(bindStmt.Initializer);
-        Assert.Equal("object", newExpr.TypeName);
+        Assert.Equal("Options", newExpr.TypeName); // Type inferred from declaration
         Assert.Single(newExpr.Arguments);
         Assert.Single(newExpr.Initializers);
         Assert.Equal("Verbose", newExpr.Initializers[0].PropertyName);
@@ -673,6 +677,568 @@ public class ConverterImprovementTests
             AssertExpressionNotFallback(cond.WhenTrue);
             AssertExpressionNotFallback(cond.WhenFalse);
         }
+    }
+
+    #endregion
+
+    #region Element Access: §IDX vs char-at
+
+    [Fact]
+    public void Migration_ArrayIndexing_ConvertsToIdx()
+    {
+        var csharp = """
+            public class Service
+            {
+                public string GetFirst(string[] args)
+                {
+                    return args[0];
+                }
+            }
+            """;
+
+        var result = _converter.Convert(csharp);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        var cls = Assert.Single(result.Ast!.Classes);
+        var method = Assert.Single(cls.Methods);
+        var ret = Assert.IsType<ReturnStatementNode>(method.Body[0]);
+        Assert.IsType<ArrayAccessNode>(ret.Expression);
+    }
+
+    [Fact]
+    public void Migration_ListIndexing_ConvertsToIdx()
+    {
+        var csharp = """
+            using System.Collections.Generic;
+            public class Service
+            {
+                public int GetItem(List<int> items, int i)
+                {
+                    return items[i];
+                }
+            }
+            """;
+
+        var result = _converter.Convert(csharp);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        var cls = Assert.Single(result.Ast!.Classes);
+        var method = Assert.Single(cls.Methods);
+        var ret = Assert.IsType<ReturnStatementNode>(method.Body[0]);
+        Assert.IsType<ArrayAccessNode>(ret.Expression);
+    }
+
+    [Fact]
+    public void Migration_StringLiteralIndexing_ConvertsToCharAt()
+    {
+        var csharp = """
+            public class Service
+            {
+                public char GetChar()
+                {
+                    return "hello"[0];
+                }
+            }
+            """;
+
+        var result = _converter.Convert(csharp);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        var cls = Assert.Single(result.Ast!.Classes);
+        var method = Assert.Single(cls.Methods);
+        var ret = Assert.IsType<ReturnStatementNode>(method.Body[0]);
+        Assert.IsType<CharOperationNode>(ret.Expression);
+    }
+
+    #endregion
+
+    #region Loop Bounds Adjustment
+
+    [Fact]
+    public void Migration_ForLessThan_AdjustsBoundDown()
+    {
+        var csharp = """
+            public class Service
+            {
+                public void Run(int n)
+                {
+                    for (int i = 0; i < n; i++)
+                    {
+                        System.Console.WriteLine(i);
+                    }
+                }
+            }
+            """;
+
+        var result = _converter.Convert(csharp);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        var cls = Assert.Single(result.Ast!.Classes);
+        var method = Assert.Single(cls.Methods);
+        var loop = Assert.IsType<ForStatementNode>(method.Body[0]);
+
+        // Upper bound should be (- n 1) for exclusive < bound
+        var to = Assert.IsType<BinaryOperationNode>(loop.To);
+        Assert.Equal(BinaryOperator.Subtract, to.Operator);
+        var right = Assert.IsType<IntLiteralNode>(to.Right);
+        Assert.Equal(1, right.Value);
+    }
+
+    [Fact]
+    public void Migration_ForLessThanOrEqual_NoBoundsAdjustment()
+    {
+        var csharp = """
+            public class Service
+            {
+                public void Run(int n)
+                {
+                    for (int i = 0; i <= n; i++)
+                    {
+                        System.Console.WriteLine(i);
+                    }
+                }
+            }
+            """;
+
+        var result = _converter.Convert(csharp);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        var cls = Assert.Single(result.Ast!.Classes);
+        var method = Assert.Single(cls.Methods);
+        var loop = Assert.IsType<ForStatementNode>(method.Body[0]);
+
+        // Upper bound should be n directly (no adjustment for inclusive <=)
+        Assert.IsType<ReferenceNode>(loop.To);
+    }
+
+    [Fact]
+    public void Migration_ForLessThan_CompoundBound_AdjustsCorrectly()
+    {
+        // i < arr.Length should produce (- arr.Length 1)
+        var csharp = """
+            public class Service
+            {
+                public void Run(int[] arr)
+                {
+                    for (int i = 0; i < arr.Length; i++)
+                    {
+                        System.Console.WriteLine(arr[i]);
+                    }
+                }
+            }
+            """;
+
+        var result = _converter.Convert(csharp);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        var cls = Assert.Single(result.Ast!.Classes);
+        var method = Assert.Single(cls.Methods);
+        var loop = Assert.IsType<ForStatementNode>(method.Body[0]);
+
+        // Upper bound should be (- arr.Length 1) wrapping the compound expression
+        var to = Assert.IsType<BinaryOperationNode>(loop.To);
+        Assert.Equal(BinaryOperator.Subtract, to.Operator);
+        var right = Assert.IsType<IntLiteralNode>(to.Right);
+        Assert.Equal(1, right.Value);
+        // Left side should be the arr.Length expression (FieldAccessNode or similar)
+        Assert.NotNull(to.Left);
+    }
+
+    [Fact]
+    public void Migration_ForGreaterThan_AdjustsBoundUp()
+    {
+        var csharp = """
+            public class Service
+            {
+                public void Run(int n)
+                {
+                    for (int i = 10; i > n; i--)
+                    {
+                        System.Console.WriteLine(i);
+                    }
+                }
+            }
+            """;
+
+        var result = _converter.Convert(csharp);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        var cls = Assert.Single(result.Ast!.Classes);
+        var method = Assert.Single(cls.Methods);
+        var loop = Assert.IsType<ForStatementNode>(method.Body[0]);
+
+        // Upper bound should be (+ n 1) for exclusive > bound
+        var to = Assert.IsType<BinaryOperationNode>(loop.To);
+        Assert.Equal(BinaryOperator.Add, to.Operator);
+        var right = Assert.IsType<IntLiteralNode>(to.Right);
+        Assert.Equal(1, right.Value);
+    }
+
+    #endregion
+
+    #region Mutable Variable Tracking
+
+    [Fact]
+    public void Migration_VariableNeverReassigned_EmitsLet()
+    {
+        var csharp = """
+            public class Service
+            {
+                public int Run()
+                {
+                    var x = 42;
+                    return x;
+                }
+            }
+            """;
+
+        var result = _converter.Convert(csharp);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        var cls = Assert.Single(result.Ast!.Classes);
+        var method = Assert.Single(cls.Methods);
+        var bind = Assert.IsType<BindStatementNode>(method.Body[0]);
+        Assert.False(bind.IsMutable, "Variable 'x' should be §LET (immutable) — it's never reassigned");
+    }
+
+    [Fact]
+    public void Migration_VariableReassigned_EmitsMut()
+    {
+        var csharp = """
+            public class Service
+            {
+                public int Run()
+                {
+                    var x = 0;
+                    x = 42;
+                    return x;
+                }
+            }
+            """;
+
+        var result = _converter.Convert(csharp);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        var cls = Assert.Single(result.Ast!.Classes);
+        var method = Assert.Single(cls.Methods);
+        var bind = Assert.IsType<BindStatementNode>(method.Body[0]);
+        Assert.True(bind.IsMutable, "Variable 'x' should be §MUT — it's reassigned");
+    }
+
+    [Fact]
+    public void Migration_VariableIncremented_EmitsMut()
+    {
+        var csharp = """
+            public class Service
+            {
+                public int Run()
+                {
+                    var count = 0;
+                    count++;
+                    return count;
+                }
+            }
+            """;
+
+        var result = _converter.Convert(csharp);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        var cls = Assert.Single(result.Ast!.Classes);
+        var method = Assert.Single(cls.Methods);
+        var bind = Assert.IsType<BindStatementNode>(method.Body[0]);
+        Assert.True(bind.IsMutable, "Variable 'count' should be §MUT — it's incremented");
+    }
+
+    #endregion
+
+    #region Const/Readonly Field Detection
+
+    [Fact]
+    public void Migration_ConstField_DetectsConstModifier()
+    {
+        var csharp = """
+            public class Config
+            {
+                public const int MaxRetries = 3;
+            }
+            """;
+
+        var result = _converter.Convert(csharp);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        var cls = Assert.Single(result.Ast!.Classes);
+        var field = Assert.Single(cls.Fields);
+        Assert.Equal("MaxRetries", field.Name);
+        Assert.True(field.Modifiers.HasFlag(MethodModifiers.Const));
+    }
+
+    [Fact]
+    public void Migration_ReadonlyField_DetectsReadonlyModifier()
+    {
+        var csharp = """
+            public class Config
+            {
+                private readonly string _name = "test";
+            }
+            """;
+
+        var result = _converter.Convert(csharp);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        var cls = Assert.Single(result.Ast!.Classes);
+        var field = Assert.Single(cls.Fields);
+        Assert.Equal("_name", field.Name);
+        Assert.True(field.Modifiers.HasFlag(MethodModifiers.Readonly));
+    }
+
+    [Fact]
+    public void Migration_StaticReadonlyField_DetectsBothModifiers()
+    {
+        var csharp = """
+            public class Config
+            {
+                public static readonly int DefaultTimeout = 30;
+            }
+            """;
+
+        var result = _converter.Convert(csharp);
+
+        Assert.True(result.Success, GetErrorMessage(result));
+        var cls = Assert.Single(result.Ast!.Classes);
+        var field = Assert.Single(cls.Fields);
+        Assert.True(field.Modifiers.HasFlag(MethodModifiers.Static));
+        Assert.True(field.Modifiers.HasFlag(MethodModifiers.Readonly));
+    }
+
+    [Fact]
+    public void CSharpEmitter_ConstField_EmitsConstKeyword()
+    {
+        var csharp = """
+            public class Config
+            {
+                public const int MaxRetries = 3;
+            }
+            """;
+
+        var result = _converter.Convert(csharp);
+        Assert.True(result.Success, GetErrorMessage(result));
+
+        var emitter = new Calor.Compiler.CodeGen.CSharpEmitter();
+        var output = emitter.Emit(result.Ast!);
+
+        Assert.Contains("public const int MaxRetries = 3;", output);
+    }
+
+    [Fact]
+    public void CSharpEmitter_ReadonlyField_EmitsReadonlyKeyword()
+    {
+        var csharp = """
+            public class Config
+            {
+                private readonly string _name = "test";
+            }
+            """;
+
+        var result = _converter.Convert(csharp);
+        Assert.True(result.Success, GetErrorMessage(result));
+
+        var emitter = new Calor.Compiler.CodeGen.CSharpEmitter();
+        var output = emitter.Emit(result.Ast!);
+
+        Assert.Contains("private readonly string _name", output);
+    }
+
+    [Fact]
+    public void CalorEmitter_ConstField_EmitsConstModifier()
+    {
+        var csharp = """
+            public class Config
+            {
+                public const int MaxRetries = 3;
+            }
+            """;
+
+        var result = _converter.Convert(csharp);
+        Assert.True(result.Success, GetErrorMessage(result));
+
+        var emitter = new Calor.Compiler.Migration.CalorEmitter();
+        var output = emitter.Emit(result.Ast!);
+
+        Assert.Contains("const", output);
+    }
+
+    #endregion
+
+    #region Modifier Abbreviation Tests
+
+    [Fact]
+    public void CalorEmitter_StaticClass_EmitsStatAbbreviation()
+    {
+        var source = """
+            §M{m1:TestMod}
+            §CL{c1:Helper:pub:stat}
+            §/CL{c1}
+            §/M{m1}
+            """;
+
+        var ast = Parse(source);
+        var emitter = new CalorEmitter();
+        var output = emitter.Emit(ast);
+
+        Assert.Contains(":stat}", output);
+        Assert.DoesNotContain(":static}", output);
+    }
+
+    [Fact]
+    public void CalorEmitter_SealedClass_EmitsSealAbbreviation()
+    {
+        var source = """
+            §M{m1:TestMod}
+            §CL{c1:Final:pub:seal}
+            §/CL{c1}
+            §/M{m1}
+            """;
+
+        var ast = Parse(source);
+        var emitter = new CalorEmitter();
+        var output = emitter.Emit(ast);
+
+        Assert.Contains(":seal}", output);
+        Assert.DoesNotContain(":sealed}", output);
+    }
+
+    [Fact]
+    public void RoundTrip_StaticClass_PreservesModifier()
+    {
+        var source = """
+            §M{m1:TestMod}
+            §CL{c1:Helper:pub:stat}
+            §/CL{c1}
+            §/M{m1}
+            """;
+
+        // Step 1: Parse original
+        var ast = Parse(source);
+        Assert.Single(ast.Classes);
+        Assert.True(ast.Classes[0].IsStatic);
+
+        // Step 2: Emit back to Calor
+        var emitter = new CalorEmitter();
+        var emitted = emitter.Emit(ast);
+
+        // Step 3: Re-parse the emitted Calor
+        var ast2 = Parse(emitted);
+        Assert.Single(ast2.Classes);
+        Assert.True(ast2.Classes[0].IsStatic);
+    }
+
+    [Fact]
+    public void CalorEmitter_SealedMethod_EmitsSealAbbreviation()
+    {
+        // Use C# converter to get a sealed override method in the AST,
+        // then verify CalorEmitter emits "seal" not "sealed"
+        var converter = new CSharpToCalorConverter();
+        var csharp = """
+            public class Base
+            {
+                public virtual int Compute() => 0;
+            }
+            public class Derived : Base
+            {
+                public sealed override int Compute() => 42;
+            }
+            """;
+
+        var result = converter.Convert(csharp);
+        Assert.True(result.Success, string.Join("\n", result.Issues.Select(i => i.Message)));
+
+        var emitter = new CalorEmitter();
+        var output = emitter.Emit(result.Ast!);
+
+        Assert.Contains("seal", output);
+        Assert.DoesNotContain("sealed", output);
+    }
+
+    [Fact]
+    public void CalorEmitter_StaticField_EmitsStatAbbreviation()
+    {
+        var source = """
+            §M{m1:TestMod}
+            §CL{c1:Counter:pub}
+              §FLD{i32:Count:pub:stat}
+            §/CL{c1}
+            §/M{m1}
+            """;
+
+        var ast = Parse(source);
+        var emitter = new CalorEmitter();
+        var output = emitter.Emit(ast);
+
+        Assert.Contains(":stat}", output);
+        Assert.DoesNotContain(":static}", output);
+    }
+
+    [Fact]
+    public void CalorEmitter_StaticProperty_EmitsStatAbbreviation()
+    {
+        // Parse Calor source with a static property, verify CalorEmitter
+        // emits "stat" in the PROP tag (not "static")
+        var source = """
+            §M{m1:TestMod}
+            §CL{c1:Counter:pub}
+              §PROP{p1:Count:i32:pub:stat}
+                §GET
+                §SET
+              §/PROP{p1}
+            §/CL{c1}
+            §/M{m1}
+            """;
+
+        var ast = Parse(source);
+        var emitter = new CalorEmitter();
+        var output = emitter.Emit(ast);
+
+        // Property tag should include stat modifier
+        Assert.Contains(":stat}", output);
+        Assert.DoesNotContain(":static}", output);
+    }
+
+    [Fact]
+    public void RoundTrip_StaticProperty_PreservesModifier()
+    {
+        var source = """
+            §M{m1:TestMod}
+            §CL{c1:Counter:pub}
+              §PROP{p1:Instance:Counter:pub:stat}
+                §GET
+                §SET
+              §/PROP{p1}
+            §/CL{c1}
+            §/M{m1}
+            """;
+
+        // Parse → emit → reparse
+        var ast = Parse(source);
+        var emitter = new CalorEmitter();
+        var emitted = emitter.Emit(ast);
+        var ast2 = Parse(emitted);
+
+        var prop = Assert.Single(ast2.Classes[0].Properties);
+        Assert.True(prop.IsStatic);
+
+        // Also verify generated C# has static keyword
+        var csharpEmitter = new Calor.Compiler.CodeGen.CSharpEmitter();
+        var csharp = csharpEmitter.Emit(ast2);
+        Assert.Contains("static Counter Instance", csharp);
+    }
+
+    private static ModuleNode Parse(string source)
+    {
+        var diagnostics = new Calor.Compiler.Diagnostics.DiagnosticBag();
+        var lexer = new Calor.Compiler.Parsing.Lexer(source, diagnostics);
+        var tokens = lexer.TokenizeAll();
+        var parser = new Calor.Compiler.Parsing.Parser(tokens, diagnostics);
+        return parser.Parse();
     }
 
     #endregion

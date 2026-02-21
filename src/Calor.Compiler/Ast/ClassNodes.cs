@@ -13,7 +13,11 @@ public enum MethodModifiers
     Override = 2,
     Abstract = 4,
     Sealed = 8,
-    Static = 16
+    Static = 16,
+    Const = 32,
+    Readonly = 64,
+    Required = 128,
+    Partial = 256
 }
 
 /// <summary>
@@ -28,6 +32,11 @@ public sealed class InterfaceDefinitionNode : TypeDefinitionNode
     /// Interface methods (signatures only).
     /// </summary>
     public IReadOnlyList<MethodSignatureNode> Methods { get; }
+
+    /// <summary>
+    /// Interface properties.
+    /// </summary>
+    public IReadOnlyList<PropertyNode> Properties { get; }
 
     /// <summary>
     /// Interfaces this interface extends.
@@ -51,7 +60,7 @@ public sealed class InterfaceDefinitionNode : TypeDefinitionNode
         IReadOnlyList<string> baseInterfaces,
         IReadOnlyList<MethodSignatureNode> methods,
         AttributeCollection attributes)
-        : this(span, id, name, baseInterfaces, Array.Empty<TypeParameterNode>(), methods, attributes, Array.Empty<CalorAttributeNode>())
+        : this(span, id, name, baseInterfaces, Array.Empty<TypeParameterNode>(), methods, Array.Empty<PropertyNode>(), attributes, Array.Empty<CalorAttributeNode>())
     {
     }
 
@@ -63,7 +72,7 @@ public sealed class InterfaceDefinitionNode : TypeDefinitionNode
         IReadOnlyList<MethodSignatureNode> methods,
         AttributeCollection attributes,
         IReadOnlyList<CalorAttributeNode> csharpAttributes)
-        : this(span, id, name, baseInterfaces, Array.Empty<TypeParameterNode>(), methods, attributes, csharpAttributes)
+        : this(span, id, name, baseInterfaces, Array.Empty<TypeParameterNode>(), methods, Array.Empty<PropertyNode>(), attributes, csharpAttributes)
     {
     }
 
@@ -76,11 +85,26 @@ public sealed class InterfaceDefinitionNode : TypeDefinitionNode
         IReadOnlyList<MethodSignatureNode> methods,
         AttributeCollection attributes,
         IReadOnlyList<CalorAttributeNode> csharpAttributes)
+        : this(span, id, name, baseInterfaces, typeParameters, methods, Array.Empty<PropertyNode>(), attributes, csharpAttributes)
+    {
+    }
+
+    public InterfaceDefinitionNode(
+        TextSpan span,
+        string id,
+        string name,
+        IReadOnlyList<string> baseInterfaces,
+        IReadOnlyList<TypeParameterNode> typeParameters,
+        IReadOnlyList<MethodSignatureNode> methods,
+        IReadOnlyList<PropertyNode> properties,
+        AttributeCollection attributes,
+        IReadOnlyList<CalorAttributeNode> csharpAttributes)
         : base(span, id, name, attributes)
     {
         BaseInterfaces = baseInterfaces ?? throw new ArgumentNullException(nameof(baseInterfaces));
         TypeParameters = typeParameters ?? throw new ArgumentNullException(nameof(typeParameters));
         Methods = methods ?? throw new ArgumentNullException(nameof(methods));
+        Properties = properties ?? Array.Empty<PropertyNode>();
         CSharpAttributes = csharpAttributes ?? Array.Empty<CalorAttributeNode>();
     }
 
@@ -204,6 +228,21 @@ public sealed class ClassDefinitionNode : TypeDefinitionNode
     /// True if this is a static class.
     /// </summary>
     public bool IsStatic { get; }
+
+    /// <summary>
+    /// True if this is a struct (value type).
+    /// </summary>
+    public bool IsStruct { get; }
+
+    /// <summary>
+    /// True if this is a readonly struct.
+    /// </summary>
+    public bool IsReadOnly { get; }
+
+    /// <summary>
+    /// The visibility level of this class (public, internal, protected, private).
+    /// </summary>
+    public Visibility Visibility { get; }
 
     /// <summary>
     /// The base class (if any).
@@ -379,13 +418,19 @@ public sealed class ClassDefinitionNode : TypeDefinitionNode
         IReadOnlyList<EventDefinitionNode> events,
         IReadOnlyList<OperatorOverloadNode> operatorOverloads,
         AttributeCollection attributes,
-        IReadOnlyList<CalorAttributeNode> csharpAttributes)
+        IReadOnlyList<CalorAttributeNode> csharpAttributes,
+        bool isStruct = false,
+        bool isReadOnly = false,
+        Visibility visibility = Visibility.Internal)
         : base(span, id, name, attributes)
     {
         IsAbstract = isAbstract;
         IsSealed = isSealed;
         IsPartial = isPartial;
         IsStatic = isStatic;
+        IsStruct = isStruct;
+        IsReadOnly = isReadOnly;
+        Visibility = visibility;
         BaseClass = baseClass;
         ImplementedInterfaces = implementedInterfaces ?? throw new ArgumentNullException(nameof(implementedInterfaces));
         TypeParameters = typeParameters ?? throw new ArgumentNullException(nameof(typeParameters));
@@ -411,6 +456,9 @@ public sealed class ClassFieldNode : AstNode
     public string Name { get; }
     public string TypeName { get; }
     public Visibility Visibility { get; }
+    public MethodModifiers Modifiers { get; }
+    public bool IsStatic => Modifiers.HasFlag(MethodModifiers.Static);
+    public bool IsRequired => Modifiers.HasFlag(MethodModifiers.Required);
     public ExpressionNode? DefaultValue { get; }
     public AttributeCollection Attributes { get; }
 
@@ -426,7 +474,7 @@ public sealed class ClassFieldNode : AstNode
         Visibility visibility,
         ExpressionNode? defaultValue,
         AttributeCollection attributes)
-        : this(span, name, typeName, visibility, defaultValue, attributes, Array.Empty<CalorAttributeNode>())
+        : this(span, name, typeName, visibility, MethodModifiers.None, defaultValue, attributes, Array.Empty<CalorAttributeNode>())
     {
     }
 
@@ -438,11 +486,25 @@ public sealed class ClassFieldNode : AstNode
         ExpressionNode? defaultValue,
         AttributeCollection attributes,
         IReadOnlyList<CalorAttributeNode> csharpAttributes)
+        : this(span, name, typeName, visibility, MethodModifiers.None, defaultValue, attributes, csharpAttributes)
+    {
+    }
+
+    public ClassFieldNode(
+        TextSpan span,
+        string name,
+        string typeName,
+        Visibility visibility,
+        MethodModifiers modifiers,
+        ExpressionNode? defaultValue,
+        AttributeCollection attributes,
+        IReadOnlyList<CalorAttributeNode> csharpAttributes)
         : base(span)
     {
         Name = name ?? throw new ArgumentNullException(nameof(name));
         TypeName = typeName ?? throw new ArgumentNullException(nameof(typeName));
         Visibility = visibility;
+        Modifiers = modifiers;
         DefaultValue = defaultValue;
         Attributes = attributes ?? throw new ArgumentNullException(nameof(attributes));
         CSharpAttributes = csharpAttributes ?? Array.Empty<CalorAttributeNode>();
@@ -542,6 +604,7 @@ public sealed class MethodNode : AstNode
     public bool IsAbstract => (Modifiers & MethodModifiers.Abstract) != 0;
     public bool IsSealed => (Modifiers & MethodModifiers.Sealed) != 0;
     public bool IsStatic => (Modifiers & MethodModifiers.Static) != 0;
+    public bool IsPartial => (Modifiers & MethodModifiers.Partial) != 0;
     public bool HasContracts => Preconditions.Count > 0 || Postconditions.Count > 0;
 
     public override void Accept(IAstVisitor visitor) => visitor.Visit(this);
@@ -761,6 +824,25 @@ public sealed class ObjectInitializerAssignment
 }
 
 /// <summary>
+/// Represents an anonymous object creation expression.
+/// §ANON PropertyName = value ... §/ANON
+/// Emits: new { PropertyName = value, ... }
+/// </summary>
+public sealed class AnonymousObjectCreationNode : ExpressionNode
+{
+    public IReadOnlyList<ObjectInitializerAssignment> Initializers { get; }
+
+    public AnonymousObjectCreationNode(TextSpan span, IReadOnlyList<ObjectInitializerAssignment> initializers)
+        : base(span)
+    {
+        Initializers = initializers ?? throw new ArgumentNullException(nameof(initializers));
+    }
+
+    public override void Accept(IAstVisitor visitor) => visitor.Visit(this);
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.Visit(this);
+}
+
+/// <summary>
 /// Represents a method/function call expression.
 /// §C[target] §A arg1 §A arg2 §/C
 /// </summary>
@@ -769,11 +851,25 @@ public sealed class CallExpressionNode : ExpressionNode
     public string Target { get; }
     public IReadOnlyList<ExpressionNode> Arguments { get; }
 
+    /// <summary>
+    /// Optional named argument labels, parallel to Arguments list.
+    /// Null entry means positional; non-null means named (e.g., "createIfNotExists").
+    /// </summary>
+    public IReadOnlyList<string?>? ArgumentNames { get; }
+
     public CallExpressionNode(TextSpan span, string target, IReadOnlyList<ExpressionNode> arguments)
         : base(span)
     {
         Target = target ?? throw new ArgumentNullException(nameof(target));
         Arguments = arguments ?? throw new ArgumentNullException(nameof(arguments));
+    }
+
+    public CallExpressionNode(TextSpan span, string target, IReadOnlyList<ExpressionNode> arguments, IReadOnlyList<string?>? argumentNames)
+        : base(span)
+    {
+        Target = target ?? throw new ArgumentNullException(nameof(target));
+        Arguments = arguments ?? throw new ArgumentNullException(nameof(arguments));
+        ArgumentNames = argumentNames;
     }
 
     public override void Accept(IAstVisitor visitor) => visitor.Visit(this);
@@ -799,6 +895,24 @@ public sealed class ThisExpressionNode : ExpressionNode
 public sealed class BaseExpressionNode : ExpressionNode
 {
     public BaseExpressionNode(TextSpan span) : base(span) { }
+
+    public override void Accept(IAstVisitor visitor) => visitor.Visit(this);
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.Visit(this);
+}
+
+/// <summary>
+/// Represents a tuple literal expression.
+/// (expr1, expr2, ...) → C# (expr1, expr2, ...)
+/// </summary>
+public sealed class TupleLiteralNode : ExpressionNode
+{
+    public IReadOnlyList<ExpressionNode> Elements { get; }
+
+    public TupleLiteralNode(TextSpan span, IReadOnlyList<ExpressionNode> elements)
+        : base(span)
+    {
+        Elements = elements ?? throw new ArgumentNullException(nameof(elements));
+    }
 
     public override void Accept(IAstVisitor visitor) => visitor.Visit(this);
     public override T Accept<T>(IAstVisitor<T> visitor) => visitor.Visit(this);

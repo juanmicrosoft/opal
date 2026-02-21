@@ -33,6 +33,7 @@ public interface IAstVisitor
     void Visit(BoolLiteralNode node);
     void Visit(ConditionalExpressionNode node);
     void Visit(FloatLiteralNode node);
+    void Visit(DecimalLiteralNode node);
     void Visit(ReferenceNode node);
     // Phase 2: Control Flow
     void Visit(ForStatementNode node);
@@ -104,9 +105,11 @@ public interface IAstVisitor
     void Visit(ClassFieldNode node);
     void Visit(MethodNode node);
     void Visit(NewExpressionNode node);
+    void Visit(AnonymousObjectCreationNode node);
     void Visit(CallExpressionNode node);
     void Visit(ThisExpressionNode node);
     void Visit(BaseExpressionNode node);
+    void Visit(TupleLiteralNode node);
     // Phase 9: Properties and Constructors
     void Visit(PropertyNode node);
     void Visit(PropertyAccessorNode node);
@@ -148,6 +151,9 @@ public interface IAstVisitor
     void Visit(ListPatternNode node);
     void Visit(VarPatternNode node);
     void Visit(ConstantPatternNode node);
+    void Visit(NegatedPatternNode node);
+    void Visit(OrPatternNode node);
+    void Visit(AndPatternNode node);
     // Extended Features Phase 1: Quick Wins
     void Visit(ExampleNode node);
     void Visit(IssueNode node);
@@ -185,9 +191,21 @@ public interface IAstVisitor
     void Visit(StringBuilderOperationNode node);
     // Native Type Operations
     void Visit(TypeOperationNode node);
+    void Visit(IsPatternNode node);
+    // Expression statement (bare expression as statement)
+    void Visit(ExpressionStatementNode node);
     // Fallback nodes for unsupported C# constructs
     void Visit(FallbackExpressionNode node);
     void Visit(FallbackCommentNode node);
+    // Feature 12: typeof expression
+    void Visit(TypeOfExpressionNode node);
+    // Feature 9: Expression call targets
+    void Visit(ExpressionCallNode node);
+    // Yield support
+    void Visit(YieldReturnStatementNode node);
+    void Visit(YieldBreakStatementNode node);
+    // Raw C# passthrough
+    void Visit(RawCSharpNode node);
 }
 
 /// <summary>
@@ -205,6 +223,7 @@ public interface IAstVisitor<T>
     T Visit(BoolLiteralNode node);
     T Visit(ConditionalExpressionNode node);
     T Visit(FloatLiteralNode node);
+    T Visit(DecimalLiteralNode node);
     T Visit(ReferenceNode node);
     // Phase 2: Control Flow
     T Visit(ForStatementNode node);
@@ -276,9 +295,11 @@ public interface IAstVisitor<T>
     T Visit(ClassFieldNode node);
     T Visit(MethodNode node);
     T Visit(NewExpressionNode node);
+    T Visit(AnonymousObjectCreationNode node);
     T Visit(CallExpressionNode node);
     T Visit(ThisExpressionNode node);
     T Visit(BaseExpressionNode node);
+    T Visit(TupleLiteralNode node);
     // Phase 9: Properties and Constructors
     T Visit(PropertyNode node);
     T Visit(PropertyAccessorNode node);
@@ -320,6 +341,9 @@ public interface IAstVisitor<T>
     T Visit(ListPatternNode node);
     T Visit(VarPatternNode node);
     T Visit(ConstantPatternNode node);
+    T Visit(NegatedPatternNode node);
+    T Visit(OrPatternNode node);
+    T Visit(AndPatternNode node);
     // Extended Features Phase 1: Quick Wins
     T Visit(ExampleNode node);
     T Visit(IssueNode node);
@@ -357,9 +381,21 @@ public interface IAstVisitor<T>
     T Visit(StringBuilderOperationNode node);
     // Native Type Operations
     T Visit(TypeOperationNode node);
+    T Visit(IsPatternNode node);
+    // Expression statement (bare expression as statement)
+    T Visit(ExpressionStatementNode node);
     // Fallback nodes for unsupported C# constructs
     T Visit(FallbackExpressionNode node);
     T Visit(FallbackCommentNode node);
+    // Feature 12: typeof expression
+    T Visit(TypeOfExpressionNode node);
+    // Feature 9: Expression call targets
+    T Visit(ExpressionCallNode node);
+    // Yield support
+    T Visit(YieldReturnStatementNode node);
+    T Visit(YieldBreakStatementNode node);
+    // Raw C# passthrough
+    T Visit(RawCSharpNode node);
 }
 
 /// <summary>

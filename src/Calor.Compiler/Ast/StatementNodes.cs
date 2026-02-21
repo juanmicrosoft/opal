@@ -21,6 +21,11 @@ public sealed class CallStatementNode : StatementNode
     public IReadOnlyList<ExpressionNode> Arguments { get; }
     public AttributeCollection Attributes { get; }
 
+    /// <summary>
+    /// Optional named argument labels, parallel to Arguments list.
+    /// </summary>
+    public IReadOnlyList<string?>? ArgumentNames { get; }
+
     public CallStatementNode(
         TextSpan span,
         string target,
@@ -33,6 +38,18 @@ public sealed class CallStatementNode : StatementNode
         Fallible = fallible;
         Arguments = arguments ?? throw new ArgumentNullException(nameof(arguments));
         Attributes = attributes ?? throw new ArgumentNullException(nameof(attributes));
+    }
+
+    public CallStatementNode(
+        TextSpan span,
+        string target,
+        bool fallible,
+        IReadOnlyList<ExpressionNode> arguments,
+        AttributeCollection attributes,
+        IReadOnlyList<string?>? argumentNames)
+        : this(span, target, fallible, arguments, attributes)
+    {
+        ArgumentNames = argumentNames;
     }
 
     public override void Accept(IAstVisitor visitor) => visitor.Visit(this);
@@ -78,6 +95,24 @@ public sealed class PrintStatementNode : StatementNode
 }
 
 /// <summary>
+/// Represents a bare expression used as a statement (e.g., (inc x), (post-dec y)).
+/// Emitted as: expression;
+/// </summary>
+public sealed class ExpressionStatementNode : StatementNode
+{
+    public ExpressionNode Expression { get; }
+
+    public ExpressionStatementNode(TextSpan span, ExpressionNode expression)
+        : base(span)
+    {
+        Expression = expression ?? throw new ArgumentNullException(nameof(expression));
+    }
+
+    public override void Accept(IAstVisitor visitor) => visitor.Visit(this);
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.Visit(this);
+}
+
+/// <summary>
 /// Represents a fallback comment for unsupported C# statements.
 /// Emitted as // TODO: Manual conversion needed [feature] with original C# code.
 /// </summary>
@@ -104,6 +139,28 @@ public sealed class FallbackCommentNode : StatementNode
         OriginalCSharp = originalCSharp ?? throw new ArgumentNullException(nameof(originalCSharp));
         FeatureName = featureName ?? throw new ArgumentNullException(nameof(featureName));
         Suggestion = suggestion;
+    }
+
+    public override void Accept(IAstVisitor visitor) => visitor.Visit(this);
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.Visit(this);
+}
+
+/// <summary>
+/// Represents a raw C# passthrough block.
+/// §RAW ... §/RAW
+/// Content is emitted verbatim as C# code without any transformation.
+/// </summary>
+public sealed class RawCSharpNode : StatementNode
+{
+    /// <summary>
+    /// The raw C# source code to emit verbatim.
+    /// </summary>
+    public string CSharpCode { get; }
+
+    public RawCSharpNode(TextSpan span, string csharpCode)
+        : base(span)
+    {
+        CSharpCode = csharpCode ?? throw new ArgumentNullException(nameof(csharpCode));
     }
 
     public override void Accept(IAstVisitor visitor) => visitor.Visit(this);

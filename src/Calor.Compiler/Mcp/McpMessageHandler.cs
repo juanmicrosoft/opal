@@ -38,6 +38,8 @@ public sealed class McpMessageHandler
         RegisterTool(new ValidateSnippetTool());
         RegisterTool(new CompatCheckTool());
 
+        RegisterTool(new SelfTestTool());
+
         // LSP-style navigation tools
         RegisterTool(new GotoDefinitionTool());
         RegisterTool(new FindReferencesTool());

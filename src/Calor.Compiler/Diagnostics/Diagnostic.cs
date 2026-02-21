@@ -22,6 +22,7 @@ public static class DiagnosticCode
     public const string UnterminatedString = "Calor0002";
     public const string InvalidTypedLiteral = "Calor0003";
     public const string InvalidEscapeSequence = "Calor0004";
+    public const string UnterminatedRawBlock = "Calor0005";
 
     // Parser errors (Calor0100-0199)
     public const string UnexpectedToken = "Calor0100";
@@ -31,6 +32,15 @@ public static class DiagnosticCode
     public const string ExpectedExpression = "Calor0104";
     public const string ExpectedClosingTag = "Calor0105";
     public const string InvalidOperator = "Calor0106";
+    public const string InvalidModifier = "Calor0107";
+
+    // Parser validation errors (Calor0110-0119)
+    public const string OperatorArgumentCount = "Calor0110";
+    public const string InvalidComparisonMode = "Calor0111";
+    public const string InvalidCharLiteral = "Calor0112";
+    public const string ExpectedTypeName = "Calor0113";
+    public const string InvalidLispExpression = "Calor0114";
+    public const string TypeParameterNotFound = "Calor0115";
 
     // Semantic errors (Calor0200-0299)
     public const string UndefinedReference = "Calor0200";
@@ -318,6 +328,13 @@ public static class DiagnosticCode
     /// Info: Sanitizer applied to tainted data.
     /// </summary>
     public const string TaintSanitized = "Calor0986";
+
+    // Code generation validation (Calor1000-1009)
+
+    /// <summary>
+    /// Warning: Generated C# code contains syntax errors.
+    /// </summary>
+    public const string CodeGenSyntaxError = "Calor1000";
 }
 
 /// <summary>

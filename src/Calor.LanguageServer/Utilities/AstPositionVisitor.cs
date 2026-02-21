@@ -45,6 +45,7 @@ public abstract class AstPositionVisitor<T> : IAstVisitor<T> where T : class?
     public virtual T Visit(StringLiteralNode node) => DefaultVisit(node)!;
     public virtual T Visit(BoolLiteralNode node) => DefaultVisit(node)!;
     public virtual T Visit(FloatLiteralNode node) => DefaultVisit(node)!;
+    public virtual T Visit(DecimalLiteralNode node) => DefaultVisit(node)!;
     public virtual T Visit(ReferenceNode node) => DefaultVisit(node)!;
     public virtual T Visit(ConditionalExpressionNode node) => DefaultVisit(node)!;
 
@@ -126,9 +127,11 @@ public abstract class AstPositionVisitor<T> : IAstVisitor<T> where T : class?
     public virtual T Visit(ClassFieldNode node) => DefaultVisit(node)!;
     public virtual T Visit(MethodNode node) => DefaultVisit(node)!;
     public virtual T Visit(NewExpressionNode node) => DefaultVisit(node)!;
+    public virtual T Visit(AnonymousObjectCreationNode node) => DefaultVisit(node)!;
     public virtual T Visit(CallExpressionNode node) => DefaultVisit(node)!;
     public virtual T Visit(ThisExpressionNode node) => DefaultVisit(node)!;
     public virtual T Visit(BaseExpressionNode node) => DefaultVisit(node)!;
+    public virtual T Visit(TupleLiteralNode node) => DefaultVisit(node)!;
 
     // Properties and constructors
     public virtual T Visit(PropertyNode node) => DefaultVisit(node)!;
@@ -176,6 +179,9 @@ public abstract class AstPositionVisitor<T> : IAstVisitor<T> where T : class?
     public virtual T Visit(ListPatternNode node) => DefaultVisit(node)!;
     public virtual T Visit(VarPatternNode node) => DefaultVisit(node)!;
     public virtual T Visit(ConstantPatternNode node) => DefaultVisit(node)!;
+    public virtual T Visit(NegatedPatternNode node) => DefaultVisit(node)!;
+    public virtual T Visit(OrPatternNode node) => DefaultVisit(node)!;
+    public virtual T Visit(AndPatternNode node) => DefaultVisit(node)!;
 
     // Extended features - documentation
     public virtual T Visit(ExampleNode node) => DefaultVisit(node)!;
@@ -210,9 +216,22 @@ public abstract class AstPositionVisitor<T> : IAstVisitor<T> where T : class?
     public virtual T Visit(StringOperationNode node) => DefaultVisit(node)!;
     public virtual T Visit(CharOperationNode node) => DefaultVisit(node)!;
     public virtual T Visit(TypeOperationNode node) => DefaultVisit(node)!;
+    public virtual T Visit(IsPatternNode node) => DefaultVisit(node)!;
     public virtual T Visit(StringBuilderOperationNode node) => DefaultVisit(node)!;
 
+    // Expression statement
+    public virtual T Visit(ExpressionStatementNode node) => DefaultVisit(node)!;
     // Fallback nodes
     public virtual T Visit(FallbackExpressionNode node) => DefaultVisit(node)!;
     public virtual T Visit(FallbackCommentNode node) => DefaultVisit(node)!;
+
+    // Feature 12: typeof expression
+    public virtual T Visit(TypeOfExpressionNode node) => DefaultVisit(node)!;
+    // Feature 9: Expression call targets
+    public virtual T Visit(ExpressionCallNode node) => DefaultVisit(node)!;
+    // Yield support
+    public virtual T Visit(YieldReturnStatementNode node) => DefaultVisit(node)!;
+    public virtual T Visit(YieldBreakStatementNode node) => DefaultVisit(node)!;
+    // Raw C# passthrough
+    public virtual T Visit(RawCSharpNode node) => DefaultVisit(node)!;
 }

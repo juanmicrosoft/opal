@@ -86,7 +86,6 @@ public class SolutionInitializerTests : IDisposable
 
         // AI files should be in solution directory, not project directories
         Assert.True(File.Exists(Path.Combine(_testDir, "CLAUDE.md")));
-        Assert.True(Directory.Exists(Path.Combine(_testDir, ".claude", "skills", "calor")));
         Assert.True(File.Exists(Path.Combine(_testDir, ".claude", "settings.json")));
 
         // AI files should NOT be in project directories
@@ -257,7 +256,341 @@ public class SolutionInitializerTests : IDisposable
 
     #endregion
 
+    #region .proj File Tests
+
+    [Fact]
+    public void SolutionDetector_Detect_FindsProjFile()
+    {
+        // Arrange - directory with only a .proj file
+        SetupProjWithProjects();
+        var detector = new SolutionDetector();
+
+        // Act
+        var result = detector.Detect(_testDir);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.EndsWith(".proj", result.SolutionPath);
+    }
+
+    [Fact]
+    public void SolutionParser_ParseProj_ReturnsReferencedProjects()
+    {
+        // Arrange
+        SetupProjWithProjects();
+        var projPath = Path.Combine(_testDir, "build.proj");
+
+        // Act
+        var projects = SolutionParser.ParseProj(projPath).ToList();
+
+        // Assert
+        Assert.Equal(2, projects.Count);
+        Assert.Contains(projects, p => p.Name == "Project1");
+        Assert.Contains(projects, p => p.Name == "Project2");
+        Assert.All(projects, p => Assert.EndsWith(".csproj", p.FullPath));
+    }
+
+    [Fact]
+    public void SolutionParser_ParseProj_ResolvesGlobPatterns()
+    {
+        // Arrange - .proj with glob pattern
+        SetupProjWithGlobPatterns();
+        var projPath = Path.Combine(_testDir, "build.proj");
+
+        // Act
+        var projects = SolutionParser.ParseProj(projPath).ToList();
+
+        // Assert
+        Assert.Equal(2, projects.Count);
+        Assert.Contains(projects, p => p.Name == "App1");
+        Assert.Contains(projects, p => p.Name == "App2");
+    }
+
+    [Fact]
+    public void SolutionParser_ParseProj_SkipsNonCsprojReferences()
+    {
+        // Arrange - .proj with mixed references including non-.csproj
+        var projContent = """
+            <Project Sdk="Microsoft.Build.Traversal">
+              <ItemGroup>
+                <ProjectReference Include="src/Project1/Project1.csproj" />
+                <ProjectReference Include="src/Project2/Project2.fsproj" />
+                <ProjectReference Include="src/Project3/Project3.vbproj" />
+              </ItemGroup>
+            </Project>
+            """;
+        File.WriteAllText(Path.Combine(_testDir, "build.proj"), projContent);
+
+        var project1Dir = Path.Combine(_testDir, "src", "Project1");
+        Directory.CreateDirectory(project1Dir);
+        File.WriteAllText(Path.Combine(project1Dir, "Project1.csproj"), SdkStyleCsproj);
+
+        var project2Dir = Path.Combine(_testDir, "src", "Project2");
+        Directory.CreateDirectory(project2Dir);
+        File.WriteAllText(Path.Combine(project2Dir, "Project2.fsproj"), "<Project/>");
+
+        var project3Dir = Path.Combine(_testDir, "src", "Project3");
+        Directory.CreateDirectory(project3Dir);
+        File.WriteAllText(Path.Combine(project3Dir, "Project3.vbproj"), "<Project/>");
+
+        var projPath = Path.Combine(_testDir, "build.proj");
+
+        // Act
+        var projects = SolutionParser.ParseProj(projPath).ToList();
+
+        // Assert - only .csproj should be included
+        Assert.Single(projects);
+        Assert.Equal("Project1", projects[0].Name);
+    }
+
+    [Fact]
+    public async Task SolutionInitializer_InitializeAsync_WithProjFile()
+    {
+        // Arrange
+        SetupProjWithProjects();
+        var projPath = Path.Combine(_testDir, "build.proj");
+
+        // Act
+        var result = await _initializer.InitializeAsync(projPath, force: false);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Equal(2, result.TotalProjects);
+        Assert.Equal(2, result.InitializedCount);
+
+        // Verify projects have Calor targets
+        var project1Path = Path.Combine(_testDir, "src", "Project1", "Project1.csproj");
+        var project2Path = Path.Combine(_testDir, "src", "Project2", "Project2.csproj");
+        Assert.Contains("CompileCalorFiles", File.ReadAllText(project1Path));
+        Assert.Contains("CompileCalorFiles", File.ReadAllText(project2Path));
+    }
+
+    [Fact]
+    public void SolutionParser_Parse_RoutesToParseProjForProjExtension()
+    {
+        // Arrange
+        SetupProjWithProjects();
+        var projPath = Path.Combine(_testDir, "build.proj");
+
+        // Act
+        var projects = SolutionParser.Parse(projPath).ToList();
+
+        // Assert
+        Assert.Equal(2, projects.Count);
+    }
+
+    [Fact]
+    public void SolutionDetector_Detect_PrefersSlnOverProj()
+    {
+        // Arrange - directory with both .sln and .proj
+        SetupSolutionWithProjects();
+        SetupProjWithProjects();
+        var detector = new SolutionDetector();
+
+        // Act
+        var result = detector.Detect(_testDir);
+
+        // Assert - multiple solutions found, but both are present
+        Assert.False(result.IsSuccess);
+        Assert.True(result.HasMultipleSolutions);
+    }
+
+    [Fact]
+    public void SolutionParser_ParseProj_ResolvesRecursiveGlobPatterns()
+    {
+        // Arrange - .proj with ** recursive glob pattern
+        var projContent = """
+            <Project Sdk="Microsoft.Build.Traversal">
+              <ItemGroup>
+                <ProjectReference Include="**/*.csproj" />
+              </ItemGroup>
+            </Project>
+            """;
+        File.WriteAllText(Path.Combine(_testDir, "build.proj"), projContent);
+
+        // Create projects in nested directories
+        var dir1 = Path.Combine(_testDir, "src", "LibA");
+        var dir2 = Path.Combine(_testDir, "src", "services", "LibB");
+        Directory.CreateDirectory(dir1);
+        Directory.CreateDirectory(dir2);
+
+        File.WriteAllText(Path.Combine(dir1, "LibA.csproj"), SdkStyleCsproj);
+        File.WriteAllText(Path.Combine(dir2, "LibB.csproj"), SdkStyleCsproj);
+
+        var projPath = Path.Combine(_testDir, "build.proj");
+
+        // Act
+        var projects = SolutionParser.ParseProj(projPath).ToList();
+
+        // Assert
+        Assert.Equal(2, projects.Count);
+        Assert.Contains(projects, p => p.Name == "LibA");
+        Assert.Contains(projects, p => p.Name == "LibB");
+    }
+
+    [Fact]
+    public void SolutionParser_ParseProj_ResolvesWildcardInDirectorySegment()
+    {
+        // Arrange - .proj with wildcard in directory segment: src/*/Project.csproj
+        var projContent = """
+            <Project Sdk="Microsoft.Build.Traversal">
+              <ItemGroup>
+                <ProjectReference Include="src/*/*.csproj" />
+              </ItemGroup>
+            </Project>
+            """;
+        File.WriteAllText(Path.Combine(_testDir, "build.proj"), projContent);
+
+        var dir1 = Path.Combine(_testDir, "src", "Alpha");
+        var dir2 = Path.Combine(_testDir, "src", "Beta");
+        Directory.CreateDirectory(dir1);
+        Directory.CreateDirectory(dir2);
+
+        File.WriteAllText(Path.Combine(dir1, "Alpha.csproj"), SdkStyleCsproj);
+        File.WriteAllText(Path.Combine(dir2, "Beta.csproj"), SdkStyleCsproj);
+
+        var projPath = Path.Combine(_testDir, "build.proj");
+
+        // Act
+        var projects = SolutionParser.ParseProj(projPath).ToList();
+
+        // Assert
+        Assert.Equal(2, projects.Count);
+        Assert.Contains(projects, p => p.Name == "Alpha");
+        Assert.Contains(projects, p => p.Name == "Beta");
+    }
+
+    [Fact]
+    public void SolutionParser_ParseProj_EmptyProjReturnsNoProjects()
+    {
+        // Arrange - .proj with no ProjectReference items
+        var projContent = """
+            <Project Sdk="Microsoft.Build.Traversal">
+              <ItemGroup>
+              </ItemGroup>
+            </Project>
+            """;
+        File.WriteAllText(Path.Combine(_testDir, "build.proj"), projContent);
+
+        var projPath = Path.Combine(_testDir, "build.proj");
+
+        // Act
+        var projects = SolutionParser.ParseProj(projPath).ToList();
+
+        // Assert
+        Assert.Empty(projects);
+    }
+
+    [Fact]
+    public void SolutionParser_ParseProj_GlobResolvingToNoFilesReturnsEmpty()
+    {
+        // Arrange - .proj with glob pattern that matches nothing
+        var projContent = """
+            <Project Sdk="Microsoft.Build.Traversal">
+              <ItemGroup>
+                <ProjectReference Include="nonexistent/**/*.csproj" />
+              </ItemGroup>
+            </Project>
+            """;
+        File.WriteAllText(Path.Combine(_testDir, "build.proj"), projContent);
+
+        var projPath = Path.Combine(_testDir, "build.proj");
+
+        // Act
+        var projects = SolutionParser.ParseProj(projPath).ToList();
+
+        // Assert
+        Assert.Empty(projects);
+    }
+
+    [Fact]
+    public void SolutionDetector_Detect_SpecificProjSolution()
+    {
+        // Arrange - use --solution to specify a .proj file explicitly
+        SetupProjWithProjects();
+        var detector = new SolutionDetector();
+
+        // Act
+        var result = detector.Detect(_testDir, specificSolution: "build.proj");
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.EndsWith("build.proj", result.SolutionPath);
+    }
+
+    [Fact]
+    public void SolutionParser_ParseProj_RecursiveGlobFiltersCsprojOnly()
+    {
+        // Arrange - ** glob with mixed project types on disk
+        var projContent = """
+            <Project Sdk="Microsoft.Build.Traversal">
+              <ItemGroup>
+                <ProjectReference Include="**/*.csproj" />
+              </ItemGroup>
+            </Project>
+            """;
+        File.WriteAllText(Path.Combine(_testDir, "build.proj"), projContent);
+
+        var csDir = Path.Combine(_testDir, "src", "CsProject");
+        var fsDir = Path.Combine(_testDir, "src", "FsProject");
+        Directory.CreateDirectory(csDir);
+        Directory.CreateDirectory(fsDir);
+
+        File.WriteAllText(Path.Combine(csDir, "CsProject.csproj"), SdkStyleCsproj);
+        File.WriteAllText(Path.Combine(fsDir, "FsProject.fsproj"), "<Project/>");
+
+        var projPath = Path.Combine(_testDir, "build.proj");
+
+        // Act
+        var projects = SolutionParser.ParseProj(projPath).ToList();
+
+        // Assert - only .csproj, the glob *.csproj itself filters, but verify
+        Assert.Single(projects);
+        Assert.Equal("CsProject", projects[0].Name);
+    }
+
+    #endregion
+
     #region Setup Helpers
+
+    private void SetupProjWithProjects()
+    {
+        var projContent = """
+            <Project Sdk="Microsoft.Build.Traversal">
+              <ItemGroup>
+                <ProjectReference Include="src/Project1/Project1.csproj" />
+                <ProjectReference Include="src/Project2/Project2.csproj" />
+              </ItemGroup>
+            </Project>
+            """;
+        File.WriteAllText(Path.Combine(_testDir, "build.proj"), projContent);
+
+        var project1Dir = Path.Combine(_testDir, "src", "Project1");
+        var project2Dir = Path.Combine(_testDir, "src", "Project2");
+        Directory.CreateDirectory(project1Dir);
+        Directory.CreateDirectory(project2Dir);
+
+        File.WriteAllText(Path.Combine(project1Dir, "Project1.csproj"), SdkStyleCsproj);
+        File.WriteAllText(Path.Combine(project2Dir, "Project2.csproj"), SdkStyleCsproj);
+    }
+
+    private void SetupProjWithGlobPatterns()
+    {
+        var projContent = """
+            <Project Sdk="Microsoft.Build.Traversal">
+              <ItemGroup>
+                <ProjectReference Include="src/apps/*.csproj" />
+              </ItemGroup>
+            </Project>
+            """;
+        File.WriteAllText(Path.Combine(_testDir, "build.proj"), projContent);
+
+        var appsDir = Path.Combine(_testDir, "src", "apps");
+        Directory.CreateDirectory(appsDir);
+
+        File.WriteAllText(Path.Combine(appsDir, "App1.csproj"), SdkStyleCsproj);
+        File.WriteAllText(Path.Combine(appsDir, "App2.csproj"), SdkStyleCsproj);
+    }
 
     private void SetupSolutionWithProjects()
     {

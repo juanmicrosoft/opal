@@ -5,8 +5,8 @@ namespace Calor.Compiler.Init;
 
 /// <summary>
 /// Initializer for Claude Code AI agent.
-/// Creates .claude/skills/ directory with Calor skills, CLAUDE.md project file,
-/// and configures hooks to enforce Calor-first development.
+/// Creates CLAUDE.md project file and configures hooks to enforce Calor-first development.
+/// MCP tools provide syntax guidance on-demand (replacing skill files).
 /// </summary>
 public class ClaudeInitializer : IAiInitializer
 {
@@ -18,6 +18,27 @@ public class ClaudeInitializer : IAiInitializer
     };
     private const string SectionStart = "<!-- BEGIN CalorC SECTION - DO NOT EDIT -->";
     private const string SectionEnd = "<!-- END CalorC SECTION -->";
+
+    /// <summary>
+    /// Atomically writes content to a file by writing to a temp file in the same
+    /// directory and then renaming. This prevents corruption when Claude Code
+    /// reads/writes the same file concurrently.
+    /// </summary>
+    private static async Task AtomicWriteAsync(string filePath, string content)
+    {
+        var dir = Path.GetDirectoryName(filePath) ?? ".";
+        var tempPath = Path.Combine(dir, $".{Path.GetFileName(filePath)}.{Guid.NewGuid():N}.tmp");
+        try
+        {
+            await File.WriteAllTextAsync(tempPath, content);
+            File.Move(tempPath, filePath, overwrite: true);
+        }
+        catch
+        {
+            try { File.Delete(tempPath); } catch { /* best effort cleanup */ }
+            throw;
+        }
+    }
 
     public string AgentName => "Claude Code";
 
@@ -34,66 +55,12 @@ public class ClaudeInitializer : IAiInitializer
 
         try
         {
-            // Create .claude/skills/calor/ directory
-            var calorSkillDir = Path.Combine(targetDirectory, ".claude", "skills", "calor");
-            Directory.CreateDirectory(calorSkillDir);
-
-            // Create .claude/skills/calor-convert/ directory
-            var convertSkillDir = Path.Combine(targetDirectory, ".claude", "skills", "calor-convert");
-            Directory.CreateDirectory(convertSkillDir);
-
-            // Create .claude/skills/calor-semantics/ directory
-            var semanticsSkillDir = Path.Combine(targetDirectory, ".claude", "skills", "calor-semantics");
-            Directory.CreateDirectory(semanticsSkillDir);
-
-            // Create .claude/skills/calor-analyze/ directory
-            var analyzeSkillDir = Path.Combine(targetDirectory, ".claude", "skills", "calor-analyze");
-            Directory.CreateDirectory(analyzeSkillDir);
-
-            // Write skill files (Claude uses SKILL.md format with YAML frontmatter)
-            var calorSkillPath = Path.Combine(calorSkillDir, "SKILL.md");
-            var convertSkillPath = Path.Combine(convertSkillDir, "SKILL.md");
-            var semanticsSkillPath = Path.Combine(semanticsSkillDir, "SKILL.md");
-            var analyzeSkillPath = Path.Combine(analyzeSkillDir, "SKILL.md");
-
-            if (await WriteFileIfNeeded(calorSkillPath, EmbeddedResourceHelper.ReadSkill("claude-calor-SKILL.md"), force))
-            {
-                createdFiles.Add(calorSkillPath);
-            }
-            else
-            {
-                warnings.Add($"Skipped existing file: {calorSkillPath}");
-            }
-
-            if (await WriteFileIfNeeded(convertSkillPath, EmbeddedResourceHelper.ReadSkill("claude-calor-convert-SKILL.md"), force))
-            {
-                createdFiles.Add(convertSkillPath);
-            }
-            else
-            {
-                warnings.Add($"Skipped existing file: {convertSkillPath}");
-            }
-
-            if (await WriteFileIfNeeded(semanticsSkillPath, EmbeddedResourceHelper.ReadSkill("claude-calor-semantics-SKILL.md"), force))
-            {
-                createdFiles.Add(semanticsSkillPath);
-            }
-            else
-            {
-                warnings.Add($"Skipped existing file: {semanticsSkillPath}");
-            }
-
-            if (await WriteFileIfNeeded(analyzeSkillPath, EmbeddedResourceHelper.ReadSkill("claude-calor-analyze-SKILL.md"), force))
-            {
-                createdFiles.Add(analyzeSkillPath);
-            }
-            else
-            {
-                warnings.Add($"Skipped existing file: {analyzeSkillPath}");
-            }
+            // Resolve git root so all artifacts land where Claude Code expects them.
+            // Claude Code resolves project config by git root, not by working directory.
+            var effectiveDir = FindGitRoot(targetDirectory) ?? targetDirectory;
 
             // Create or update CLAUDE.md from template with section-aware handling
-            var claudeMdPath = Path.Combine(targetDirectory, "CLAUDE.md");
+            var claudeMdPath = Path.Combine(effectiveDir, "CLAUDE.md");
             var template = EmbeddedResourceHelper.ReadTemplate("CLAUDE.md.template");
             var version = EmbeddedResourceHelper.GetVersion();
             var calorSection = template.Replace("{{VERSION}}", version);
@@ -108,8 +75,11 @@ public class ClaudeInitializer : IAiInitializer
                 updatedFiles.Add(claudeMdPath);
             }
 
+            // Ensure .claude directory exists for settings.json
+            Directory.CreateDirectory(Path.Combine(effectiveDir, ".claude"));
+
             // Configure Claude Code hooks for Calor-first enforcement (in .claude/settings.json)
-            var settingsPath = Path.Combine(targetDirectory, ".claude", "settings.json");
+            var settingsPath = Path.Combine(effectiveDir, ".claude", "settings.json");
             var settingsResult = await ConfigureHooksAsync(settingsPath, force);
             if (settingsResult == HookSettingsResult.Created)
             {
@@ -123,7 +93,7 @@ public class ClaudeInitializer : IAiInitializer
             // Configure MCP servers in ~/.claude.json (per-project section)
             var claudeJsonPath = ClaudeJsonPathOverride ??
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".claude.json");
-            var mcpResult = await ConfigureMcpServersInClaudeJsonAsync(claudeJsonPath, targetDirectory, force);
+            var mcpResult = await ConfigureMcpServersInClaudeJsonAsync(claudeJsonPath, effectiveDir, force);
             if (mcpResult == McpConfigResult.Updated)
             {
                 updatedFiles.Add(claudeJsonPath);
@@ -155,17 +125,6 @@ public class ClaudeInitializer : IAiInitializer
         {
             return InitResult.Failed($"Failed to initialize: {ex.Message}");
         }
-    }
-
-    private static async Task<bool> WriteFileIfNeeded(string path, string content, bool force)
-    {
-        if (File.Exists(path) && !force)
-        {
-            return false;
-        }
-
-        await File.WriteAllTextAsync(path, content);
-        return true;
     }
 
     private enum ClaudeMdUpdateResult
@@ -284,7 +243,7 @@ public class ClaudeInitializer : IAiInitializer
                 }
             };
 
-            await File.WriteAllTextAsync(settingsPath, JsonSerializer.Serialize(settings, JsonOptions));
+            await AtomicWriteAsync(settingsPath, JsonSerializer.Serialize(settings, JsonOptions));
             return HookSettingsResult.Created;
         }
 
@@ -309,7 +268,7 @@ public class ClaudeInitializer : IAiInitializer
                         PostToolUse = new[] { writePostHookConfig }
                     }
                 };
-                await File.WriteAllTextAsync(settingsPath, JsonSerializer.Serialize(settings, JsonOptions));
+                await AtomicWriteAsync(settingsPath, JsonSerializer.Serialize(settings, JsonOptions));
                 return HookSettingsResult.Updated;
             }
             // Otherwise, leave the file unchanged
@@ -376,7 +335,7 @@ public class ClaudeInitializer : IAiInitializer
             return HookSettingsResult.Unchanged;
         }
 
-        await File.WriteAllTextAsync(settingsPath, newJson);
+        await AtomicWriteAsync(settingsPath, newJson);
         return HookSettingsResult.Updated;
     }
 
@@ -384,6 +343,27 @@ public class ClaudeInitializer : IAiInitializer
     {
         Updated,
         Unchanged
+    }
+
+    /// <summary>
+    /// Walk up the directory tree looking for a .git entry to find the git repo root.
+    /// Detects both normal repos (.git as directory) and worktrees (.git as file).
+    /// Returns the git root path, or null if not in a git repo.
+    /// </summary>
+    internal static string? FindGitRoot(string path)
+    {
+        var dir = Path.GetFullPath(path);
+        for (var depth = 0; depth < 20 && dir != null; depth++)
+        {
+            var gitPath = Path.Combine(dir, ".git");
+            if (Directory.Exists(gitPath) || File.Exists(gitPath))
+                return dir;
+            var parent = Directory.GetParent(dir);
+            if (parent == null || parent.FullName == dir)
+                break;
+            dir = parent.FullName;
+        }
+        return null;
     }
 
     private static async Task<McpConfigResult> ConfigureMcpServersInClaudeJsonAsync(string claudeJsonPath, string projectPath, bool force)
@@ -396,8 +376,11 @@ public class ClaudeInitializer : IAiInitializer
             Args = new[] { "mcp", "--stdio" }
         };
 
-        // Normalize the project path to use as key
+        // Normalize the project path, then resolve git root for the project key.
+        // Claude Code resolves project config by git root, so we must key by that.
         var normalizedProjectPath = Path.GetFullPath(projectPath);
+        var gitRoot = FindGitRoot(normalizedProjectPath);
+        var projectKey = gitRoot ?? normalizedProjectPath;
 
         // Read existing ~/.claude.json or create new structure
         ClaudeJsonConfig? claudeConfig;
@@ -427,11 +410,11 @@ public class ClaudeInitializer : IAiInitializer
         claudeConfig ??= new ClaudeJsonConfig();
         claudeConfig.Projects ??= new Dictionary<string, ClaudeProjectConfig>();
 
-        // Get or create the project entry
-        if (!claudeConfig.Projects.TryGetValue(normalizedProjectPath, out var projectConfig))
+        // Get or create the project entry (keyed by git root when available)
+        if (!claudeConfig.Projects.TryGetValue(projectKey, out var projectConfig))
         {
             projectConfig = new ClaudeProjectConfig();
-            claudeConfig.Projects[normalizedProjectPath] = projectConfig;
+            claudeConfig.Projects[projectKey] = projectConfig;
         }
 
         projectConfig.McpServers ??= new Dictionary<string, McpServerConfig>();
@@ -465,7 +448,7 @@ public class ClaudeInitializer : IAiInitializer
             return McpConfigResult.Unchanged;
         }
 
-        await File.WriteAllTextAsync(claudeJsonPath, newJson);
+        await AtomicWriteAsync(claudeJsonPath, newJson);
         return McpConfigResult.Updated;
     }
 }

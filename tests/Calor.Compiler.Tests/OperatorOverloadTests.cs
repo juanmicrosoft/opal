@@ -316,7 +316,7 @@ public class OperatorOverloadTests
 
         var result = ParseAndEmit(source);
 
-        Assert.Contains("public static MyType operator+(MyType left, MyType right)", result);
+        Assert.Contains("public static MyType operator +(MyType left, MyType right)", result);
     }
 
     [Fact]
@@ -336,7 +336,7 @@ public class OperatorOverloadTests
 
         var result = ParseAndEmit(source);
 
-        Assert.Contains("public static MyType operator-(MyType value)", result);
+        Assert.Contains("public static MyType operator -(MyType value)", result);
     }
 
     [Fact]
@@ -357,7 +357,7 @@ public class OperatorOverloadTests
 
         var result = ParseAndEmit(source);
 
-        Assert.Contains("public static bool operator==(MyType left, MyType right)", result);
+        Assert.Contains("public static bool operator ==(MyType left, MyType right)", result);
     }
 
     [Fact]
@@ -419,7 +419,7 @@ public class OperatorOverloadTests
 
         var result = ParseAndEmit(source);
 
-        Assert.Contains("operator+(int left, int right)", result);
+        Assert.Contains("operator +(int left, int right)", result);
         // Precondition should be emitted as a contract violation check
         Assert.Contains("ContractViolationException", result);
     }
@@ -454,9 +454,9 @@ public class OperatorOverloadTests
 
         var result = ParseAndEmit(source);
 
-        Assert.Contains("operator+(MyType left, MyType right)", result);
-        Assert.Contains("operator-(MyType left, MyType right)", result);
-        Assert.Contains("operator==(MyType left, MyType right)", result);
+        Assert.Contains("operator +(MyType left, MyType right)", result);
+        Assert.Contains("operator -(MyType left, MyType right)", result);
+        Assert.Contains("operator ==(MyType left, MyType right)", result);
     }
 
     [Fact]
@@ -478,7 +478,7 @@ public class OperatorOverloadTests
 
         var result = ParseAndEmit(source);
 
-        Assert.Contains("operator+(int left, int right)", result);
+        Assert.Contains("operator +(int left, int right)", result);
         // Postcondition should capture result in __result__ variable
         Assert.Contains("__result__", result);
         Assert.Contains("ContractViolationException", result);
@@ -501,7 +501,7 @@ public class OperatorOverloadTests
 
         var result = ParseAndEmit(source);
 
-        Assert.Contains("public static MyType operator!(MyType value)", result);
+        Assert.Contains("public static MyType operator !(MyType value)", result);
     }
 
     [Fact]
@@ -521,7 +521,7 @@ public class OperatorOverloadTests
 
         var result = ParseAndEmit(source);
 
-        Assert.Contains("public static MyType operator~(MyType value)", result);
+        Assert.Contains("public static MyType operator ~(MyType value)", result);
     }
 
     [Fact]
@@ -568,7 +568,7 @@ public class OperatorOverloadTests
         Assert.True(op.IsUnary);
 
         var result = ParseAndEmit(source);
-        Assert.Contains("public static MyType operator+(MyType value)", result);
+        Assert.Contains("public static MyType operator +(MyType value)", result);
     }
 
     [Fact]
@@ -595,7 +595,7 @@ public class OperatorOverloadTests
 
         // C# operators are always public static, but we should still emit correctly
         var result = ParseAndEmit(source);
-        Assert.Contains("operator+(MyType left, MyType right)", result);
+        Assert.Contains("operator +(MyType left, MyType right)", result);
     }
 
     [Fact]
@@ -615,7 +615,7 @@ public class OperatorOverloadTests
 
         var result = ParseAndEmit(source);
 
-        Assert.Contains("public static MyType operator++(MyType value)", result);
+        Assert.Contains("public static MyType operator ++(MyType value)", result);
     }
 
     #endregion
@@ -630,7 +630,7 @@ public class Money
 {
     public decimal Amount { get; }
 
-    public static Money operator+(Money left, Money right)
+    public static Money operator +(Money left, Money right)
     {
         return new Money();
     }
@@ -651,7 +651,7 @@ public class Money
 {
     public decimal Amount { get; }
 
-    public static Money operator-(Money value)
+    public static Money operator -(Money value)
     {
         return new Money();
     }
@@ -714,7 +714,7 @@ public class Counter
 {
     public int Value { get; set; }
 
-    public static Counter operator++(Counter c)
+    public static Counter operator ++(Counter c)
     {
         return new Counter();
     }
@@ -761,7 +761,7 @@ public class MyBool
 {
     public bool Value { get; set; }
 
-    public static MyBool operator!(MyBool b)
+    public static MyBool operator !(MyBool b)
     {
         return new MyBool();
     }
@@ -782,7 +782,7 @@ public class Vector
 {
     public int X { get; set; }
 
-    public static Vector operator+(Vector a, Vector b) => new Vector();
+    public static Vector operator +(Vector a, Vector b) => new Vector();
 }";
 
         var result = ConvertCSharpToCalor(csharpCode);

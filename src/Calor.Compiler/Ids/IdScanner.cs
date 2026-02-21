@@ -74,6 +74,9 @@ public sealed class IdScanner : IAstVisitor
     {
         AddEntry(node.Id, IdKind.Interface, node.Name, node.Span);
 
+        foreach (var prop in node.Properties)
+            prop.Accept(this);
+
         foreach (var method in node.Methods)
             method.Accept(this);
     }
@@ -149,6 +152,7 @@ public sealed class IdScanner : IAstVisitor
     public void Visit(BoolLiteralNode node) { }
     public void Visit(ConditionalExpressionNode node) { }
     public void Visit(FloatLiteralNode node) { }
+    public void Visit(DecimalLiteralNode node) { }
     public void Visit(ReferenceNode node) { }
     public void Visit(ForStatementNode node) { }
     public void Visit(WhileStatementNode node) { }
@@ -206,9 +210,11 @@ public sealed class IdScanner : IAstVisitor
     public void Visit(GenericTypeNode node) { }
     public void Visit(ClassFieldNode node) { }
     public void Visit(NewExpressionNode node) { }
+    public void Visit(AnonymousObjectCreationNode node) { }
     public void Visit(CallExpressionNode node) { }
     public void Visit(ThisExpressionNode node) { }
     public void Visit(BaseExpressionNode node) { }
+    public void Visit(TupleLiteralNode node) { }
     public void Visit(PropertyAccessorNode node) { }
     public void Visit(ConstructorInitializerNode node) { }
     public void Visit(AssignmentStatementNode node) { }
@@ -241,6 +247,9 @@ public sealed class IdScanner : IAstVisitor
     public void Visit(ListPatternNode node) { }
     public void Visit(VarPatternNode node) { }
     public void Visit(ConstantPatternNode node) { }
+    public void Visit(NegatedPatternNode node) { }
+    public void Visit(OrPatternNode node) { }
+    public void Visit(AndPatternNode node) { }
     public void Visit(ExampleNode node) { }
     public void Visit(IssueNode node) { }
     public void Visit(DependencyNode node) { }
@@ -267,7 +276,14 @@ public sealed class IdScanner : IAstVisitor
     public void Visit(StringOperationNode node) { }
     public void Visit(CharOperationNode node) { }
     public void Visit(TypeOperationNode node) { }
+    public void Visit(IsPatternNode node) { }
     public void Visit(StringBuilderOperationNode node) { }
     public void Visit(FallbackExpressionNode node) { }
     public void Visit(FallbackCommentNode node) { }
+    public void Visit(TypeOfExpressionNode node) { }
+    public void Visit(ExpressionCallNode node) { }
+    public void Visit(ExpressionStatementNode node) { }
+    public void Visit(YieldReturnStatementNode node) { }
+    public void Visit(YieldBreakStatementNode node) { }
+    public void Visit(RawCSharpNode node) { }
 }

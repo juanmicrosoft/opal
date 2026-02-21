@@ -42,6 +42,7 @@ public static class OperatorSuggestions
         "regex-test", "regex-match", "regex-replace", "regex-split",
 
         // Char operations
+        "char-lit",
         "char-at", "char-code", "char-from-code",
         "is-letter", "is-digit", "is-whitespace", "is-upper", "is-lower",
         "char-upper", "char-lower",
@@ -63,8 +64,17 @@ public static class OperatorSuggestions
         // Async operations
         "await",
 
+        // Null-coalescing
+        "??",
+
         // Type operations
-        "cast", "as", "is"
+        "cast", "as", "is",
+
+        // Increment/decrement operators
+        "inc", "dec", "pre-inc", "post-inc", "pre-dec", "post-dec",
+
+        // Type reflection
+        "typeof"
     };
 
     /// <summary>
@@ -74,7 +84,7 @@ public static class OperatorSuggestions
     {
         // C# keywords with Calor equivalents
         ["nameof"] = "Use a string literal instead: \"VariableName\"",
-        ["typeof"] = "Type reflection is not supported in Calor. Use type names directly in expressions.",
+        ["typeof"] = "Use (typeof Type) in Lisp expressions",
         ["sizeof"] = "Size operations are not supported in Calor. Use constants for known sizes.",
         ["default"] = "Use explicit default values (0 for numbers, \"\" for strings, §NN for None).",
         ["new"] = "Use §NEW for object creation: §NEW[Type] §A arg1 §A arg2",
@@ -98,13 +108,13 @@ public static class OperatorSuggestions
         ["extern"] = "Use §EXTERN for external function declarations",
 
         // C# operators
-        ["++"] = "Use (+ x 1) or (set x (+ x 1))",
-        ["--"] = "Use (- x 1) or (set x (- x 1))",
+        ["++"] = "Use (inc x) for prefix ++x, or (post-inc x) for x++",
+        ["--"] = "Use (dec x) for prefix --x, or (post-dec x) for x--",
         ["+="] = "Use (set x (+ x value))",
         ["-="] = "Use (set x (- x value))",
         ["*="] = "Use (set x (* x value))",
         ["/="] = "Use (set x (/ x value))",
-        ["??"] = "Use (unwrap-or option default) for null-coalescing",
+        ["??"] = "Use (?? x default) for null-coalescing in Lisp expressions",
         ["?."] = "Use pattern matching or (map-opt option fn) for null-conditional",
         ["?["] = "Use (if (is-some opt) (nth (unwrap opt) i) default)",
         ["!."] = "Use (unwrap option) to assert non-null",
@@ -281,6 +291,7 @@ public static class OperatorSuggestions
     {
         return opName.ToLowerInvariant() switch
         {
+            "char-lit" => "(char-lit \"X\")",
             "char-at" => "(char-at str index)",
             "char-code" => "(char-code char)",
             "char-from-code" => "(char-from-code int)",

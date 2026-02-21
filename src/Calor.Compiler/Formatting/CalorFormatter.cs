@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.RegularExpressions;
 using Calor.Compiler.Ast;
+using Calor.Compiler.Effects;
 
 namespace Calor.Compiler.Formatting;
 
@@ -187,6 +188,11 @@ public sealed class CalorFormatter
             : "";
         AppendLine($"§IFACE{{{ifaceId}:{iface.Name}{baseList}}}");
 
+        foreach (var prop in iface.Properties)
+        {
+            FormatProperty(prop);
+        }
+
         foreach (var method in iface.Methods)
         {
             FormatMethodSignature(method);
@@ -198,10 +204,18 @@ public sealed class CalorFormatter
     private void FormatMethodSignature(MethodSignatureNode method)
     {
         var methodId = AbbreviateId(method.Id);
-        var output = method.Output != null ? CompactTypeName(method.Output.TypeName) : "void";
-        var paramList = string.Join(",", method.Parameters.Select(p =>
-            $"{CompactTypeName(p.TypeName)}:{p.Name}"));
-        AppendLine($"§SIG{{{methodId}:{method.Name}}} ({paramList}) → {output}");
+        AppendLine($"§MT{{{methodId}:{method.Name}}}");
+
+        foreach (var param in method.Parameters)
+        {
+            AppendLine($"§I{{{CompactTypeName(param.TypeName)}:{param.Name}}}");
+        }
+        if (method.Output != null)
+        {
+            AppendLine($"§O{{{CompactTypeName(method.Output.TypeName)}}}");
+        }
+
+        AppendLine($"§/MT{{{methodId}}}");
     }
 
     private void FormatClass(ClassDefinitionNode cls)
@@ -424,10 +438,31 @@ public sealed class CalorFormatter
         switch (stmt)
         {
             case BindStatementNode bind:
-                var mutability = bind.IsMutable ? "MUT" : "LET";
-                var typeAnnotation = bind.TypeName != null ? $":{bind.TypeName}" : "";
-                var initializer = bind.Initializer != null ? $" {FormatExpression(bind.Initializer)}" : "";
-                AppendLine($"§{mutability}{{{bind.Name}{typeAnnotation}}}{initializer}");
+                // Handle arrays specially — emit as standalone §ARR syntax
+                if (bind.Initializer is ArrayCreationNode arrBind)
+                {
+                    if (arrBind.Initializer.Count > 0)
+                    {
+                        var elements = string.Join(" ", arrBind.Initializer.Select(FormatExpression));
+                        AppendLine($"§ARR{{{bind.Name}:{CompactTypeName(arrBind.ElementType)}}} {elements} §/ARR{{{bind.Name}}}");
+                    }
+                    else
+                    {
+                        AppendLine(FormatArrayCreation(arrBind));
+                    }
+                    break;
+                }
+                var bindInit = bind.Initializer != null ? $" {FormatExpression(bind.Initializer)}" : "";
+                if (bind.IsMutable)
+                {
+                    var bindType = bind.TypeName != null ? $":{CompactTypeName(bind.TypeName)}" : "";
+                    AppendLine($"§B{{~{bind.Name}{bindType}}}{bindInit}");
+                }
+                else
+                {
+                    var bindType = bind.TypeName != null ? $"{CompactTypeName(bind.TypeName)}:" : "";
+                    AppendLine($"§B{{{bindType}{bind.Name}}}{bindInit}");
+                }
                 break;
 
             case CallStatementNode call:
@@ -467,6 +502,15 @@ public sealed class CalorFormatter
                 AppendLine($"§L{{{loopId}:{forStmt.VariableName}:{fromExpr}:{toExpr}:{stepExpr}}}");
                 foreach (var s in forStmt.Body) FormatStatement(s);
                 AppendLine($"§/L{{{loopId}}}");
+                break;
+
+            case ForeachStatementNode foreachStmt:
+                var eachId = AbbreviateId(foreachStmt.Id);
+                var eachType = CompactTypeName(foreachStmt.VariableType);
+                var indexPart = foreachStmt.IndexVariableName != null ? $":{foreachStmt.IndexVariableName}" : "";
+                AppendLine($"§EACH{{{eachId}:{foreachStmt.VariableName}:{eachType}{indexPart}}} {FormatExpression(foreachStmt.Collection)}");
+                foreach (var s in foreachStmt.Body) FormatStatement(s);
+                AppendLine($"§/EACH{{{eachId}}}");
                 break;
 
             case WhileStatementNode whileStmt:
@@ -537,6 +581,7 @@ public sealed class CalorFormatter
             IntLiteralNode i => i.Value.ToString(),
             FloatLiteralNode f => f.Value.ToString("G"),
             BoolLiteralNode b => b.Value ? "true" : "false",
+            StringLiteralNode s when s.IsMultiline && s.Value.Contains('\n') => $"\"\"\"\n{s.Value}\"\"\"",
             StringLiteralNode s => $"\"{EscapeString(s.Value)}\"",
             ReferenceNode r => r.Name, // Just the variable name, not §REF{name}
             BinaryOperationNode bin => $"({FormatOperator(bin.Operator)} {FormatExpression(bin.Left)} {FormatExpression(bin.Right)})", // Lisp prefix: (op left right)
@@ -554,10 +599,15 @@ public sealed class CalorFormatter
             LambdaExpressionNode lambda => FormatLambda(lambda),
             ArrayCreationNode arr => FormatArrayCreation(arr),
             AwaitExpressionNode await => $"§AWAIT {FormatExpression(await.Awaited)}",
-            NullCoalesceNode nc => $"({FormatExpression(nc.Left)} ?? {FormatExpression(nc.Right)})",
+            NullCoalesceNode nc => $"(?? {FormatExpression(nc.Left)} {FormatExpression(nc.Right)})",
             NullConditionalNode nc => $"{FormatExpression(nc.Target)}?.{nc.MemberName}",
             ThisExpressionNode => "§THIS",
             BaseExpressionNode => "§BASE",
+            TypeOfExpressionNode typeOfExpr => $"(typeof {typeOfExpr.TypeName})",
+            ExpressionCallNode exprCall => $"§C {FormatExpression(exprCall.TargetExpression)} {string.Join(" ", exprCall.Arguments.Select(a => $"§A {FormatExpression(a)}"))} §/C".TrimEnd(),
+            IsPatternNode isPat => isPat.VariableName != null
+                ? $"(is {FormatExpression(isPat.Operand)} {isPat.TargetType} {isPat.VariableName})"
+                : $"(is {FormatExpression(isPat.Operand)} {isPat.TargetType})",
             TypeOperationNode typeOp => typeOp.Operation switch
             {
                 TypeOp.Cast => $"(cast {typeOp.TargetType} {FormatExpression(typeOp.Operand)})",
@@ -600,8 +650,13 @@ public sealed class CalorFormatter
 
     private string FormatArrayCreation(ArrayCreationNode arr)
     {
-        var size = arr.Size != null ? FormatExpression(arr.Size) : "";
-        return $"§ARR{{{arr.ElementType}}} {size}".TrimEnd();
+        if (arr.Initializer.Count > 0)
+        {
+            var elements = string.Join(" ", arr.Initializer.Select(FormatExpression));
+            return $"§ARR{{{arr.Name}:{CompactTypeName(arr.ElementType)}}} {elements} §/ARR{{{arr.Name}}}";
+        }
+        var size = arr.Size != null ? $":{FormatExpression(arr.Size)}" : "";
+        return $"§ARR{{{arr.Name}:{CompactTypeName(arr.ElementType)}{size}}}";
     }
 
     private static string FormatCatchAttributes(CatchClauseNode catchClause)

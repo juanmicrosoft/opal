@@ -47,14 +47,14 @@ public class SuggestionTests
 
     [Theory]
     [InlineData("nameof", "Use a string literal")]
-    [InlineData("typeof", "Type reflection is not supported")]
+    [InlineData("typeof", "Use (typeof Type)")]
     [InlineData("new", "§NEW")]
     [InlineData("await", "await")]
     [InlineData("null", "Option types")]
     [InlineData("ToString", "Use (str expr)")]
     [InlineData("Contains", "Use (contains s substring)")]
-    [InlineData("++", "Use (+ x 1)")]
-    [InlineData("??", "Use (unwrap-or option default)")]
+    [InlineData("++", "Use (inc x)")]
+    [InlineData("??", "Use (?? x default)")]
     public void GetCSharpHint_WithCSharpConstruct_ReturnsHint(string csharpConstruct, string expectedHintPart)
     {
         var hint = OperatorSuggestions.GetCSharpHint(csharpConstruct);
@@ -238,6 +238,31 @@ public class SuggestionTests
         var error = diagnostics.First(d => d.IsError);
         Assert.Contains("XYZQWERTY", error.Message);
         Assert.Contains("Common markers", error.Message);
+    }
+
+    [Fact]
+    public void Lexer_CastSectionMarker_ShowsCastSyntaxHint()
+    {
+        var diagnostics = new DiagnosticBag();
+        var lexer = new Lexer("§CAST", diagnostics);
+        lexer.TokenizeAll();
+
+        Assert.True(diagnostics.HasErrors);
+        var error = diagnostics.First(d => d.IsError);
+        Assert.Contains("(cast", error.Message);
+        Assert.DoesNotContain("Did you mean '§CA", error.Message);
+    }
+
+    [Fact]
+    public void Lexer_CastSectionMarker_CaseInsensitive()
+    {
+        var diagnostics = new DiagnosticBag();
+        var lexer = new Lexer("§Cast", diagnostics);
+        lexer.TokenizeAll();
+
+        Assert.True(diagnostics.HasErrors);
+        var error = diagnostics.First(d => d.IsError);
+        Assert.Contains("(cast", error.Message);
     }
 
     #endregion
@@ -553,7 +578,7 @@ public class SuggestionTests
     [InlineData("/", false)]
     [InlineData("++", true)] // Invalid (C# construct)
     [InlineData("--", true)]
-    [InlineData("??", true)]
+    [InlineData("??", false)] // Now supported as null-coalescing operator
     public void Parser_ShortOperators_HandleCorrectly(string op, bool shouldError)
     {
         var source = $"§M{{m001:Test}} §F{{f001:Fn}} §O{{i32}} §R ({op} 5 3) §/F{{f001}} §/M{{m001}}";

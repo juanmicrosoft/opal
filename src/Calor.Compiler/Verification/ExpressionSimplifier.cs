@@ -38,6 +38,7 @@ public sealed class ExpressionSimplifier : IAstVisitor<ExpressionNode>
     public ExpressionNode Visit(StringLiteralNode node) => node;
     public ExpressionNode Visit(BoolLiteralNode node) => node;
     public ExpressionNode Visit(FloatLiteralNode node) => node;
+    public ExpressionNode Visit(DecimalLiteralNode node) => node;
     public ExpressionNode Visit(ReferenceNode node) => node;
 
     #endregion
@@ -802,8 +803,29 @@ public sealed class ExpressionSimplifier : IAstVisitor<ExpressionNode>
             : node;
     }
 
+    public ExpressionNode Visit(AnonymousObjectCreationNode node)
+    {
+        var changed = false;
+        var newInits = new List<ObjectInitializerAssignment>();
+        foreach (var init in node.Initializers)
+        {
+            var simplified = init.Value.Accept(this);
+            if (!ReferenceEquals(simplified, init.Value))
+            {
+                changed = true;
+                newInits.Add(new ObjectInitializerAssignment(init.PropertyName, simplified));
+            }
+            else
+            {
+                newInits.Add(init);
+            }
+        }
+        return changed ? new AnonymousObjectCreationNode(node.Span, newInits) : node;
+    }
+
     public ExpressionNode Visit(ThisExpressionNode node) => node;
     public ExpressionNode Visit(BaseExpressionNode node) => node;
+    public ExpressionNode Visit(TupleLiteralNode node) => node;
 
     public ExpressionNode Visit(CollectionContainsNode node)
     {
@@ -1311,6 +1333,9 @@ public sealed class ExpressionSimplifier : IAstVisitor<ExpressionNode>
     public ExpressionNode Visit(ListPatternNode node) => throw new InvalidOperationException();
     public ExpressionNode Visit(VarPatternNode node) => throw new InvalidOperationException();
     public ExpressionNode Visit(ConstantPatternNode node) => throw new InvalidOperationException();
+    public ExpressionNode Visit(NegatedPatternNode node) => throw new InvalidOperationException();
+    public ExpressionNode Visit(OrPatternNode node) => throw new InvalidOperationException();
+    public ExpressionNode Visit(AndPatternNode node) => throw new InvalidOperationException();
     public ExpressionNode Visit(ExampleNode node) => throw new InvalidOperationException();
     public ExpressionNode Visit(IssueNode node) => throw new InvalidOperationException();
     public ExpressionNode Visit(DependencyNode node) => throw new InvalidOperationException();
@@ -1350,6 +1375,14 @@ public sealed class ExpressionSimplifier : IAstVisitor<ExpressionNode>
         return new TypeOperationNode(node.Span, node.Operation, simplifiedOperand, node.TargetType);
     }
 
+    public ExpressionNode Visit(IsPatternNode node)
+    {
+        var simplifiedOperand = node.Operand.Accept(this);
+        return ReferenceEquals(simplifiedOperand, node.Operand)
+            ? node
+            : new IsPatternNode(node.Span, simplifiedOperand, node.TargetType, node.VariableName);
+    }
+
     public ExpressionNode Visit(StringBuilderOperationNode node)
     {
         // Simplify arguments but preserve the StringBuilder operation
@@ -1360,6 +1393,27 @@ public sealed class ExpressionSimplifier : IAstVisitor<ExpressionNode>
     // Fallback nodes - cannot be simplified, just return as-is
     public ExpressionNode Visit(FallbackExpressionNode node) => node;
     public ExpressionNode Visit(FallbackCommentNode node) => throw new InvalidOperationException();
+    public ExpressionNode Visit(TypeOfExpressionNode node) => node;
+    public ExpressionNode Visit(ExpressionCallNode node)
+    {
+        var newTarget = node.TargetExpression.Accept(this);
+        var argsChanged = false;
+        var newArgs = new List<ExpressionNode>();
+        foreach (var arg in node.Arguments)
+        {
+            var simplified = arg.Accept(this);
+            newArgs.Add(simplified);
+            if (!ReferenceEquals(simplified, arg))
+                argsChanged = true;
+        }
+        return !ReferenceEquals(newTarget, node.TargetExpression) || argsChanged
+            ? new ExpressionCallNode(node.Span, newTarget, newArgs)
+            : node;
+    }
+    public ExpressionNode Visit(ExpressionStatementNode node) => throw new InvalidOperationException();
+    public ExpressionNode Visit(YieldReturnStatementNode node) => throw new InvalidOperationException();
+    public ExpressionNode Visit(YieldBreakStatementNode node) => throw new InvalidOperationException();
+    public ExpressionNode Visit(RawCSharpNode node) => throw new InvalidOperationException();
 
     #endregion
 }

@@ -174,8 +174,11 @@ public sealed class ContractSimplificationPass
             cls.Constructors,
             simplifiedMethods,
             cls.Events,
+            cls.OperatorOverloads,
             cls.Attributes,
-            cls.CSharpAttributes);
+            cls.CSharpAttributes,
+            cls.IsStruct,
+            cls.IsReadOnly);
     }
 
     private InterfaceDefinitionNode SimplifyInterface(InterfaceDefinitionNode iface)

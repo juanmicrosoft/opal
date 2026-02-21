@@ -11,6 +11,7 @@ public sealed class Parser
     private readonly List<Token> _tokens;
     private readonly DiagnosticBag _diagnostics;
     private int _position;
+    private bool _insideArgContext;
 
     public Parser(IEnumerable<Token> tokens, DiagnosticBag diagnostics)
     {
@@ -609,7 +610,19 @@ public sealed class Parser
             attrs.Add("semantic", semantic);
         }
 
-        return new ParameterNode(startToken.Span, paramName, typeName, attrs);
+        // Parse parameter modifier from semantic/pos2 position (this, ref, out, in, params)
+        var modifier = ParameterModifier.None;
+        if (!string.IsNullOrEmpty(semantic))
+        {
+            if (semantic.Contains("this", StringComparison.OrdinalIgnoreCase)) modifier |= ParameterModifier.This;
+            if (semantic.Contains("ref", StringComparison.OrdinalIgnoreCase)) modifier |= ParameterModifier.Ref;
+            if (semantic.Contains("out", StringComparison.OrdinalIgnoreCase)) modifier |= ParameterModifier.Out;
+            if (semantic.Contains("in", StringComparison.OrdinalIgnoreCase) && !semantic.Contains("this", StringComparison.OrdinalIgnoreCase)) modifier |= ParameterModifier.In;
+            if (semantic.Contains("params", StringComparison.OrdinalIgnoreCase)) modifier |= ParameterModifier.Params;
+        }
+
+        var csharpAttrs = ParseCSharpAttributes();
+        return new ParameterNode(startToken.Span, paramName, typeName, modifier, attrs, csharpAttrs);
     }
 
     private OutputNode ParseOutput()
@@ -750,6 +763,10 @@ public sealed class Parser
         {
             return ParseTryStatement();
         }
+        else if (Check(TokenKind.Use))
+        {
+            return ParseUsingStatement();
+        }
         else if (Check(TokenKind.Throw))
         {
             return ParseThrowStatement();
@@ -774,6 +791,14 @@ public sealed class Parser
         {
             return ParseContinueStatement();
         }
+        else if (Check(TokenKind.Yield))
+        {
+            return ParseYieldReturnStatement();
+        }
+        else if (Check(TokenKind.YieldBreak))
+        {
+            return ParseYieldBreakStatement();
+        }
         // Print aliases
         else if (Check(TokenKind.Print))
         {
@@ -795,6 +820,10 @@ public sealed class Parser
         else if (Check(TokenKind.HashSet))
         {
             return ParseSetCreationStatement();
+        }
+        else if (Check(TokenKind.Array))
+        {
+            return ParseArrayCreationStatement();
         }
         else if (Check(TokenKind.Push) || Check(TokenKind.Add))
         {
@@ -823,6 +852,17 @@ public sealed class Parser
         else if (Check(TokenKind.EachKV))
         {
             return ParseDictionaryForeach();
+        }
+        // Raw C# passthrough
+        else if (Check(TokenKind.RawCSharp))
+        {
+            return ParseRawCSharpStatement();
+        }
+        // Expression statement: bare lisp expression like (inc x), (post-dec y)
+        else if (Check(TokenKind.OpenParen))
+        {
+            var expr = ParseExpression();
+            return new ExpressionStatementNode(expr.Span, expr);
         }
 
         _diagnostics.ReportUnexpectedToken(Current.Span, "statement", Current.Kind);
@@ -893,7 +933,16 @@ public sealed class Parser
     {
         Expect(TokenKind.Arg);
 
-        return ParseExpression();
+        var saved = _insideArgContext;
+        _insideArgContext = true;
+        try
+        {
+            return ParseExpression();
+        }
+        finally
+        {
+            _insideArgContext = saved;
+        }
     }
 
     private ReturnStatementNode ParseReturnStatement()
@@ -918,6 +967,7 @@ public sealed class Parser
             or TokenKind.StrLiteral
             or TokenKind.BoolLiteral
             or TokenKind.FloatLiteral
+            or TokenKind.DecimalLiteral
             or TokenKind.Identifier
             // Lisp-style expression
             or TokenKind.OpenParen
@@ -944,6 +994,7 @@ public sealed class Parser
             or TokenKind.Generic
             // Phase 8: Classes
             or TokenKind.New
+            or TokenKind.AnonymousObject
             or TokenKind.This
             or TokenKind.Base
             or TokenKind.Call  // Call expressions (§C[...])
@@ -969,6 +1020,7 @@ public sealed class Parser
             TokenKind.StrLiteral => ParseStringLiteral(),
             TokenKind.BoolLiteral => ParseBoolLiteral(),
             TokenKind.FloatLiteral => ParseFloatLiteral(),
+            TokenKind.DecimalLiteral => ParseDecimalLiteral(),
             TokenKind.Identifier => ParseReference(),
             // Lisp-style expression: (op args...) or inline lambda: () → body
             TokenKind.OpenParen => ParseParenExpressionOrInlineLambda(),
@@ -997,6 +1049,7 @@ public sealed class Parser
             TokenKind.Generic => ParseGenericType(),
             // Phase 8: Classes
             TokenKind.New => ParseNewExpression(),
+            TokenKind.AnonymousObject => ParseAnonymousObjectCreation(),
             TokenKind.This => ParseThisExpression(),
             TokenKind.Base => ParseBaseExpression(),
             TokenKind.Call => ParseCallExpression(),
@@ -1200,6 +1253,24 @@ public sealed class Parser
             return ParseImplicationExpression(startToken);
         }
 
+        // Handle typeof: (typeof TypeName)
+        if (opText == "typeof")
+        {
+            var typeName = ParseLispTypeName();
+            var typeofEnd = Expect(TokenKind.CloseParen);
+            return new TypeOfExpressionNode(startToken.Span.Union(typeofEnd.Span), typeName);
+        }
+
+        // Handle is/as with special type parsing to support generics
+        if (opText == "is")
+        {
+            return ParseLispIsExpression(startToken);
+        }
+        if (opText == "as")
+        {
+            return ParseLispAsExpression(startToken);
+        }
+
         // Parse arguments until we hit CloseParen
         var args = new List<ExpressionNode>();
         while (!Check(TokenKind.CloseParen) && !IsAtEnd)
@@ -1214,6 +1285,18 @@ public sealed class Parser
         if (opText == "?" && args.Count == 3)
         {
             return new ConditionalExpressionNode(span, args[0], args[1], args[2]);
+        }
+
+        // Handle null-coalescing: (?? x "default")
+        if (opText == "??" && args.Count == 2)
+        {
+            return new NullCoalesceNode(span, args[0], args[1]);
+        }
+        if (opText == "??")
+        {
+            _diagnostics.ReportError(span, DiagnosticCode.OperatorArgumentCount,
+                $"Null-coalescing '??' requires exactly 2 operands, got {args.Count}");
+            return args.Count > 0 ? args[0] : new IntLiteralNode(span, 0);
         }
 
         // Determine if this is unary or binary based on argument count and operator
@@ -1248,7 +1331,7 @@ public sealed class Parser
             if (binaryOp.HasValue)
             {
                 // This is likely an error - binary op with only one argument
-                _diagnostics.ReportError(span, DiagnosticCode.UnexpectedToken,
+                _diagnostics.ReportError(span, DiagnosticCode.OperatorArgumentCount,
                     $"Binary operator '{opText}' requires at least two operands");
                 return args[0];
             }
@@ -1277,12 +1360,12 @@ public sealed class Parser
                 comparisonMode = StringComparisonModeExtensions.FromKeyword(keywordArg.Name);
                 if (comparisonMode == null)
                 {
-                    _diagnostics.ReportError(keywordArg.Span, DiagnosticCode.UnexpectedToken,
+                    _diagnostics.ReportError(keywordArg.Span, DiagnosticCode.InvalidComparisonMode,
                         $"Unknown comparison mode ':{keywordArg.Name}'. Valid modes: ordinal, ignore-case, invariant, invariant-ignore-case");
                 }
                 else if (!StringOperationNode.SupportsComparisonMode(stringOp.Value))
                 {
-                    _diagnostics.ReportError(keywordArg.Span, DiagnosticCode.UnexpectedToken,
+                    _diagnostics.ReportError(keywordArg.Span, DiagnosticCode.InvalidComparisonMode,
                         $"Operation '{opText}' does not support comparison modes");
                     comparisonMode = null;
                 }
@@ -1313,13 +1396,13 @@ public sealed class Parser
             if (nonKeywordArgs.Count < minArgs)
             {
                 var example = OperatorSuggestions.GetStringOpExample(opText);
-                _diagnostics.ReportError(span, DiagnosticCode.UnexpectedToken,
+                _diagnostics.ReportError(span, DiagnosticCode.OperatorArgumentCount,
                     $"String operation '{opText}' requires at least {minArgs} argument(s), got {nonKeywordArgs.Count}. Example: {example}");
             }
             else if (nonKeywordArgs.Count > maxArgs)
             {
                 var example = OperatorSuggestions.GetStringOpExample(opText);
-                _diagnostics.ReportError(span, DiagnosticCode.UnexpectedToken,
+                _diagnostics.ReportError(span, DiagnosticCode.OperatorArgumentCount,
                     $"String operation '{opText}' accepts at most {maxArgs} argument(s), got {nonKeywordArgs.Count}. Example: {example}");
             }
 
@@ -1336,14 +1419,34 @@ public sealed class Parser
             if (args.Count < minArgs)
             {
                 var example = OperatorSuggestions.GetCharOpExample(opText);
-                _diagnostics.ReportError(span, DiagnosticCode.UnexpectedToken,
+                _diagnostics.ReportError(span, DiagnosticCode.OperatorArgumentCount,
                     $"Char operation '{opText}' requires at least {minArgs} argument(s), got {args.Count}. Example: {example}");
             }
             else if (args.Count > maxArgs)
             {
                 var example = OperatorSuggestions.GetCharOpExample(opText);
-                _diagnostics.ReportError(span, DiagnosticCode.UnexpectedToken,
+                _diagnostics.ReportError(span, DiagnosticCode.OperatorArgumentCount,
                     $"Char operation '{opText}' accepts at most {maxArgs} argument(s), got {args.Count}. Example: {example}");
+            }
+
+            // Validate char-lit argument is a single-character string literal
+            if (charOp.Value == CharOp.CharLiteral && args.Count == 1)
+            {
+                if (args[0] is StringLiteralNode strLit)
+                {
+                    // Value is already unescaped by the lexer ("\\" → \, "\n" → newline, etc.)
+                    // so a single character is always length 1
+                    if (strLit.Value.Length != 1)
+                    {
+                        _diagnostics.ReportError(span, DiagnosticCode.InvalidCharLiteral,
+                            $"char-lit requires a single character, got \"{strLit.Value}\" ({strLit.Value.Length} characters). Example: (char-lit \"Y\")");
+                    }
+                }
+                else
+                {
+                    _diagnostics.ReportError(span, DiagnosticCode.InvalidCharLiteral,
+                        "char-lit requires a string literal argument. Example: (char-lit \"Y\")");
+                }
             }
 
             return new CharOperationNode(span, charOp.Value, args);
@@ -1359,13 +1462,13 @@ public sealed class Parser
             if (args.Count < minArgs)
             {
                 var example = OperatorSuggestions.GetStringBuilderOpExample(opText);
-                _diagnostics.ReportError(span, DiagnosticCode.UnexpectedToken,
+                _diagnostics.ReportError(span, DiagnosticCode.OperatorArgumentCount,
                     $"StringBuilder operation '{opText}' requires at least {minArgs} argument(s), got {args.Count}. Example: {example}");
             }
             else if (args.Count > maxArgs)
             {
                 var example = OperatorSuggestions.GetStringBuilderOpExample(opText);
-                _diagnostics.ReportError(span, DiagnosticCode.UnexpectedToken,
+                _diagnostics.ReportError(span, DiagnosticCode.OperatorArgumentCount,
                     $"StringBuilder operation '{opText}' accepts at most {maxArgs} argument(s), got {args.Count}. Example: {example}");
             }
 
@@ -1379,7 +1482,7 @@ public sealed class Parser
             if (args.Count != 2)
             {
                 var example = OperatorSuggestions.GetTypeOpExample(opText);
-                _diagnostics.ReportError(span, DiagnosticCode.UnexpectedToken,
+                _diagnostics.ReportError(span, DiagnosticCode.OperatorArgumentCount,
                     $"Type operation '{opText}' requires exactly 2 arguments, got {args.Count}. Example: {example}");
                 return args.Count > 0 ? args[0] : new IntLiteralNode(span, 0);
             }
@@ -1394,7 +1497,7 @@ public sealed class Parser
             // Type argument must be a simple identifier (ReferenceNode)
             if (typeArg is not ReferenceNode typeRef)
             {
-                _diagnostics.ReportError(typeArg.Span, DiagnosticCode.UnexpectedToken,
+                _diagnostics.ReportError(typeArg.Span, DiagnosticCode.ExpectedTypeName,
                     $"Expected a type name, got {typeArg.GetType().Name}");
                 return operandArg;
             }
@@ -1504,6 +1607,9 @@ public sealed class Parser
             case TokenKind.Tilde:
                 Advance();
                 return (TokenKind.Tilde, "~", span);
+            case TokenKind.NullCoalesce:
+                Advance();
+                return (TokenKind.NullCoalesce, "??", span);
             case TokenKind.Question:
                 Advance();
                 return (TokenKind.Question, "?", span);
@@ -1548,7 +1654,7 @@ public sealed class Parser
                 // Provide helpful message based on what was found
                 var hint = token.Kind switch
                 {
-                    TokenKind.IntLiteral or TokenKind.FloatLiteral =>
+                    TokenKind.IntLiteral or TokenKind.FloatLiteral or TokenKind.DecimalLiteral =>
                         "Operators come before arguments: (+ 1 2) not (1 + 2)",
                     TokenKind.StrLiteral =>
                         "Operators come before arguments: (contains str \"x\") not (str contains \"x\")",
@@ -1558,7 +1664,7 @@ public sealed class Parser
                         "Unexpected closing parenthesis. Check parentheses balance.",
                     _ => $"Valid operators: {OperatorSuggestions.GetOperatorCategories()}"
                 };
-                _diagnostics.ReportError(span, DiagnosticCode.UnexpectedToken,
+                _diagnostics.ReportError(span, DiagnosticCode.InvalidLispExpression,
                     $"Expected operator in Lisp expression, found '{token.Text}'. {hint}");
                 Advance();
                 return (token.Kind, text, span);
@@ -1578,6 +1684,10 @@ public sealed class Parser
             "!" or "not" => UnaryOperator.Not,
             "~" => UnaryOperator.BitwiseNot,
             "-" => UnaryOperator.Negate,
+            "inc" or "pre-inc" => UnaryOperator.PreIncrement,
+            "dec" or "pre-dec" => UnaryOperator.PreDecrement,
+            "post-inc" => UnaryOperator.PostIncrement,
+            "post-dec" => UnaryOperator.PostDecrement,
             _ => null
         };
     }
@@ -1665,7 +1775,7 @@ public sealed class Parser
                 return new KeywordArgNode(span, keywordName);
             }
             // Standalone colon - error
-            _diagnostics.ReportError(colonToken.Span, DiagnosticCode.UnexpectedToken,
+            _diagnostics.ReportError(colonToken.Span, DiagnosticCode.InvalidLispExpression,
                 "Expected identifier after ':' for keyword argument");
             return new IntLiteralNode(colonToken.Span, 0);
         }
@@ -1685,6 +1795,9 @@ public sealed class Parser
             case TokenKind.FloatLiteral:
                 expr = ParseFloatLiteral();
                 break;
+            case TokenKind.DecimalLiteral:
+                expr = ParseDecimalLiteral();
+                break;
             case TokenKind.Identifier:
                 expr = ParseBareReference(); // Bare variable reference
                 break;
@@ -1700,6 +1813,18 @@ public sealed class Parser
             case TokenKind.Await:
                 expr = ParseAwaitExpression(); // Await expression inside Lisp
                 break;
+            case TokenKind.Index:
+                expr = ParseArrayAccess(); // §IDX inside Lisp
+                break;
+            case TokenKind.Length:
+                expr = ParseArrayLength(); // §LEN inside Lisp
+                break;
+            case TokenKind.Has:
+                expr = ParseCollectionContains(); // §HAS inside Lisp
+                break;
+            case TokenKind.Count:
+                expr = ParseCollectionCount(); // §CNT inside Lisp
+                break;
             default:
                 // Provide helpful message for unexpected tokens
                 var hint = Current.Kind switch
@@ -1714,7 +1839,7 @@ public sealed class Parser
                         "Unexpected closing parenthesis. Check expression structure.",
                     _ => "Expected a value (number, string, variable) or nested expression"
                 };
-                _diagnostics.ReportError(Current.Span, DiagnosticCode.UnexpectedToken,
+                _diagnostics.ReportError(Current.Span, DiagnosticCode.InvalidLispExpression,
                     $"Unexpected token '{Current.Text}' in expression argument. {hint}");
                 Advance();
                 expr = new IntLiteralNode(Current.Span, 0); // Recovery: return dummy value
@@ -1723,6 +1848,25 @@ public sealed class Parser
 
         // Handle trailing member access (e.g., §C[...] §/C.Length or run?.Status)
         // and array access (e.g., array{index})
+        expr = ParseTrailingMemberAccess(expr);
+
+        // Handle 'is' pattern expression: expr is Type [variable]
+        // This handles C# pattern matching like "other is UnitSystem otherUnitSystem"
+        if (Check(TokenKind.Identifier) && Current.Text == "is")
+        {
+            expr = ParseIsPatternExpression(expr);
+        }
+
+        return expr;
+    }
+
+    /// <summary>
+    /// Parses trailing member access chains: .Member, ?.Member, {index}
+    /// Shared helper used by ParseLispArgument, ParseNewExpression, ParseCallExpression,
+    /// ParseThisExpression, and ParseBaseExpression.
+    /// </summary>
+    private ExpressionNode ParseTrailingMemberAccess(ExpressionNode expr)
+    {
         while (Check(TokenKind.Dot) || Check(TokenKind.NullConditional) || Check(TokenKind.OpenBrace))
         {
             if (Check(TokenKind.OpenBrace))
@@ -1750,37 +1894,24 @@ public sealed class Parser
                 }
             }
         }
-
-        // Handle 'is' pattern expression: expr is Type [variable]
-        // This handles C# pattern matching like "other is UnitSystem otherUnitSystem"
-        if (Check(TokenKind.Identifier) && Current.Text == "is")
-        {
-            expr = ParseIsPatternExpression(expr);
-        }
-
         return expr;
     }
 
     /// <summary>
-    /// Parses an 'is' pattern expression: expr is Type [variable]
-    /// The expr has already been parsed, we're at the 'is' keyword.
-    /// Returns a ReferenceNode with the full pattern expression.
+    /// Parses a type name in a Lisp expression context, handling qualified names and generics.
+    /// Examples: int, string, List&lt;string&gt;, Dictionary&lt;string, int&gt;, System.Collections.Generic.List&lt;int&gt;
+    /// Used by typeof, is, and as expressions.
     /// </summary>
-    private ExpressionNode ParseIsPatternExpression(ExpressionNode left)
+    private string ParseLispTypeName()
     {
-        var startSpan = left.Span;
-        Advance(); // consume 'is'
-
-        // Parse the type name (possibly qualified: Namespace.Type or generic: Type<T>)
-        var typeBuilder = new System.Text.StringBuilder();
         if (!Check(TokenKind.Identifier))
         {
-            _diagnostics.ReportError(Current.Span, DiagnosticCode.UnexpectedToken,
-                $"Expected type name after 'is', found '{Current.Text}'");
-            return left;
+            _diagnostics.ReportError(Current.Span, DiagnosticCode.ExpectedTypeName,
+                $"Expected type name, found '{Current.Text}'");
+            return "object";
         }
 
-        var typeToken = Current;
+        var typeBuilder = new System.Text.StringBuilder();
         typeBuilder.Append(Current.Text);
         Advance();
 
@@ -1806,16 +1937,116 @@ public sealed class Parser
                 while (depth > 0 && !IsAtEnd)
                 {
                     if (Check(TokenKind.Less))
+                    {
                         depth++;
+                        typeBuilder.Append('<');
+                        Advance();
+                    }
+                    else if (Check(TokenKind.GreaterGreater) && depth >= 2)
+                    {
+                        // >> closes two generic levels at once (e.g., Dictionary<string, List<int>>)
+                        depth -= 2;
+                        typeBuilder.Append(">>");
+                        Advance();
+                    }
                     else if (Check(TokenKind.Greater))
+                    {
                         depth--;
-                    typeBuilder.Append(Current.Text);
-                    Advance();
+                        if (depth > 0)
+                        {
+                            typeBuilder.Append('>');
+                        }
+                        Advance(); // consume '>'
+                    }
+                    else if (depth > 0)
+                    {
+                        typeBuilder.Append(Current.Text);
+                        if (Check(TokenKind.Comma))
+                            typeBuilder.Append(' ');
+                        Advance();
+                    }
+                }
+                if (depth == 0)
+                {
+                    // Only append closing '>' if we didn't already via '>>' handling
+                    if (!typeBuilder.ToString().EndsWith('>'))
+                        typeBuilder.Append('>');
                 }
             }
         }
 
-        var typeName = typeBuilder.ToString();
+        // Handle nullable types: Type?
+        if (Check(TokenKind.Question))
+        {
+            typeBuilder.Append('?');
+            Advance();
+        }
+
+        // Handle array types: Type[]
+        if (Check(TokenKind.OpenBracket) && Peek(1).Kind == TokenKind.CloseBracket)
+        {
+            typeBuilder.Append("[]");
+            Advance(); // consume '['
+            Advance(); // consume ']'
+        }
+
+        return typeBuilder.ToString();
+    }
+
+    /// <summary>
+    /// Parses an 'is' expression in Lisp form: (is expr Type) or (is expr Type variable)
+    /// Handles generic types like List&lt;string&gt; that would fail in general arg parsing.
+    /// </summary>
+    private ExpressionNode ParseLispIsExpression(Token startToken)
+    {
+        // Parse the expression operand
+        var operand = ParseLispArgument();
+
+        // Parse the type name using the shared helper
+        var typeName = ParseLispTypeName();
+
+        // Optionally parse a variable name for pattern matching: (is x MyType varName)
+        string? variableName = null;
+        if (Check(TokenKind.Identifier) && !IsLispOperatorStart(Current.Text))
+        {
+            variableName = Current.Text;
+            Advance();
+        }
+
+        var endToken = Expect(TokenKind.CloseParen);
+        var span = startToken.Span.Union(endToken.Span);
+
+        return new IsPatternNode(span, operand, typeName, variableName);
+    }
+
+    /// <summary>
+    /// Parses an 'as' expression in Lisp form: (as expr Type)
+    /// Handles generic types like List&lt;string&gt; that would fail in general arg parsing.
+    /// </summary>
+    private ExpressionNode ParseLispAsExpression(Token startToken)
+    {
+        // Parse the expression operand
+        var operand = ParseLispArgument();
+
+        // Parse the type name using the shared helper
+        var typeName = ParseLispTypeName();
+
+        var endToken = Expect(TokenKind.CloseParen);
+        var span = startToken.Span.Union(endToken.Span);
+
+        return new TypeOperationNode(span, TypeOp.As, operand, typeName);
+    }
+
+    /// <summary>
+    /// Parses an 'is' pattern expression: expr is Type [variable]
+    /// The expr has already been parsed, we're at the 'is' keyword.
+    /// </summary>
+    private ExpressionNode ParseIsPatternExpression(ExpressionNode left)
+    {
+        var startSpan = left.Span;
+        Advance(); // consume 'is'
+
+        var typeName = ParseLispTypeName();
         string? variableName = null;
 
         // Check for optional variable declaration: is Type variableName
@@ -1826,14 +2057,8 @@ public sealed class Parser
             Advance();
         }
 
-        // Build the full expression as a reference node
-        var leftStr = GetExpressionString(left);
-        var fullExpr = variableName != null
-            ? $"{leftStr} is {typeName} {variableName}"
-            : $"{leftStr} is {typeName}";
-
         var endSpan = Peek(-1).Span;
-        return new ReferenceNode(startSpan.Union(endSpan), fullExpr);
+        return new IsPatternNode(startSpan.Union(endSpan), left, typeName, variableName);
     }
 
     /// <summary>
@@ -1880,7 +2105,10 @@ public sealed class Parser
     {
         var token = Expect(TokenKind.StrLiteral);
         var value = token.Value as string ?? "";
-        return new StringLiteralNode(token.Span, value);
+        return new StringLiteralNode(token.Span, value)
+        {
+            IsMultiline = token.Text.StartsWith("\"\"\"")
+        };
     }
 
     private BoolLiteralNode ParseBoolLiteral()
@@ -1895,6 +2123,13 @@ public sealed class Parser
         var token = Expect(TokenKind.FloatLiteral);
         var value = token.Value is double d ? d : 0.0;
         return new FloatLiteralNode(token.Span, value);
+    }
+
+    private DecimalLiteralNode ParseDecimalLiteral()
+    {
+        var token = Expect(TokenKind.DecimalLiteral);
+        var value = token.Value is decimal d ? d : 0m;
+        return new DecimalLiteralNode(token.Span, value);
     }
 
     private ExpressionNode ParseReference()
@@ -2102,6 +2337,34 @@ public sealed class Parser
 
     private PatternNode ParsePattern()
     {
+        // Handle (not ...), (or ... ...), (and ... ...) pattern combinators
+        if (Check(TokenKind.OpenParen))
+        {
+            var nextToken = Peek(1);
+            if (nextToken.Kind == TokenKind.Identifier && nextToken.Text is "not" or "or" or "and")
+            {
+                var openParen = Expect(TokenKind.OpenParen);
+                var keyword = Advance(); // consume not/or/and
+
+                if (keyword.Text == "not")
+                {
+                    var inner = ParsePattern();
+                    Expect(TokenKind.CloseParen);
+                    return new NegatedPatternNode(openParen.Span.Union(inner.Span), inner);
+                }
+                else
+                {
+                    var left = ParsePattern();
+                    var right = ParsePattern();
+                    Expect(TokenKind.CloseParen);
+                    var span = openParen.Span.Union(right.Span);
+                    return keyword.Text == "or"
+                        ? new OrPatternNode(span, left, right)
+                        : new AndPatternNode(span, left, right);
+                }
+            }
+        }
+
         // Handle §VAR{name} pattern
         if (Check(TokenKind.Var))
         {
@@ -2176,7 +2439,8 @@ public sealed class Parser
         }
 
         if (Check(TokenKind.IntLiteral) || Check(TokenKind.StrLiteral) ||
-            Check(TokenKind.BoolLiteral) || Check(TokenKind.FloatLiteral))
+            Check(TokenKind.BoolLiteral) || Check(TokenKind.FloatLiteral) ||
+            Check(TokenKind.DecimalLiteral))
         {
             var literal = ParseExpression();
             return new LiteralPatternNode(literal.Span, literal);
@@ -2366,7 +2630,7 @@ public sealed class Parser
         // Expect arrow and then expression
         if (!Check(TokenKind.Arrow))
         {
-            _diagnostics.ReportError(Current.Span, "Calor0100", "Expected '→' after IF condition in expression context");
+            _diagnostics.ReportError(Current.Span, DiagnosticCode.ExpectedExpression, "Expected '→' after IF condition in expression context");
             return new IntLiteralNode(startToken.Span, 0);
         }
         Advance(); // consume →
@@ -2780,18 +3044,21 @@ public sealed class Parser
 
                 // Parse generic type arguments (may be nested)
                 var depth = 1;
+                var lastWasIdentifier = false;
                 while (!IsAtEnd && depth > 0)
                 {
                     if (Check(TokenKind.Less))
                     {
                         sb.Append('<');
                         depth++;
+                        lastWasIdentifier = false;
                         Advance();
                     }
                     else if (Check(TokenKind.Greater))
                     {
                         sb.Append('>');
                         depth--;
+                        lastWasIdentifier = false;
                         Advance();
                     }
                     else if (Check(TokenKind.GreaterGreater))
@@ -2799,25 +3066,32 @@ public sealed class Parser
                         // Handle >> from nested generics like Task<List<int>>
                         sb.Append(">>");
                         depth -= 2;
+                        lastWasIdentifier = false;
                         Advance();
                     }
                     else if (Check(TokenKind.Identifier))
                     {
+                        // Add space between consecutive identifiers (e.g., "out T", "in T")
+                        if (lastWasIdentifier) sb.Append(' ');
                         sb.Append(Advance().Text);
+                        lastWasIdentifier = true;
                     }
                     else if (Check(TokenKind.Comma))
                     {
                         sb.Append(',');
+                        lastWasIdentifier = false;
                         Advance();
                     }
                     else if (Check(TokenKind.Question))
                     {
                         sb.Append('?');
+                        lastWasIdentifier = false;
                         Advance();
                     }
                     else if (Current.Text == ".")
                     {
                         sb.Append('.');
+                        lastWasIdentifier = false;
                         Advance();
                     }
                     else
@@ -2836,6 +3110,14 @@ public sealed class Parser
                 {
                     sb.Append(Advance().Text);
                 }
+            }
+
+            // Handle hyphenated identifiers like prot-int (protected internal)
+            while (Check(TokenKind.Minus) && Peek(1).Kind == TokenKind.Identifier)
+            {
+                sb.Append('-');
+                Advance(); // consume '-'
+                sb.Append(Advance().Text); // consume identifier
             }
 
             // Handle comma-separated values like partial,static for modifiers
@@ -2933,7 +3215,7 @@ public sealed class Parser
                     sb.Append(' ');
                 sb.Append(Advance().Value?.ToString() ?? "");
             }
-            else if (Check(TokenKind.FloatLiteral))
+            else if (Check(TokenKind.FloatLiteral) || Check(TokenKind.DecimalLiteral))
             {
                 // Add space before floats if there's content before them
                 if (sb.Length > 0 && !char.IsWhiteSpace(sb[sb.Length - 1]) && sb[sb.Length - 1] != '(')
@@ -3167,7 +3449,7 @@ public sealed class Parser
         {
             return Advance().Value ?? 0;
         }
-        if (Check(TokenKind.FloatLiteral))
+        if (Check(TokenKind.FloatLiteral) || Check(TokenKind.DecimalLiteral))
         {
             return Advance().Value ?? 0.0;
         }
@@ -3236,7 +3518,9 @@ public sealed class Parser
         return value?.ToLowerInvariant() switch
         {
             "public" or "pub" => Visibility.Public,
+            "protected-internal" or "prot-int" => Visibility.ProtectedInternal,
             "internal" or "int" => Visibility.Internal,
+            "protected" or "prot" => Visibility.Protected,
             "private" or "priv" => Visibility.Private,
             _ => Visibility.Private
         };
@@ -3255,14 +3539,31 @@ public sealed class Parser
         var startToken = Expect(TokenKind.Array);
         var attrs = ParseAttributes();
 
-        // Positional: [id:type:size?] or just [id:type] for initialized arrays
-        var id = attrs["_pos0"] ?? "";
-        var elementType = attrs["_pos1"] ?? "i32";
+        // Positional: [id:type:size?] or [type:id:size?] for initialized arrays
+        var rawPos0 = attrs["_pos0"] ?? "";
+        var rawPos1 = attrs["_pos1"] ?? "i32";
         var sizeStr = attrs["_pos2"];
+
+        string id;
+        string elementType;
+
+        // Detect format: {type:id:size} vs {id:type:size}
+        // If pos0 looks like a type and pos1 doesn't, it's {type:id:size}
+        if (AttributeHelper.IsLikelyType(rawPos0) && !AttributeHelper.IsLikelyType(rawPos1))
+        {
+            elementType = rawPos0;
+            id = rawPos1;
+        }
+        else
+        {
+            id = rawPos0;
+            elementType = rawPos1;
+        }
 
         if (string.IsNullOrEmpty(id))
         {
-            _diagnostics.ReportMissingRequiredAttribute(startToken.Span, "ARR", "id");
+            // Auto-generate id for unnamed arrays (e.g., §ARR{:i32} or §ARR{i32})
+            id = $"_arr{startToken.Span.Start}";
         }
 
         ExpressionNode? size = null;
@@ -3290,19 +3591,32 @@ public sealed class Parser
         }
         else
         {
-            // No size in attributes - check for a following expression or initializer elements
-            if (IsExpressionStart())
+            // No size in attributes - parse as initialized array (like §LIST)
+            // Support both bare expressions and §A-prefixed elements
+            while (!IsAtEnd && !Check(TokenKind.EndArray))
             {
-                // Size specified as expression after tag: §ARR{a001:i32} (len data)
-                size = ParseExpression();
-            }
-            else
-            {
-                // Check for initializer elements (§A expressions until §/ARR)
-                while (!IsAtEnd && !Check(TokenKind.EndArray) && Check(TokenKind.Arg))
+                if (Check(TokenKind.Arg))
                 {
+                    // §A-prefixed element (backward compat with emitter output)
                     initializer.Add(ParseArgument());
                 }
+                else if (IsExpressionStart())
+                {
+                    // Bare expression (documented syntax: §ARR{id:type} 1 2 3 §/ARR{id})
+                    initializer.Add(ParseExpression());
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            // If only one element and no end tag coming, it might be a size expression
+            // e.g., §ARR{id:type} 10 (no §/ARR) → treat 10 as size, not initializer
+            if (initializer.Count == 1 && !Check(TokenKind.EndArray))
+            {
+                size = initializer[0];
+                initializer.Clear();
             }
         }
 
@@ -3361,12 +3675,26 @@ public sealed class Parser
     /// <summary>
     /// Parses array element access.
     /// §IDX §REF[name=arr] 0                     // arr[0]
+    /// §IDX{arr} 0                               // arr[0] (attribute shorthand)
     /// </summary>
     private ArrayAccessNode ParseArrayAccess()
     {
         var startToken = Expect(TokenKind.Index);
+        var attrs = ParseAttributes();
+        var pos0 = attrs["_pos0"];
 
-        var array = ParseExpression();
+        ExpressionNode array;
+        if (!string.IsNullOrEmpty(pos0))
+        {
+            // §IDX{varName} index — attribute contains the array reference
+            array = new ReferenceNode(startToken.Span, pos0);
+        }
+        else
+        {
+            // §IDX §REF[name=arr] index — two separate expressions
+            array = ParseExpression();
+        }
+
         var index = ParseExpression();
 
         var span = startToken.Span.Union(index.Span);
@@ -3398,10 +3726,11 @@ public sealed class Parser
         var startToken = Expect(TokenKind.Foreach);
         var attrs = ParseAttributes();
 
-        // Positional: [id:variable:type]
+        // Positional: [id:variable:type] or [id:variable:type:index]
         var id = attrs["_pos0"] ?? "";
         var variableName = attrs["_pos1"] ?? "item";
         var variableType = attrs["_pos2"] ?? "var";
+        var indexVariableName = attrs["_pos3"]; // null if not provided
 
         if (string.IsNullOrEmpty(id))
         {
@@ -3424,7 +3753,7 @@ public sealed class Parser
         }
 
         var span = startToken.Span.Union(endToken.Span);
-        return new ForeachStatementNode(span, id, variableName, variableType, collection, body, attrs);
+        return new ForeachStatementNode(span, id, variableName, variableType, collection, body, attrs, indexVariableName);
     }
 
     // Phase 6 Extended: Collections (List, Dictionary, HashSet)
@@ -3484,6 +3813,22 @@ public sealed class Parser
             $"List<{listNode.ElementType}>",
             isMutable: false,
             listNode,
+            new AttributeCollection());
+    }
+
+    /// <summary>
+    /// Parses array creation as a statement (emits as var declaration).
+    /// §ARR{nums:i32} 1 2 3 §/ARR{nums}
+    /// </summary>
+    private BindStatementNode ParseArrayCreationStatement()
+    {
+        var arrNode = ParseArrayCreation();
+        return new BindStatementNode(
+            arrNode.Span,
+            arrNode.Name,
+            $"{arrNode.ElementType}[]",
+            isMutable: false,
+            arrNode,
             new AttributeCollection());
     }
 
@@ -3866,10 +4211,18 @@ public sealed class Parser
 
         do
         {
+            // Check for variance modifiers: in/out before the type parameter name
+            var variance = Ast.VarianceKind.None;
+            if (Check(TokenKind.Identifier) && Current.Text is "in" or "out")
+            {
+                variance = Current.Text == "out" ? Ast.VarianceKind.Out : Ast.VarianceKind.In;
+                Advance(); // consume in/out
+            }
+
             if (Check(TokenKind.Identifier))
             {
                 var nameToken = Advance();
-                typeParams.Add(new TypeParameterNode(nameToken.Span, nameToken.Text, Array.Empty<TypeConstraintNode>()));
+                typeParams.Add(new TypeParameterNode(nameToken.Span, nameToken.Text, Array.Empty<TypeConstraintNode>(), variance));
             }
             else
             {
@@ -3958,7 +4311,7 @@ public sealed class Parser
         var typeParamIndex = typeParameters.FindIndex(tp => tp.Name == typeParamName);
         if (typeParamIndex < 0)
         {
-            _diagnostics.ReportError(startToken.Span, DiagnosticCode.UnexpectedToken,
+            _diagnostics.ReportError(startToken.Span, DiagnosticCode.TypeParameterNotFound,
                 $"Type parameter '{typeParamName}' not found");
             return;
         }
@@ -3973,6 +4326,7 @@ public sealed class Parser
                 "class" => (TypeConstraintKind.Class, (string?)null),
                 "struct" => (TypeConstraintKind.Struct, (string?)null),
                 "new" or "new()" => (TypeConstraintKind.New, (string?)null),
+                "notnull" => (TypeConstraintKind.NotNull, (string?)null),
                 _ => (TypeConstraintKind.TypeName, constraintText)
             };
 
@@ -4015,7 +4369,7 @@ public sealed class Parser
         if (Check(TokenKind.Identifier))
         {
             var text = Current.Text.ToLowerInvariant();
-            if (text == "class" || text == "struct")
+            if (text == "class" || text == "struct" || text == "notnull")
             {
                 Advance();
                 return text;
@@ -4152,8 +4506,44 @@ public sealed class Parser
         // NEW: Parse optional type parameters §IFACE{...}<T, U>
         var typeParameters = ParseOptionalTypeParameterList(startToken.Span);
 
+        // Legacy: Extract type parameters from name if present (e.g., IProducer<out T>)
+        if (typeParameters.Count == 0)
+        {
+            var typeParamStart = name.IndexOf('<');
+            if (typeParamStart >= 0)
+            {
+                var typeParamEnd = name.LastIndexOf('>');
+                if (typeParamEnd > typeParamStart)
+                {
+                    var typeParamStr = name.Substring(typeParamStart + 1, typeParamEnd - typeParamStart - 1);
+                    name = name.Substring(0, typeParamStart);
+
+                    foreach (var tpName in typeParamStr.Split(','))
+                    {
+                        var trimmed = tpName.Trim();
+                        if (!string.IsNullOrEmpty(trimmed))
+                        {
+                            var variance = Ast.VarianceKind.None;
+                            if (trimmed.StartsWith("out "))
+                            {
+                                variance = Ast.VarianceKind.Out;
+                                trimmed = trimmed.Substring(4);
+                            }
+                            else if (trimmed.StartsWith("in "))
+                            {
+                                variance = Ast.VarianceKind.In;
+                                trimmed = trimmed.Substring(3);
+                            }
+                            typeParameters.Add(new TypeParameterNode(startToken.Span, trimmed, Array.Empty<TypeConstraintNode>(), variance));
+                        }
+                    }
+                }
+            }
+        }
+
         var baseInterfaces = new List<string>();
         var methods = new List<MethodSignatureNode>();
+        var properties = new List<PropertyNode>();
 
         while (!IsAtEnd && !Check(TokenKind.EndInterface))
         {
@@ -4179,9 +4569,13 @@ public sealed class Parser
             {
                 methods.Add(ParseMethodSignature());
             }
+            else if (Check(TokenKind.Property))
+            {
+                properties.Add(ParseProperty());
+            }
             else
             {
-                _diagnostics.ReportUnexpectedToken(Current.Span, "EXT, METHOD, or END_IFACE", Current.Kind);
+                _diagnostics.ReportUnexpectedToken(Current.Span, "EXT, METHOD, PROP, or END_IFACE", Current.Kind);
                 Advance();
             }
         }
@@ -4196,7 +4590,7 @@ public sealed class Parser
         }
 
         var span = startToken.Span.Union(endToken.Span);
-        return new InterfaceDefinitionNode(span, id, name, baseInterfaces, typeParameters, methods, attrs, csharpAttrs);
+        return new InterfaceDefinitionNode(span, id, name, baseInterfaces, typeParameters, methods, properties, attrs, csharpAttrs);
     }
 
     /// <summary>
@@ -4290,10 +4684,11 @@ public sealed class Parser
         var attrs = ParseAttributes();
         var csharpAttrs = ParseCSharpAttributes();
 
-        // Positional: [id:name:modifiers?]
+        // Positional: [id:name:modifiers?] or [id:name:baseClass:modifiers?]
         var id = attrs["_pos0"] ?? "";
         var name = attrs["_pos1"] ?? "";
-        var modifiers = attrs["_pos2"] ?? "";
+        var pos2 = attrs["_pos2"] ?? "";
+        var pos3 = attrs["_pos3"];
 
         if (string.IsNullOrEmpty(id))
         {
@@ -4304,10 +4699,65 @@ public sealed class Parser
             _diagnostics.ReportMissingRequiredAttribute(startToken.Span, "CLASS", "name");
         }
 
-        var isAbstract = modifiers.Contains("abs", StringComparison.OrdinalIgnoreCase);
-        var isSealed = modifiers.Contains("seal", StringComparison.OrdinalIgnoreCase);
-
+        // Disambiguate positionals:
+        // 4 positionals (pos3 exists): pos2 is visibility, pos3 is modifiers — OR pos2 is baseClass, pos3 is modifiers
+        // 3 positionals (pos3 null): if pos2 is all known modifiers/visibility → modifiers; else baseClass
+        string modifiers;
         string? baseClass = null;
+        Visibility visibility = Visibility.Internal;
+
+        if (pos3 != null)
+        {
+            // 4 positionals: §CL{id:name:vis:modifiers} or §CL{id:name:BaseClass:modifiers}
+            if (IsVisibilityKeyword(pos2))
+            {
+                // pos2 is a visibility like "pub", "int", etc.
+                visibility = ParseVisibility(pos2);
+                modifiers = pos3;
+            }
+            else
+            {
+                baseClass = pos2;
+                modifiers = pos3;
+            }
+        }
+        else
+        {
+            // 3 positionals: §CL{id:name:modifiers_or_vis_or_base}
+            if (IsClassModifierOrVisibility(pos2))
+            {
+                // Extract visibility from the modifiers string if present
+                modifiers = pos2;
+                visibility = ExtractVisibilityFromModifiers(ref modifiers);
+            }
+            else
+            {
+                // Not a known modifier — treat as base class
+                baseClass = string.IsNullOrEmpty(pos2) ? null : pos2;
+                modifiers = "";
+            }
+        }
+
+        // Token-based matching: split modifiers and check each token against known abbreviations
+        var modifierTokens = modifiers.Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+        var isAbstract = modifierTokens.Any(t => t.Equals("abs", StringComparison.OrdinalIgnoreCase)
+            || t.Equals("abstract", StringComparison.OrdinalIgnoreCase));
+        var isSealed = modifierTokens.Any(t => t.Equals("seal", StringComparison.OrdinalIgnoreCase)
+            || t.Equals("sealed", StringComparison.OrdinalIgnoreCase));
+        var isStatic = modifierTokens.Any(t => t.Equals("st", StringComparison.OrdinalIgnoreCase)
+            || t.Equals("stat", StringComparison.OrdinalIgnoreCase)
+            || t.Equals("static", StringComparison.OrdinalIgnoreCase));
+        var isPartial = modifierTokens.Any(t => t.Equals("partial", StringComparison.OrdinalIgnoreCase));
+        var isStruct = modifierTokens.Any(t => t.Equals("struct", StringComparison.OrdinalIgnoreCase));
+        var isReadOnly = modifierTokens.Any(t => t.Equals("readonly", StringComparison.OrdinalIgnoreCase));
+
+        // Structs cannot be abstract
+        if (isStruct && isAbstract)
+        {
+            _diagnostics.ReportError(startToken.Span, DiagnosticCode.InvalidModifier,
+                "Structs cannot be abstract. The 'abs' modifier will be ignored.");
+            isAbstract = false;
+        }
         var implementedInterfaces = new List<string>();
 
         // NEW: Parse optional type parameters §CL{...}<T, U>
@@ -4325,13 +4775,24 @@ public sealed class Parser
                     var typeParamStr = name.Substring(typeParamStart + 1, typeParamEnd - typeParamStart - 1);
                     name = name.Substring(0, typeParamStart);
 
-                    // Parse type parameter names (comma-separated)
+                    // Parse type parameter names (comma-separated), with optional variance
                     foreach (var tpName in typeParamStr.Split(','))
                     {
                         var trimmedName = tpName.Trim();
                         if (!string.IsNullOrEmpty(trimmedName))
                         {
-                            typeParameters.Add(new TypeParameterNode(startToken.Span, trimmedName, Array.Empty<TypeConstraintNode>()));
+                            var variance = Ast.VarianceKind.None;
+                            if (trimmedName.StartsWith("out "))
+                            {
+                                variance = Ast.VarianceKind.Out;
+                                trimmedName = trimmedName.Substring(4);
+                            }
+                            else if (trimmedName.StartsWith("in "))
+                            {
+                                variance = Ast.VarianceKind.In;
+                                trimmedName = trimmedName.Substring(3);
+                            }
+                            typeParameters.Add(new TypeParameterNode(startToken.Span, trimmedName, Array.Empty<TypeConstraintNode>(), variance));
                         }
                     }
                 }
@@ -4415,8 +4876,9 @@ public sealed class Parser
         }
 
         var span = startToken.Span.Union(endToken.Span);
-        return new ClassDefinitionNode(span, id, name, isAbstract, isSealed, isPartial: false, isStatic: false, baseClass,
-            implementedInterfaces, typeParameters, fields, properties, constructors, methods, events, operatorOverloads, attrs, csharpAttrs);
+        return new ClassDefinitionNode(span, id, name, isAbstract, isSealed, isPartial, isStatic, baseClass,
+            implementedInterfaces, typeParameters, fields, properties, constructors, methods, events, operatorOverloads, attrs, csharpAttrs,
+            isStruct: isStruct, isReadOnly: isReadOnly, visibility: visibility);
     }
 
     /// <summary>
@@ -4429,10 +4891,11 @@ public sealed class Parser
         var attrs = ParseAttributes();
         var csharpAttrs = ParseCSharpAttributes();
 
-        // Positional: [type:name:visibility?]
+        // Positional: [type:name:visibility?:modifiers?]
         var typeName = attrs["_pos0"] ?? "object";
         var name = attrs["_pos1"] ?? "";
         var visStr = attrs["_pos2"] ?? "private";
+        var modStr = attrs["_pos3"] ?? "";
 
         if (string.IsNullOrEmpty(name))
         {
@@ -4440,6 +4903,7 @@ public sealed class Parser
         }
 
         var visibility = ParseVisibility(visStr);
+        var fieldModifiers = ParseMethodModifiers(modStr);
 
         // Check for optional default value (can be prefixed with = or just a direct expression)
         ExpressionNode? defaultValue = null;
@@ -4454,7 +4918,7 @@ public sealed class Parser
         }
 
         var span = defaultValue != null ? startToken.Span.Union(defaultValue.Span) : startToken.Span;
-        return new ClassFieldNode(span, name, typeName, visibility, defaultValue, attrs, csharpAttrs);
+        return new ClassFieldNode(span, name, typeName, visibility, fieldModifiers, defaultValue, attrs, csharpAttrs);
     }
 
     /// <summary>
@@ -4695,11 +5159,39 @@ public sealed class Parser
     private static MethodModifiers ParseMethodModifiers(string modStr)
     {
         var mods = MethodModifiers.None;
-        if (modStr.Contains("virt", StringComparison.OrdinalIgnoreCase)) mods |= MethodModifiers.Virtual;
-        if (modStr.Contains("over", StringComparison.OrdinalIgnoreCase)) mods |= MethodModifiers.Override;
-        if (modStr.Contains("abs", StringComparison.OrdinalIgnoreCase)) mods |= MethodModifiers.Abstract;
-        if (modStr.Contains("seal", StringComparison.OrdinalIgnoreCase)) mods |= MethodModifiers.Sealed;
-        if (modStr.Contains("stat", StringComparison.OrdinalIgnoreCase)) mods |= MethodModifiers.Static;
+        // Token-based matching: split on commas/spaces and check each token
+        var tokens = modStr.Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+        foreach (var token in tokens)
+        {
+            if (token.Equals("vr", StringComparison.OrdinalIgnoreCase)
+                || token.Equals("virt", StringComparison.OrdinalIgnoreCase)
+                || token.Equals("virtual", StringComparison.OrdinalIgnoreCase))
+                mods |= MethodModifiers.Virtual;
+            else if (token.Equals("ov", StringComparison.OrdinalIgnoreCase)
+                || token.Equals("over", StringComparison.OrdinalIgnoreCase)
+                || token.Equals("override", StringComparison.OrdinalIgnoreCase))
+                mods |= MethodModifiers.Override;
+            else if (token.Equals("abs", StringComparison.OrdinalIgnoreCase)
+                || token.Equals("abstract", StringComparison.OrdinalIgnoreCase))
+                mods |= MethodModifiers.Abstract;
+            else if (token.Equals("seal", StringComparison.OrdinalIgnoreCase)
+                || token.Equals("sealed", StringComparison.OrdinalIgnoreCase))
+                mods |= MethodModifiers.Sealed;
+            else if (token.Equals("st", StringComparison.OrdinalIgnoreCase)
+                || token.Equals("stat", StringComparison.OrdinalIgnoreCase)
+                || token.Equals("static", StringComparison.OrdinalIgnoreCase))
+                mods |= MethodModifiers.Static;
+            else if (token.Equals("const", StringComparison.OrdinalIgnoreCase))
+                mods |= MethodModifiers.Const;
+            else if (token.Equals("readonly", StringComparison.OrdinalIgnoreCase))
+                mods |= MethodModifiers.Readonly;
+            else if (token.Equals("req", StringComparison.OrdinalIgnoreCase)
+                || token.Equals("required", StringComparison.OrdinalIgnoreCase))
+                mods |= MethodModifiers.Required;
+            else if (token.Equals("part", StringComparison.OrdinalIgnoreCase)
+                || token.Equals("partial", StringComparison.OrdinalIgnoreCase))
+                mods |= MethodModifiers.Partial;
+        }
         return mods;
     }
 
@@ -4707,34 +5199,98 @@ public sealed class Parser
     /// Parses a new expression.
     /// §NEW[Circle] §A "MyCircle" §A 5.0 §/NEW
     /// </summary>
-    private NewExpressionNode ParseNewExpression()
+    private ExpressionNode ParseNewExpression()
     {
         var startToken = Expect(TokenKind.New);
         var attrs = ParseAttributes();
 
         // Positional: [typeName:typeArg1:typeArg2:...]
-        var typeName = attrs["_pos0"] ?? "object";
+        var rawTypeName = attrs["_pos0"] ?? "object";
 
-        // Collect type arguments
+        string typeName;
         var typeArgs = new List<string>();
-        var posCount = attrs["_posCount"];
-        if (int.TryParse(posCount, out var count))
+
+        // Handle generic types in _pos0 like "Dictionary<char,str>"
+        var angleIndex = rawTypeName.IndexOf('<');
+        if (angleIndex >= 0 && rawTypeName.EndsWith('>'))
         {
-            for (int i = 1; i < count; i++)
+            typeName = rawTypeName[..angleIndex];
+            var innerArgs = rawTypeName[(angleIndex + 1)..^1]; // "char,str"
+            typeArgs.AddRange(innerArgs.Split(',').Select(a => a.Trim()));
+        }
+        else
+        {
+            typeName = rawTypeName;
+            // Collect type arguments from positional params (existing behavior: §NEW{Dict:char:str})
+            var posCount = attrs["_posCount"];
+            if (int.TryParse(posCount, out var count))
             {
-                var typeArg = attrs[$"_pos{i}"];
-                if (!string.IsNullOrEmpty(typeArg))
+                for (int i = 1; i < count; i++)
                 {
-                    typeArgs.Add(typeArg);
+                    var typeArg = attrs[$"_pos{i}"];
+                    if (!string.IsNullOrEmpty(typeArg))
+                    {
+                        typeArgs.Add(typeArg);
+                    }
                 }
             }
         }
 
-        // Parse arguments
-        var arguments = new List<ExpressionNode>();
-        while (Check(TokenKind.Arg))
+        // Handle optional empty parens: §NEW{X}() — consume silently
+        if (Check(TokenKind.OpenParen))
         {
-            arguments.Add(ParseArgument());
+            var saved = _position;
+            Advance(); // consume '('
+            if (Check(TokenKind.CloseParen))
+            {
+                Advance(); // consume ')'
+            }
+            else
+            {
+                _position = saved; // not empty parens — backtrack
+            }
+        }
+
+        // Parse arguments — only when not inside an argument context
+        // (avoids stealing §A tokens that belong to the enclosing §C)
+        var arguments = new List<ExpressionNode>();
+        if (!_insideArgContext)
+        {
+            while (Check(TokenKind.Arg))
+            {
+                arguments.Add(ParseArgument());
+            }
+        }
+
+        // Parse object initializer assignments:
+        // Format 1: §INIT{PropName} expression (tag-based)
+        // Format 2: PropName = expression (inline, between §NEW and §/NEW)
+        var initializers = new List<ObjectInitializerAssignment>();
+        while (Check(TokenKind.Init))
+        {
+            Advance(); // consume §INIT
+            var initAttrs = ParseAttributes();
+            var propName = initAttrs["_pos0"] ?? "";
+            var value = ParseExpression();
+            initializers.Add(new ObjectInitializerAssignment(propName, value));
+        }
+        while (!IsAtEnd && !Check(TokenKind.EndNew) && Check(TokenKind.Identifier))
+        {
+            // Peek ahead to check for "Identifier =" pattern
+            var saved = _position;
+            var identToken = Advance();
+            if (Check(TokenKind.Equals))
+            {
+                Advance(); // consume '='
+                var value = ParseExpression();
+                initializers.Add(new ObjectInitializerAssignment(identToken.Text, value));
+            }
+            else
+            {
+                // Not an initializer — backtrack
+                _position = saved;
+                break;
+            }
         }
 
         // Check for optional end tag
@@ -4744,8 +5300,63 @@ public sealed class Parser
             endSpan = Advance().Span;
         }
 
-        var span = arguments.Count > 0 ? startToken.Span.Union(arguments[^1].Span) : startToken.Span;
-        return new NewExpressionNode(span, typeName, typeArgs, arguments);
+        var span = endSpan != startToken.Span ? startToken.Span.Union(endSpan)
+            : arguments.Count > 0 ? startToken.Span.Union(arguments[^1].Span)
+            : startToken.Span;
+        ExpressionNode expr = new NewExpressionNode(span, typeName, typeArgs, arguments, initializers);
+
+        // Handle trailing member access (e.g., §NEW{Type}§/NEW.Method or §NEW{Type}§/NEW?.Prop)
+        return ParseTrailingMemberAccess(expr);
+    }
+
+    /// <summary>
+    /// Parses an anonymous object creation.
+    /// §ANON
+    ///   PropertyName = expression
+    ///   OtherProp = expression
+    /// §/ANON
+    /// Emits: new { PropertyName = expression, OtherProp = expression }
+    /// </summary>
+    private AnonymousObjectCreationNode ParseAnonymousObjectCreation()
+    {
+        var startToken = Expect(TokenKind.AnonymousObject);
+        var initializers = new List<ObjectInitializerAssignment>();
+
+        while (!IsAtEnd && !Check(TokenKind.EndAnonymousObject))
+        {
+            if (Check(TokenKind.Identifier))
+            {
+                var saved = _position;
+                var identToken = Advance();
+                if (Check(TokenKind.Equals))
+                {
+                    Advance(); // consume '='
+                    var value = ParseExpression();
+                    initializers.Add(new ObjectInitializerAssignment(identToken.Text, value));
+                }
+                else
+                {
+                    // Shorthand: just identifier (inferred property name, e.g., §ANON x y §/ANON → new { x, y })
+                    _position = saved;
+                    var ident = Advance();
+                    initializers.Add(new ObjectInitializerAssignment(ident.Text,
+                        new ReferenceNode(ident.Span, ident.Text)));
+                }
+            }
+            else
+            {
+                // Unexpected token in anonymous object
+                break;
+            }
+        }
+
+        var endSpan = startToken.Span;
+        if (Check(TokenKind.EndAnonymousObject))
+        {
+            endSpan = Advance().Span;
+        }
+
+        return new AnonymousObjectCreationNode(startToken.Span.Union(endSpan), initializers);
     }
 
     /// <summary>
@@ -4756,30 +5367,7 @@ public sealed class Parser
     {
         var token = Expect(TokenKind.This);
         ExpressionNode expr = new ThisExpressionNode(token.Span);
-
-        // Handle trailing member access (e.g., §THIS.property or §THIS?.property)
-        while (Check(TokenKind.Dot) || Check(TokenKind.NullConditional))
-        {
-            var isNullConditional = Check(TokenKind.NullConditional);
-            Advance(); // consume '.' or '?.'
-            if (!Check(TokenKind.Identifier))
-            {
-                _diagnostics.ReportUnexpectedToken(Current.Span, "member name", Current.Kind);
-                break;
-            }
-            var memberToken = Advance();
-            var span = expr.Span.Union(memberToken.Span);
-            if (isNullConditional)
-            {
-                expr = new NullConditionalNode(span, expr, memberToken.Text);
-            }
-            else
-            {
-                expr = new FieldAccessNode(span, expr, memberToken.Text);
-            }
-        }
-
-        return expr;
+        return ParseTrailingMemberAccess(expr);
     }
 
     /// <summary>
@@ -4790,43 +5378,49 @@ public sealed class Parser
     {
         var token = Expect(TokenKind.Base);
         ExpressionNode expr = new BaseExpressionNode(token.Span);
-
-        // Handle trailing member access (e.g., §BASE.method)
-        while (Check(TokenKind.Dot) || Check(TokenKind.NullConditional))
-        {
-            var isNullConditional = Check(TokenKind.NullConditional);
-            Advance(); // consume '.' or '?.'
-            if (!Check(TokenKind.Identifier))
-            {
-                _diagnostics.ReportUnexpectedToken(Current.Span, "member name", Current.Kind);
-                break;
-            }
-            var memberToken = Advance();
-            var span = expr.Span.Union(memberToken.Span);
-            if (isNullConditional)
-            {
-                expr = new NullConditionalNode(span, expr, memberToken.Text);
-            }
-            else
-            {
-                expr = new FieldAccessNode(span, expr, memberToken.Text);
-            }
-        }
-
-        return expr;
+        return ParseTrailingMemberAccess(expr);
     }
 
     /// <summary>
     /// Parses a call expression.
     /// §C[target] §A arg1 §A arg2 §/C
     /// </summary>
-    private CallExpressionNode ParseCallExpression()
+    private ExpressionNode ParseCallExpression()
     {
         var startToken = Expect(TokenKind.Call);
         var attrs = ParseAttributes();
 
         // Positional: [target]
         var target = attrs["_pos0"] ?? "";
+
+        // If no bracket attribute target and next token starts an expression,
+        // parse expression-based call target: §C §NEW{object}§/NEW.GetType §/C
+        if (string.IsNullOrEmpty(target) && !Check(TokenKind.Arg) && !Check(TokenKind.EndCall) && IsExpressionStart())
+        {
+            var targetExpr = ParseExpression();
+
+            var exprArgs = new List<ExpressionNode>();
+            while (!IsAtEnd && !Check(TokenKind.EndCall))
+            {
+                if (Check(TokenKind.Arg))
+                {
+                    exprArgs.Add(ParseArgument());
+                }
+                else if (IsExpressionStart())
+                {
+                    exprArgs.Add(ParseExpression());
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            var exprEndToken = Expect(TokenKind.EndCall);
+            var exprSpan = startToken.Span.Union(exprEndToken.Span);
+            ExpressionNode exprCall = new ExpressionCallNode(exprSpan, targetExpr, exprArgs);
+            return ParseTrailingMemberAccess(exprCall);
+        }
 
         var arguments = new List<ExpressionNode>();
 
@@ -4850,7 +5444,10 @@ public sealed class Parser
 
         var endToken = Expect(TokenKind.EndCall);
         var span = startToken.Span.Union(endToken.Span);
-        return new CallExpressionNode(span, target, arguments);
+        ExpressionNode expr = new CallExpressionNode(span, target, arguments);
+
+        // Handle trailing member access (e.g., §C[Method]§/C.Property)
+        return ParseTrailingMemberAccess(expr);
     }
 
     // Phase 9: Properties and Constructors
@@ -4868,11 +5465,12 @@ public sealed class Parser
         var attrs = ParseAttributes();
         var csharpAttrs = ParseCSharpAttributes();
 
-        // Positional: [id:name:type:visibility?]
+        // Positional: [id:name:type:visibility?:modifiers?]
         var id = attrs["_pos0"] ?? "";
         var name = attrs["_pos1"] ?? "";
         var typeName = attrs["_pos2"] ?? "object";
         var visStr = attrs["_pos3"] ?? "public";
+        var modStr = attrs["_pos4"] ?? "";
 
         if (string.IsNullOrEmpty(id))
         {
@@ -4880,6 +5478,7 @@ public sealed class Parser
         }
 
         var visibility = ParseVisibility(visStr);
+        var modifiers = ParseMethodModifiers(modStr);
 
         PropertyAccessorNode? getter = null;
         PropertyAccessorNode? setter = null;
@@ -4927,7 +5526,7 @@ public sealed class Parser
         }
 
         var span = startToken.Span.Union(endToken.Span);
-        return new PropertyNode(span, id, name, typeName, visibility, getter, setter, initer, defaultValue, attrs, csharpAttrs);
+        return new PropertyNode(span, id, name, typeName, visibility, modifiers, getter, setter, initer, defaultValue, attrs, csharpAttrs);
     }
 
     /// <summary>
@@ -5283,6 +5882,46 @@ public sealed class Parser
     ///   ...
     /// §/TRY[try1]
     /// </summary>
+    /// <summary>
+    /// Parses a using statement.
+    /// §USE{id:variableName:variableType} resource-expression
+    ///   ...body...
+    /// §/USE{id}
+    /// </summary>
+    private UsingStatementNode ParseUsingStatement()
+    {
+        var startToken = Expect(TokenKind.Use);
+        var attrs = ParseAttributes();
+
+        // Positional: {id:variableName:variableType}
+        var id = attrs["_pos0"] ?? "";
+        var variableName = attrs["_pos1"];
+        var variableType = attrs["_pos2"];
+
+        if (string.IsNullOrEmpty(id))
+        {
+            _diagnostics.ReportMissingRequiredAttribute(startToken.Span, "USE", "id");
+        }
+
+        // Parse resource expression
+        var resource = ParseExpression();
+
+        // Parse body statements
+        var body = ParseStatementBlock(TokenKind.EndUse);
+
+        var endToken = Expect(TokenKind.EndUse);
+        var endAttrs = ParseAttributes();
+        var endId = endAttrs["_pos0"] ?? "";
+
+        if (endId != id)
+        {
+            _diagnostics.ReportMismatchedIdWithFix(endToken.Span, "USE", id, "END_USE", endId);
+        }
+
+        var span = startToken.Span.Union(endToken.Span);
+        return new UsingStatementNode(span, id, variableName, variableType, resource, body);
+    }
+
     private TryStatementNode ParseTryStatement()
     {
         var startToken = Expect(TokenKind.Try);
@@ -5428,6 +6067,45 @@ public sealed class Parser
         return new ContinueStatementNode(token.Span);
     }
 
+    /// <summary>
+    /// Parses a raw C# passthrough block.
+    /// §RAW ... §/RAW (content already captured by lexer as single token)
+    /// </summary>
+    private RawCSharpNode ParseRawCSharpStatement()
+    {
+        var token = Expect(TokenKind.RawCSharp);
+        var content = token.Value as string ?? "";
+        return new RawCSharpNode(token.Span, content);
+    }
+
+    /// <summary>
+    /// Parses a yield return statement.
+    /// §YIELD expression
+    /// </summary>
+    private YieldReturnStatementNode ParseYieldReturnStatement()
+    {
+        var startToken = Expect(TokenKind.Yield);
+
+        ExpressionNode? expression = null;
+        if (IsExpressionStart())
+        {
+            expression = ParseExpression();
+        }
+
+        var span = expression != null ? startToken.Span.Union(expression.Span) : startToken.Span;
+        return new YieldReturnStatementNode(span, expression);
+    }
+
+    /// <summary>
+    /// Parses a yield break statement.
+    /// §YBRK
+    /// </summary>
+    private YieldBreakStatementNode ParseYieldBreakStatement()
+    {
+        var token = Expect(TokenKind.YieldBreak);
+        return new YieldBreakStatementNode(token.Span);
+    }
+
     // Phase 11: Lambdas, Delegates, Events
 
     /// <summary>
@@ -5442,6 +6120,7 @@ public sealed class Parser
         // Positional: [id:param1:type1:param2:type2:...] or [id:async:param1:type1:...]
         var id = attrs["_pos0"] ?? "";
         var isAsync = false;
+        var isStatic = false;
 
         if (string.IsNullOrEmpty(id))
         {
@@ -5454,12 +6133,24 @@ public sealed class Parser
         if (int.TryParse(posCount, out var count))
         {
             int i = 1;
-            // Check for async modifier
-            var firstPos = attrs["_pos1"];
-            if (firstPos?.Equals("async", StringComparison.OrdinalIgnoreCase) == true)
+            // Check for static/async modifiers
+            while (i < count)
             {
-                isAsync = true;
-                i = 2;
+                var pos = attrs[$"_pos{i}"];
+                if (pos?.Equals("static", StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    isStatic = true;
+                    i++;
+                }
+                else if (pos?.Equals("async", StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    isAsync = true;
+                    i++;
+                }
+                else
+                {
+                    break;
+                }
             }
 
             // Parse parameter pairs: name:type
@@ -5516,7 +6207,7 @@ public sealed class Parser
         }
 
         var span = startToken.Span.Union(endToken.Span);
-        return new LambdaExpressionNode(span, id, parameters, effects, isAsync, expressionBody, statementBody, attrs);
+        return new LambdaExpressionNode(span, id, parameters, effects, isAsync, expressionBody, statementBody, attrs, isStatic);
     }
 
     /// <summary>
@@ -6774,6 +7465,85 @@ public sealed class Parser
 
         var span = startToken.Span.Union(endToken.Span);
         return new EnumExtensionNode(span, id, enumName, methods, attrs);
+    }
+
+    #endregion
+
+    #region Class Modifier Helpers
+
+    private static bool IsVisibilityKeyword(string value)
+    {
+        return value.Equals("pub", StringComparison.OrdinalIgnoreCase)
+            || value.Equals("pri", StringComparison.OrdinalIgnoreCase)
+            || value.Equals("pro", StringComparison.OrdinalIgnoreCase)
+            || value.Equals("prot", StringComparison.OrdinalIgnoreCase)
+            || value.Equals("priv", StringComparison.OrdinalIgnoreCase)
+            || value.Equals("int", StringComparison.OrdinalIgnoreCase)
+            || value.Equals("public", StringComparison.OrdinalIgnoreCase)
+            || value.Equals("private", StringComparison.OrdinalIgnoreCase)
+            || value.Equals("protected", StringComparison.OrdinalIgnoreCase)
+            || value.Equals("internal", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static readonly HashSet<string> VisibilityKeywords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "pub", "pri", "pro", "prot", "priv", "int",
+        "public", "private", "protected", "internal"
+    };
+
+    /// <summary>
+    /// Extracts a visibility keyword from a comma/space-separated modifiers string,
+    /// removes it from the modifiers, and returns the parsed visibility.
+    /// </summary>
+    private static Visibility ExtractVisibilityFromModifiers(ref string modifiers)
+    {
+        if (string.IsNullOrEmpty(modifiers))
+            return Visibility.Internal;
+
+        var parts = modifiers.Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+        Visibility vis = Visibility.Internal;
+        bool found = false;
+        var remaining = new List<string>();
+
+        foreach (var part in parts)
+        {
+            var trimmed = part.Trim();
+            if (!found && VisibilityKeywords.Contains(trimmed))
+            {
+                vis = ParseVisibility(trimmed);
+                found = true;
+            }
+            else
+            {
+                remaining.Add(trimmed);
+            }
+        }
+
+        modifiers = string.Join(",", remaining);
+        return vis;
+    }
+
+    private static readonly HashSet<string> ClassModifierKeywords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "abs", "abstract", "seal", "sealed", "st", "stat", "static",
+        "partial", "struct", "readonly",
+        "pub", "pri", "pro", "prot", "priv", "int",
+        "public", "private", "protected", "internal"
+    };
+
+    private static bool IsClassModifierOrVisibility(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return true; // empty string is "no modifiers" — treat as modifiers field
+
+        // value may be comma-separated ("abs,sealed") or space-separated ("abs seal")
+        foreach (var part in value.Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries))
+        {
+            var trimmed = part.Trim();
+            if (trimmed.Length > 0 && !ClassModifierKeywords.Contains(trimmed))
+                return false;
+        }
+        return true;
     }
 
     #endregion
