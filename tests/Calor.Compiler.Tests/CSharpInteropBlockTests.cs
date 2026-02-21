@@ -180,6 +180,7 @@ public class CSharpInteropBlockTests
             constructors: Array.Empty<ConstructorNode>(),
             methods: Array.Empty<MethodNode>(),
             events: Array.Empty<EventDefinitionNode>(),
+            operatorOverloads: Array.Empty<OperatorOverloadNode>(),
             attributes: new AttributeCollection(),
             csharpAttributes: Array.Empty<CalorAttributeNode>(),
             visibility: Visibility.Public,

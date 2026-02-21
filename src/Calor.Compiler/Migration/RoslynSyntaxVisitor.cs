@@ -418,6 +418,7 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
         var constructors = new List<ConstructorNode>();
         var methods = new List<MethodNode>();
         var events = new List<EventDefinitionNode>();
+        var operatorOverloads = new List<OperatorOverloadNode>();
 
         // Convert C# 12 primary constructor parameters to readonly fields
         if (node.ParameterList != null)
@@ -447,7 +448,7 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
         {
             try
             {
-                ConvertClassMember(member, fields, properties, constructors, methods, events);
+                ConvertClassMember(member, fields, properties, constructors, methods, events, operatorOverloads);
             }
             catch (Exception) when (_context.Mode == ConversionMode.Interop)
             {
@@ -480,6 +481,7 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
             constructors,
             methods,
             events,
+            operatorOverloads,
             new AttributeCollection(),
             csharpAttrs,
             visibility: visibility,
@@ -492,7 +494,8 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
         List<PropertyNode> properties,
         List<ConstructorNode> constructors,
         List<MethodNode> methods,
-        List<EventDefinitionNode> events)
+        List<EventDefinitionNode> events,
+        List<OperatorOverloadNode> operatorOverloads)
     {
         switch (member)
         {
@@ -508,11 +511,11 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
             case MethodDeclarationSyntax methodSyntax:
                 methods.Add(ConvertMethod(methodSyntax));
                 break;
-            case OperatorDeclarationSyntax opDecl:
-                methods.Add(ConvertOperator(opDecl));
+            case OperatorDeclarationSyntax opSyntax:
+                operatorOverloads.Add(ConvertOperatorOverload(opSyntax));
                 break;
-            case ConversionOperatorDeclarationSyntax convDecl:
-                methods.Add(ConvertConversionOperator(convDecl));
+            case ConversionOperatorDeclarationSyntax convSyntax:
+                operatorOverloads.Add(ConvertConversionOperatorOverload(convSyntax));
                 break;
             case EventFieldDeclarationSyntax eventSyntax:
                 events.AddRange(ConvertEventFields(eventSyntax));
@@ -562,6 +565,8 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
             }
         }
 
+        var operatorOverloads = new List<OperatorOverloadNode>();
+
         foreach (var member in node.Members)
         {
             switch (member)
@@ -578,11 +583,11 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
                 case MethodDeclarationSyntax methodSyntax:
                     methods.Add(ConvertMethod(methodSyntax));
                     break;
-                case OperatorDeclarationSyntax opDecl:
-                    methods.Add(ConvertOperator(opDecl));
+                case OperatorDeclarationSyntax opSyntax:
+                    operatorOverloads.Add(ConvertOperatorOverload(opSyntax));
                     break;
-                case ConversionOperatorDeclarationSyntax convDecl:
-                    methods.Add(ConvertConversionOperator(convDecl));
+                case ConversionOperatorDeclarationSyntax convSyntax:
+                    operatorOverloads.Add(ConvertConversionOperatorOverload(convSyntax));
                     break;
             }
         }
@@ -603,6 +608,7 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
             constructors,
             methods,
             Array.Empty<EventDefinitionNode>(),
+            operatorOverloads,
             new AttributeCollection(),
             Array.Empty<CalorAttributeNode>(),
             visibility: visibility);
@@ -628,6 +634,7 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
         var properties = new List<PropertyNode>();
         var constructors = new List<ConstructorNode>();
         var methods = new List<MethodNode>();
+        var operatorOverloads = new List<OperatorOverloadNode>();
         var events = new List<EventDefinitionNode>();
 
         foreach (var member in node.Members)
@@ -646,11 +653,11 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
                 case MethodDeclarationSyntax methodSyntax:
                     methods.Add(ConvertMethod(methodSyntax));
                     break;
-                case OperatorDeclarationSyntax opDecl:
-                    methods.Add(ConvertOperator(opDecl));
+                case OperatorDeclarationSyntax opSyntax:
+                    operatorOverloads.Add(ConvertOperatorOverload(opSyntax));
                     break;
-                case ConversionOperatorDeclarationSyntax convDecl:
-                    methods.Add(ConvertConversionOperator(convDecl));
+                case ConversionOperatorDeclarationSyntax convSyntax:
+                    operatorOverloads.Add(ConvertConversionOperatorOverload(convSyntax));
                     break;
                 case EventFieldDeclarationSyntax eventSyntax:
                     events.AddRange(ConvertEventFields(eventSyntax));
@@ -678,6 +685,7 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
             constructors,
             methods,
             events,
+            operatorOverloads,
             new AttributeCollection(),
             csharpAttrs,
             isStruct: true,
@@ -895,6 +903,72 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
             parameters,
             preconditions: Array.Empty<RequiresNode>(),
             initializer,
+            body,
+            new AttributeCollection(),
+            csharpAttrs);
+    }
+
+    private OperatorOverloadNode ConvertOperatorOverload(OperatorDeclarationSyntax node)
+    {
+        _context.RecordFeatureUsage("operator-overload");
+
+        var id = _context.GenerateId("op");
+        var operatorToken = node.OperatorToken.Text;
+        var visibility = GetVisibility(node.Modifiers);
+        var parameters = ConvertParameters(node.ParameterList);
+        var returnType = TypeMapper.CSharpToCalor(node.ReturnType.ToString());
+        var output = new OutputNode(GetTextSpan(node.ReturnType), returnType);
+        var body = ConvertMethodBody(node.Body, node.ExpressionBody);
+        var csharpAttrs = ConvertAttributes(node.AttributeLists);
+
+        var kind = OperatorOverloadNode.ResolveOperatorKind(operatorToken, parameters.Count);
+
+        _context.IncrementConverted();
+
+        return new OperatorOverloadNode(
+            GetTextSpan(node),
+            id,
+            operatorToken,
+            kind,
+            visibility,
+            parameters,
+            output,
+            preconditions: Array.Empty<RequiresNode>(),
+            postconditions: Array.Empty<EnsuresNode>(),
+            body,
+            new AttributeCollection(),
+            csharpAttrs);
+    }
+
+    private OperatorOverloadNode ConvertConversionOperatorOverload(ConversionOperatorDeclarationSyntax node)
+    {
+        var isImplicit = node.ImplicitOrExplicitKeyword.IsKind(SyntaxKind.ImplicitKeyword);
+        var operatorToken = isImplicit ? "implicit" : "explicit";
+
+        _context.RecordFeatureUsage(isImplicit ? "implicit-conversion" : "explicit-conversion");
+
+        var id = _context.GenerateId("op");
+        var visibility = GetVisibility(node.Modifiers);
+        var parameters = ConvertParameters(node.ParameterList);
+        var returnType = TypeMapper.CSharpToCalor(node.Type.ToString());
+        var output = new OutputNode(GetTextSpan(node.Type), returnType);
+        var body = ConvertMethodBody(node.Body, node.ExpressionBody);
+        var csharpAttrs = ConvertAttributes(node.AttributeLists);
+
+        var kind = isImplicit ? OperatorOverloadKind.Implicit : OperatorOverloadKind.Explicit;
+
+        _context.IncrementConverted();
+
+        return new OperatorOverloadNode(
+            GetTextSpan(node),
+            id,
+            operatorToken,
+            kind,
+            visibility,
+            parameters,
+            output,
+            preconditions: Array.Empty<RequiresNode>(),
+            postconditions: Array.Empty<EnsuresNode>(),
             body,
             new AttributeCollection(),
             csharpAttrs);

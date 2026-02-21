@@ -268,6 +268,12 @@ public sealed class CalorFormatter
             FormatMethod(method);
         }
 
+        // Operator overloads
+        foreach (var op in cls.OperatorOverloads)
+        {
+            FormatOperatorOverload(op);
+        }
+
         // C# interop blocks
         foreach (var interop in cls.InteropBlocks)
         {
@@ -335,6 +341,42 @@ public sealed class CalorFormatter
         }
 
         AppendLine($"§/CTOR{{{ctorId}}}");
+    }
+
+    private void FormatOperatorOverload(OperatorOverloadNode op)
+    {
+        var opId = AbbreviateId(op.Id);
+        var visibility = op.Visibility == Visibility.Public ? "pub" : "priv";
+        AppendLine($"§OP{{{opId}:{op.OperatorToken}:{visibility}}}");
+
+        foreach (var param in op.Parameters)
+        {
+            var typeName = CompactTypeName(param.TypeName);
+            AppendLine($"§I{{{typeName}:{param.Name}}}");
+        }
+
+        if (op.Output != null)
+        {
+            var typeName = CompactTypeName(op.Output.TypeName);
+            AppendLine($"§O{{{typeName}}}");
+        }
+
+        foreach (var pre in op.Preconditions)
+        {
+            AppendLine($"§Q {FormatExpression(pre.Condition)}");
+        }
+
+        foreach (var post in op.Postconditions)
+        {
+            AppendLine($"§S {FormatExpression(post.Condition)}");
+        }
+
+        foreach (var stmt in op.Body)
+        {
+            FormatStatement(stmt);
+        }
+
+        AppendLine($"§/OP{{{opId}}}");
     }
 
     private void FormatMethod(MethodNode method)
