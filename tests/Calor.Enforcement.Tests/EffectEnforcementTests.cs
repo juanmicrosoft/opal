@@ -615,4 +615,85 @@ public class EffectEnforcementTests
         Assert.False(result.HasErrors,
             $"Chained cross-class calls with declared effects should compile. Errors: {string.Join("; ", result.Diagnostics.Errors.Select(e => e.Message))}");
     }
+
+    [Fact]
+    public void CrossClass_NameCollision_TwoClassesSameMethodName_DoesNotFalseResolve()
+    {
+        // Two classes define a method named "Process" — one pure, one effectful.
+        // A caller invokes "_a.Process". Without ambiguity handling, the engine
+        // might resolve to the wrong "Process" and either miss or false-report an effect.
+        // With the multi-map, ambiguous bare names fall through to external resolution
+        // (which produces Calor0411 in strict mode). The caller declares cw to be safe.
+        var source = @"
+§M{m001:Test}
+§CL{c001:PureService:pub}
+  §MT{mt001:Process:pub}
+    §I{str:data}
+    §O{str}
+    §R data
+  §/MT{mt001}
+§/CL{c001}
+§CL{c002:EffectfulService:pub}
+  §MT{mt002:Process:pub}
+    §I{str:data}
+    §O{void}
+    §E{cw}
+    §P data
+  §/MT{mt002}
+§/CL{c002}
+§F{f001:DoWork:pub}
+  §I{str:input}
+  §O{void}
+  §E{cw}
+  §C{_a.Process}
+    §A STR:""hello""
+  §/C
+§/F{f001}
+§/M{m001}
+";
+        var result = TestHarness.Compile(source);
+
+        // The call to _a.Process is ambiguous (two classes define "Process").
+        // With ambiguity detection, the engine does NOT false-resolve to PureService.Process
+        // (which would miss the cw effect). Instead it falls through to external resolution
+        // which conservatively reports Unknown:* — the correct safe behavior.
+        Assert.True(result.HasErrors,
+            "Ambiguous cross-class call should NOT silently resolve to one candidate");
+        Assert.Contains(result.Diagnostics.Errors,
+            d => d.Message.Contains("DoWork") && d.Message.Contains("Unknown"));
+    }
+
+    [Fact]
+    public void CrossClass_UniqueMethodName_StillResolves()
+    {
+        // When only one class defines a method name, cross-class resolution should still work
+        // even with the multi-map (the method name is unambiguous).
+        var source = @"
+§M{m001:Test}
+§CL{c001:Calculator:pub}
+  §MT{mt001:Compute:pub}
+    §I{i32:x}
+    §O{i32}
+    §R (+ x 1)
+  §/MT{mt001}
+§/CL{c001}
+§CL{c002:OtherService:pub}
+  §MT{mt002:Format:pub}
+    §I{str:s}
+    §O{str}
+    §R s
+  §/MT{mt002}
+§/CL{c002}
+§F{f001:UseCalc:pub}
+  §O{i32}
+  §R §C{_calc.Compute} §A INT:5 §/C
+§/F{f001}
+§/M{m001}
+";
+        var result = TestHarness.Compile(source);
+
+        // "Compute" is unique across classes, so cross-class resolution should work fine.
+        Assert.False(result.HasErrors,
+            $"Unique cross-class method name should resolve. Errors: {string.Join("; ", result.Diagnostics.Errors.Select(e => e.Message))}");
+    }
 }
