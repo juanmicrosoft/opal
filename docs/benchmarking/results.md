@@ -1,6 +1,6 @@
 <!-- THIS FILE IS AUTO-GENERATED. DO NOT EDIT MANUALLY. -->
 <!-- Generated from website/public/data/benchmark-results.json by CI/CD -->
-<!-- Last generated: 2026-02-21T20:12:12.701Z -->
+<!-- Last generated: 2026-02-21T20:41:56.724Z -->
 
 ---
 layout: default
@@ -13,7 +13,7 @@ nav_order: 2
 
 Evaluated across 40 paired Calor/C# programs.
 
-**Last updated:** February 21, 2026 (commit: 7f76e6e)
+**Last updated:** February 21, 2026 (commit: 18476b9)
 
 ---
 
@@ -26,7 +26,6 @@ Evaluated across 40 paired Calor/C# programs.
 | Edit Precision | **1.37x** | Calor | Unique IDs enable targeted changes |
 | Refactoring Stability | **1.36x** | Calor | Structural IDs preserve refactoring intent |
 | Generation Accuracy | 0.97x | C# | Mature tooling, familiar patterns |
-| Task Completion | **1.00x** | Calor | Better task completion rate |
 | Token Economics | 0.83x | C# | Calor's explicit syntax uses more tokens |
 | Information Density | 1.00x | C# |  |
 
@@ -77,10 +76,6 @@ for (int i = 0; i < 100; i++)
 
 Structural IDs maintain references across refactoring operations, enabling reliable multi-step transformations.
 
-#### Task Completion (1.00x)
-
-Calor benefits when tasks require understanding code behavior through contracts.
-
 ---
 
 ### Where C# Wins
@@ -114,8 +109,6 @@ Edit Precision    ███████████░░░░░  1.37x
 Refactoring Stability███████████░░░░░  1.36x
                          |
 Generation Accuracy░░░░░░░░████████  0.97x
-Task Completion   ████████░░░░░░░░  1.00x
-                         |
 Token Economics   ░░░░░░░░░███████  0.83x
 Information Density████████░░░░░░░░  1.00x
 ```
