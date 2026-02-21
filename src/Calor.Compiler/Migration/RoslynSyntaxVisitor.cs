@@ -2468,13 +2468,12 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
             // Property pattern: { Length: > 5 }
             RecursivePatternSyntax recursivePattern => ConvertRecursivePattern(recursivePattern),
 
-            // Binary patterns: and, or (emit as raw text for now)
-            BinaryPatternSyntax binaryPattern =>
-                HandleUnsupportedPattern(binaryPattern, "binary pattern (and/or)"),
+            // Binary patterns: and, or
+            BinaryPatternSyntax binaryPattern => ConvertBinaryPattern(binaryPattern),
 
-            // Unary pattern: not null
-            UnaryPatternSyntax unaryPattern =>
-                HandleUnsupportedPattern(unaryPattern, "unary pattern (not)"),
+            // Unary pattern: not X
+            UnaryPatternSyntax { OperatorToken.Text: "not" } unaryPattern =>
+                new NegatedPatternNode(span, ConvertPattern(unaryPattern.Pattern)),
 
             // Parenthesized pattern: (pattern)
             ParenthesizedPatternSyntax parenPattern => ConvertPattern(parenPattern.Pattern),
@@ -2500,6 +2499,20 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
         };
 
         return new RelationalPatternNode(span, opString, value);
+    }
+
+    private PatternNode ConvertBinaryPattern(BinaryPatternSyntax binaryPattern)
+    {
+        var span = GetTextSpan(binaryPattern);
+        var left = ConvertPattern(binaryPattern.Left);
+        var right = ConvertPattern(binaryPattern.Right);
+
+        return binaryPattern.OperatorToken.Kind() switch
+        {
+            SyntaxKind.OrKeyword => new OrPatternNode(span, left, right),
+            SyntaxKind.AndKeyword => new AndPatternNode(span, left, right),
+            _ => HandleUnsupportedPattern(binaryPattern, $"binary pattern ({binaryPattern.OperatorToken.Text})")
+        };
     }
 
     private PatternNode ConvertRecursivePattern(RecursivePatternSyntax pattern)
@@ -2714,6 +2727,11 @@ public sealed class RoslynSyntaxVisitor : CSharpSyntaxWalker
                 // "x is SomeType" - convert to type operation
                 new TypeOperationNode(GetTextSpan(isPattern), TypeOp.Is, left,
                     TypeMapper.CSharpToCalor(typePattern.Type.ToString())),
+            UnaryPatternSyntax { OperatorToken.Text: "not", Pattern: TypePatternSyntax notType } =>
+                // "x is not SomeType" - negate type check
+                new UnaryOperationNode(GetTextSpan(isPattern), UnaryOperator.Not,
+                    new TypeOperationNode(GetTextSpan(isPattern), TypeOp.Is, left,
+                        TypeMapper.CSharpToCalor(notType.Type.ToString()))),
             DeclarationPatternSyntax declPattern =>
                 ConvertDeclarationPattern(isPattern, left, declPattern),
             _ =>

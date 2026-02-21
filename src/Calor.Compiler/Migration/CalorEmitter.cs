@@ -1684,6 +1684,9 @@ public sealed class CalorEmitter : IAstVisitor<string>
             PropertyPatternNode pp => Visit(pp),
             PositionalPatternNode pos => Visit(pos),
             ListPatternNode lp => Visit(lp),
+            NegatedPatternNode np => $"(not {EmitPattern(np.Inner)})",
+            OrPatternNode orp => $"(or {EmitPattern(orp.Left)} {EmitPattern(orp.Right)})",
+            AndPatternNode andp => $"(and {EmitPattern(andp.Left)} {EmitPattern(andp.Right)})",
             _ => "_"
         };
     }
@@ -1716,6 +1719,9 @@ public sealed class CalorEmitter : IAstVisitor<string>
     public string Visit(ErrPatternNode node) => $"§ERR {EmitPattern(node.InnerPattern)}";
     public string Visit(VarPatternNode node) => $"§VAR{{{node.Name}}}";
     public string Visit(ConstantPatternNode node) => node.Value.Accept(this);
+    public string Visit(NegatedPatternNode node) => $"(not {EmitPattern(node.Inner)})";
+    public string Visit(OrPatternNode node) => $"(or {EmitPattern(node.Left)} {EmitPattern(node.Right)})";
+    public string Visit(AndPatternNode node) => $"(and {EmitPattern(node.Left)} {EmitPattern(node.Right)})";
 
     // Additional pattern nodes
     public string Visit(PositionalPatternNode node)

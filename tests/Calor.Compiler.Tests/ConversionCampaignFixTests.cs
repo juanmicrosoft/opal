@@ -2186,4 +2186,127 @@ public class Demo
     }
 
     #endregion
+
+    #region Batch 14: Pattern combinators and negated type patterns (#324)
+
+    [Fact]
+    public void Convert_NotNullPattern_InSwitch()
+    {
+        var csharp = @"
+public class Demo
+{
+    public string Describe(object? obj)
+    {
+        return obj switch
+        {
+            not null => obj.ToString(),
+            null => ""nothing""
+        };
+    }
+}";
+        var result = _converter.Convert(csharp);
+        Assert.NotNull(result.CalorSource);
+        var calor = result.CalorSource!;
+
+        // Should contain a negated pattern, not a wildcard fallback
+        Assert.Contains("not", calor);
+        Assert.DoesNotContain("unsupported", calor.ToLower());
+    }
+
+    [Fact]
+    public void Convert_OrPattern_InSwitch()
+    {
+        var csharp = @"
+public class Demo
+{
+    public string Classify(int x)
+    {
+        return x switch
+        {
+            1 or 2 or 3 => ""low"",
+            _ => ""other""
+        };
+    }
+}";
+        var result = _converter.Convert(csharp);
+        Assert.NotNull(result.CalorSource);
+        var calor = result.CalorSource!;
+
+        // Should contain or-pattern, not wildcard
+        Assert.Contains("or", calor);
+    }
+
+    [Fact]
+    public void Convert_AndPattern_InSwitch()
+    {
+        var csharp = @"
+public class Demo
+{
+    public string Range(int x)
+    {
+        return x switch
+        {
+            > 0 and < 100 => ""in range"",
+            _ => ""out of range""
+        };
+    }
+}";
+        var result = _converter.Convert(csharp);
+        Assert.NotNull(result.CalorSource);
+        var calor = result.CalorSource!;
+
+        // Should contain and-pattern
+        Assert.Contains("and", calor);
+    }
+
+    [Fact]
+    public void Convert_IsNotType_InExpression()
+    {
+        var csharp = @"
+public class Demo
+{
+    public bool Check(object obj)
+    {
+        return obj is not string;
+    }
+}";
+        var result = _converter.Convert(csharp);
+        Assert.NotNull(result.CalorSource);
+        var calor = result.CalorSource!;
+
+        // Should contain a negated type check, not a fallback
+        Assert.DoesNotContain("ERR", calor);
+        Assert.DoesNotContain("complex-is-pattern", calor);
+    }
+
+    [Fact]
+    public void PatternCombinators_RoundTrip()
+    {
+        // Test that (not null), (or 1 2), (and (gt 0) (lt 100)) patterns round-trip
+        var calor = @"
+§M{m001:PatternTest}
+  §F{f001:Classify:pub}
+    §I{i32:x}
+    §O{str}
+    §W{w001} x
+      §K (not null)
+        §R ""found""
+      §K (or 1 2)
+        §R ""one or two""
+      §K (and gt 0 lt 100)
+        §R ""in range""
+      §K _
+        §R ""other""
+    §/W{w001}
+  §/F{f001}
+§/M{m001}
+";
+        var compiled = ParseAndEmit(calor);
+        // Should emit proper C# switch with pattern combinators
+        Assert.Contains("not null", compiled);
+        Assert.Contains("1 or 2", compiled);
+        Assert.Contains("> 0 and < 100", compiled);
+    }
+
+    #endregion
 }

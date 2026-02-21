@@ -178,6 +178,9 @@ public abstract class AstPositionVisitor<T> : IAstVisitor<T> where T : class?
     public virtual T Visit(ListPatternNode node) => DefaultVisit(node)!;
     public virtual T Visit(VarPatternNode node) => DefaultVisit(node)!;
     public virtual T Visit(ConstantPatternNode node) => DefaultVisit(node)!;
+    public virtual T Visit(NegatedPatternNode node) => DefaultVisit(node)!;
+    public virtual T Visit(OrPatternNode node) => DefaultVisit(node)!;
+    public virtual T Visit(AndPatternNode node) => DefaultVisit(node)!;
 
     // Extended features - documentation
     public virtual T Visit(ExampleNode node) => DefaultVisit(node)!;

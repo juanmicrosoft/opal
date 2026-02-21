@@ -1294,6 +1294,9 @@ public sealed class CSharpEmitter : IAstVisitor<string>
             OkPatternNode op => $"{{ IsOk: true, Value: {EmitPattern(op.InnerPattern)} }}",
             ErrPatternNode ep => $"{{ IsErr: true, Error: {EmitPattern(ep.InnerPattern)} }}",
             ListPatternNode lp => Visit(lp),
+            NegatedPatternNode np => $"not {EmitPattern(np.Inner)}",
+            OrPatternNode orp => $"{EmitPattern(orp.Left)} or {EmitPattern(orp.Right)}",
+            AndPatternNode andp => $"{EmitPattern(andp.Left)} and {EmitPattern(andp.Right)}",
             _ => "_"
         };
     }
@@ -2947,6 +2950,21 @@ public sealed class CSharpEmitter : IAstVisitor<string>
     public string Visit(ConstantPatternNode node)
     {
         return node.Value.Accept(this);
+    }
+
+    public string Visit(NegatedPatternNode node)
+    {
+        return $"not {EmitPattern(node.Inner)}";
+    }
+
+    public string Visit(OrPatternNode node)
+    {
+        return $"{EmitPattern(node.Left)} or {EmitPattern(node.Right)}";
+    }
+
+    public string Visit(AndPatternNode node)
+    {
+        return $"{EmitPattern(node.Left)} and {EmitPattern(node.Right)}";
     }
 
     #region Extended Features Visit Methods

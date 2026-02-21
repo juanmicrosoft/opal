@@ -239,6 +239,9 @@ public sealed class IdScanner : IAstVisitor
     public void Visit(ListPatternNode node) { }
     public void Visit(VarPatternNode node) { }
     public void Visit(ConstantPatternNode node) { }
+    public void Visit(NegatedPatternNode node) { }
+    public void Visit(OrPatternNode node) { }
+    public void Visit(AndPatternNode node) { }
     public void Visit(ExampleNode node) { }
     public void Visit(IssueNode node) { }
     public void Visit(DependencyNode node) { }
