@@ -616,7 +616,8 @@ public sealed class Lexer
                 return MakeToken(TokenKind.NullConditional);
             }
             // Unknown §? pattern - report error
-            _diagnostics.ReportUnexpectedCharacter(CurrentSpan(), '?');
+            _diagnostics.ReportError(CurrentSpan(), Diagnostics.DiagnosticCode.InvalidSectionOperator,
+                "Invalid section operator '§?'. Expected '§??' (null-coalesce) or '§?.' (null-conditional).");
             return MakeToken(TokenKind.Error);
         }
 
@@ -697,7 +698,7 @@ public sealed class Lexer
         // Special case: §CAST is a common mistake — casting uses Lisp syntax
         if (keyword.Equals("CAST", StringComparison.OrdinalIgnoreCase))
         {
-            _diagnostics.ReportError(CurrentSpan(), Diagnostics.DiagnosticCode.UnexpectedCharacter,
+            _diagnostics.ReportError(CurrentSpan(), Diagnostics.DiagnosticCode.UnknownSectionMarker,
                 $"Unknown section marker '§{keyword}'. Calor uses Lisp syntax for casts: " +
                 $"(cast TargetType expr). Example: (cast i32 myFloat)");
             return;
@@ -712,12 +713,12 @@ public sealed class Lexer
                 suggestion.TrimStart('/'), out var desc)
                 ? $" ({desc})"
                 : "";
-            _diagnostics.ReportError(CurrentSpan(), Diagnostics.DiagnosticCode.UnexpectedCharacter,
+            _diagnostics.ReportError(CurrentSpan(), Diagnostics.DiagnosticCode.UnknownSectionMarker,
                 $"Unknown section marker '§{keyword}'. Did you mean '§{suggestion}'{description}?");
         }
         else
         {
-            _diagnostics.ReportError(CurrentSpan(), Diagnostics.DiagnosticCode.UnexpectedCharacter,
+            _diagnostics.ReportError(CurrentSpan(), Diagnostics.DiagnosticCode.UnknownSectionMarker,
                 $"Unknown section marker '§{keyword}'. Common markers: {SectionMarkerSuggestions.GetCommonMarkers()}");
         }
     }
