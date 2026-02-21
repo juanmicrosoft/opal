@@ -3257,7 +3257,7 @@ public sealed class CSharpEmitter : IAstVisitor<string>
             }
             else if (c == '.')
             {
-                sb.Append('_');
+                sb.Append('.');
             }
         }
 

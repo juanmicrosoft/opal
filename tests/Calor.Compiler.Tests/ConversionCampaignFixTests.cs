@@ -62,6 +62,20 @@ public class ConversionCampaignFixTests
 §K _
 §R ""other""
 §/W{m1}
+    #endregion
+
+    #region Issue 292: Preserve namespace dots in type names
+
+    [Fact]
+    public void Emit_NewWithNamespacedType_PreservesDots()
+    {
+        var source = @"
+§M{m001:Test}
+§F{f001:BuildReport:pub}
+§O{str}
+§E{cw}
+§B{sb} §NEW{System.Text.StringBuilder} §/NEW
+§R (str sb)
 §/F{f001}
 §/M{m001}
 ";
@@ -164,6 +178,8 @@ public class ConversionCampaignFixTests
         Assert.Contains("get; set;", csharp);
         Assert.Contains("this._id", csharp);
         Assert.DoesNotContain("@this", csharp);
+        Assert.Contains("new System.Text.StringBuilder()", csharp);
+        Assert.DoesNotContain("System_Text_StringBuilder", csharp);
     }
 
     #endregion
