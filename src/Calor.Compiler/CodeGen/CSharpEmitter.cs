@@ -1759,6 +1759,12 @@ public sealed class CSharpEmitter : IAstVisitor<string>
         AppendLine("{");
         Indent();
 
+        foreach (var prop in node.Properties)
+        {
+            Visit(prop);
+            AppendLine();
+        }
+
         foreach (var method in node.Methods)
         {
             Visit(method);

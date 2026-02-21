@@ -180,6 +180,50 @@ public class ConversionCampaignFixTests
         Assert.DoesNotContain("@this", csharp);
         Assert.Contains("new System.Text.StringBuilder()", csharp);
         Assert.DoesNotContain("System_Text_StringBuilder", csharp);
+    #endregion
+
+    #region Issue 294: Support §PROP inside §IFACE for interface properties
+
+    [Fact]
+    public void Emit_InterfaceWithProperty_EmitsPropertyNotMethod()
+    {
+        var source = @"
+§M{m001:Test}
+§IFACE{i001:IOrder}
+§PROP{p001:Purchased:datetime:pub}
+§GET §/GET
+§/PROP{p001}
+§/IFACE{i001}
+§/M{m001}
+";
+        var csharp = ParseAndEmit(source);
+        Assert.Contains("interface IOrder", csharp);
+        // Property should appear (either get-only or get-set depending on branch)
+        Assert.Contains("DateTime Purchased", csharp);
+        Assert.Contains("get;", csharp);
+        Assert.DoesNotContain("DateTime Purchased()", csharp);
+    }
+
+    [Fact]
+    public void Emit_InterfaceWithPropertyAndMethod_EmitsBoth()
+    {
+        var source = @"
+§M{m001:Test}
+§IFACE{i001:IOrder}
+§PROP{p001:Cost:f64:pub}
+§GET §/GET
+§/PROP{p001}
+§MT{m001:GetDescription}
+§O{str}
+§/MT{m001}
+§/IFACE{i001}
+§/M{m001}
+";
+        var csharp = ParseAndEmit(source);
+        Assert.Contains("interface IOrder", csharp);
+        Assert.Contains("double Cost", csharp);
+        Assert.Contains("get;", csharp);
+        Assert.Contains("string GetDescription()", csharp);
     }
 
     #endregion
