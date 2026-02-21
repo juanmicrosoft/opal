@@ -223,6 +223,51 @@ public static class MigrateCommand
 
             if (telemetry != null)
             {
+                // Track aggregate conversion metrics (Phase 4)
+                try
+                {
+                    // Use benchmark metrics when available, otherwise count lines from source files
+                    var totalInputLines = report.FileResults
+                        .Where(f => f.Metrics != null)
+                        .Sum(f => f.Metrics!.OriginalLines);
+                    if (totalInputLines == 0)
+                    {
+                        foreach (var fileResult in report.FileResults)
+                        {
+                            try
+                            {
+                                if (File.Exists(fileResult.SourcePath))
+                                    totalInputLines += File.ReadAllLines(fileResult.SourcePath).Length;
+                            }
+                            catch
+                            {
+                                // Best effort — skip files that can't be read
+                            }
+                        }
+                    }
+                    var totalIssues = report.FileResults.Sum(f => f.Issues.Count);
+                    var totalUnsupported = report.FileResults.Sum(f =>
+                        f.Issues.Count(i => i.Feature != null));
+                    telemetry.TrackConversionAttempted(
+                        totalInputLines,
+                        report.Summary.FailedFiles == 0,
+                        sw.ElapsedMilliseconds,
+                        totalIssues,
+                        totalUnsupported);
+
+                    // Track individual conversion gaps
+                    foreach (var issue in report.FileResults
+                        .SelectMany(f => f.Issues)
+                        .Where(i => i.Feature != null))
+                    {
+                        telemetry.TrackConversionGap(issue.Feature!, issue.Line);
+                    }
+                }
+                catch
+                {
+                    // Never crash the CLI
+                }
+
                 var featureCounts = report.FileResults
                     .SelectMany(f => f.Issues)
                     .Where(i => i.Feature != null)
