@@ -131,6 +131,13 @@ public sealed class CalorEmitter : IAstVisitor<string>
             AppendLine();
         }
 
+        // Emit C# interop blocks
+        foreach (var interop in node.InteropBlocks)
+        {
+            Visit(interop);
+            AppendLine();
+        }
+
         Dedent();
         AppendLine($"§/M{{{node.Id}}}");
 
@@ -290,6 +297,13 @@ public sealed class CalorEmitter : IAstVisitor<string>
         foreach (var op in node.OperatorOverloads)
         {
             Visit(op);
+            AppendLine();
+        }
+
+        // Emit C# interop blocks
+        foreach (var interop in node.InteropBlocks)
+        {
+            Visit(interop);
             AppendLine();
         }
 
@@ -2430,5 +2444,11 @@ public sealed class CalorEmitter : IAstVisitor<string>
     public string Visit(RawCSharpNode node)
     {
         return $"§RAW\n{node.CSharpCode}\n§/RAW";
+    }
+
+    public string Visit(CSharpInteropBlockNode node)
+    {
+        AppendLine($"§CSHARP{{{node.CSharpCode}}}§/CSHARP");
+        return "";
     }
 }

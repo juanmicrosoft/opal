@@ -294,6 +294,11 @@ public sealed class ClassDefinitionNode : TypeDefinitionNode
     /// </summary>
     public IReadOnlyList<CalorAttributeNode> CSharpAttributes { get; }
 
+    /// <summary>
+    /// C# interop blocks (member-level raw C# preserved during partial conversion).
+    /// </summary>
+    public IReadOnlyList<CSharpInteropBlockNode> InteropBlocks { get; }
+
     public ClassDefinitionNode(
         TextSpan span,
         string id,
@@ -421,7 +426,8 @@ public sealed class ClassDefinitionNode : TypeDefinitionNode
         IReadOnlyList<CalorAttributeNode> csharpAttributes,
         bool isStruct = false,
         bool isReadOnly = false,
-        Visibility visibility = Visibility.Internal)
+        Visibility visibility = Visibility.Internal,
+        IReadOnlyList<CSharpInteropBlockNode>? interopBlocks = null)
         : base(span, id, name, attributes)
     {
         IsAbstract = isAbstract;
@@ -441,6 +447,7 @@ public sealed class ClassDefinitionNode : TypeDefinitionNode
         Events = events ?? Array.Empty<EventDefinitionNode>();
         OperatorOverloads = operatorOverloads ?? Array.Empty<OperatorOverloadNode>();
         CSharpAttributes = csharpAttributes ?? Array.Empty<CalorAttributeNode>();
+        InteropBlocks = interopBlocks ?? Array.Empty<CSharpInteropBlockNode>();
     }
 
     public override void Accept(IAstVisitor visitor) => visitor.Visit(this);

@@ -99,6 +99,7 @@ public sealed class Parser
         var invariants = new List<InvariantNode>();
         var decisions = new List<DecisionNode>();
         ContextNode? context = null;
+        var interopBlocks = new List<CSharpInteropBlockNode>();
 
         while (!IsAtEnd && !Check(TokenKind.EndModule))
         {
@@ -169,9 +170,13 @@ public sealed class Parser
             {
                 context = ParseContext();
             }
+            else if (Check(TokenKind.CSharpInterop))
+            {
+                interopBlocks.Add(ParseCSharpInteropBlock());
+            }
             else
             {
-                _diagnostics.ReportUnexpectedToken(Current.Span, "USING, IFACE, CLASS, DEL, FUNC, or END_MODULE", Current.Kind);
+                _diagnostics.ReportUnexpectedToken(Current.Span, "USING, IFACE, CLASS, DEL, FUNC, CSHARP, or END_MODULE", Current.Kind);
                 Advance();
             }
         }
@@ -189,7 +194,7 @@ public sealed class Parser
         var span = startToken.Span.Union(endToken.Span);
         return new ModuleNode(span, id, moduleName, usings, interfaces, classes,
             enums, enumExtensions, delegates, functions, attrs,
-            issues, assumptions, invariants, decisions, context);
+            issues, assumptions, invariants, decisions, context, interopBlocks);
     }
 
     /// <summary>
@@ -4804,6 +4809,7 @@ public sealed class Parser
         var methods = new List<MethodNode>();
         var events = new List<EventDefinitionNode>();
         var operatorOverloads = new List<OperatorOverloadNode>();
+        var interopBlocks = new List<CSharpInteropBlockNode>();
 
         while (!IsAtEnd && !Check(TokenKind.EndClass))
         {
@@ -4859,9 +4865,13 @@ public sealed class Parser
             {
                 events.Add(ParseEventDefinition());
             }
+            else if (Check(TokenKind.CSharpInterop))
+            {
+                interopBlocks.Add(ParseCSharpInteropBlock());
+            }
             else
             {
-                _diagnostics.ReportUnexpectedToken(Current.Span, "TP, WHERE, EXT, IMPL, FLD, PROP, CTOR, OP, METHOD, AMT, EVT, or END_CLASS", Current.Kind);
+                _diagnostics.ReportUnexpectedToken(Current.Span, "TP, WHERE, EXT, IMPL, FLD, PROP, CTOR, OP, METHOD, AMT, EVT, CSHARP, or END_CLASS", Current.Kind);
                 Advance();
             }
         }
@@ -4878,7 +4888,18 @@ public sealed class Parser
         var span = startToken.Span.Union(endToken.Span);
         return new ClassDefinitionNode(span, id, name, isAbstract, isSealed, isPartial, isStatic, baseClass,
             implementedInterfaces, typeParameters, fields, properties, constructors, methods, events, operatorOverloads, attrs, csharpAttrs,
-            isStruct: isStruct, isReadOnly: isReadOnly, visibility: visibility);
+            isStruct: isStruct, isReadOnly: isReadOnly, visibility: visibility, interopBlocks: interopBlocks);
+    }
+
+    /// <summary>
+    /// Parses a C# interop block.
+    /// §CSHARP{...}§/CSHARP
+    /// </summary>
+    private CSharpInteropBlockNode ParseCSharpInteropBlock()
+    {
+        var token = Expect(TokenKind.CSharpInterop);
+        var content = token.Value as string ?? "";
+        return new CSharpInteropBlockNode(token.Span, content);
     }
 
     /// <summary>
